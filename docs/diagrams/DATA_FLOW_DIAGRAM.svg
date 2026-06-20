@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1000">
+  <defs>
+    <style>
+      .process-box { fill: #E1F5FE; stroke: #01579B; stroke-width: 2; }
+      .data-store { fill: #F1F8E9; stroke: #33691E; stroke-width: 2; }
+      .external { fill: #FFF3E0; stroke: #E65100; stroke-width: 2; }
+      .arrow { stroke: #424242; stroke-width: 2; marker-end: url(#arrowhead); }
+      .dashed-arrow { stroke: #999; stroke-width: 2; stroke-dasharray: 5,5; marker-end: url(#arrowhead-gray); }
+      .text { font-family: Arial, sans-serif; font-size: 12px; }
+      .title { font-size: 24px; font-weight: bold; fill: #01579B; }
+      .subtitle { font-size: 13px; fill: #666; font-weight: bold; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#424242" />
+    </marker>
+    <marker id="arrowhead-gray" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#999" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="30" text-anchor="middle" class="title">Data Flow Diagram</text>
+  <text x="700" y="50" text-anchor="middle" class="subtitle">Complete Data Journey Through BurnOut Tracker System</text>
+
+  <!-- FLOW 1: APP USAGE DETECTION & SYNC -->
+  <text x="50" y="90" class="subtitle">📊 FLOW 1: APP USAGE DETECTION & SYNC (Every 30 minutes)</text>
+
+  <!-- Source -->
+  <rect x="50" y="110" width="180" height="80" class="external" rx="5"/>
+  <text x="140" y="135" text-anchor="middle" class="text" font-weight="bold">User Device</text>
+  <text x="60" y="155" class="text">• Foreground app changes</text>
+  <text x="60" y="170" class="text">• UsageStats API reads</text>
+  <text x="60" y="180" class="text">• Timestamp logged</text>
+
+  <!-- AppMonitoringService -->
+  <path d="M 230 155 L 290 155" class="arrow"/>
+  <text x="255" y="145" class="text" font-size="11">App Focus</text>
+  <text x="255" y="160" class="text" font-size="11">Changed</text>
+
+  <rect x="290" y="110" width="180" height="80" class="process-box" rx="5"/>
+  <text x="380" y="135" text-anchor="middle" class="text" font-weight="bold">AppMonitoringService</text>
+  <text x="300" y="155" class="text">1. Capture app name</text>
+  <text x="300" y="170" class="text">2. Record duration</text>
+  <text x="300" y="180" class="text">3. Cache locally</text>
+
+  <!-- TensorFlow Lite -->
+  <path d="M 470 155 L 530 155" class="arrow"/>
+  <text x="495" y="145" class="text" font-size="11">App Data</text>
+
+  <rect x="530" y="110" width="180" height="80" class="process-box" rx="5" style="fill: #FFE0B2; stroke: #F57C00;"/>
+  <text x="620" y="135" text-anchor="middle" class="text" font-weight="bold">TensorFlow Lite</text>
+  <text x="540" y="155" class="text">3. ML Classification</text>
+  <text x="540" y="170" class="text">(app_classifier.tflite)</text>
+  <text x="540" y="180" class="text">Output: Category</text>
+
+  <!-- Local Storage -->
+  <path d="M 710 155 L 770 155" class="arrow"/>
+  <text x="735" y="145" class="text" font-size="11">Category</text>
+
+  <ellipse cx="850" cy="155" rx="70" ry="50" class="data-store"/>
+  <text x="850" y="140" text-anchor="middle" class="text" font-weight="bold">Room Database</text>
+  <text x="850" y="160" class="text">(Local Cache)</text>
+
+  <!-- Batch Sync -->
+  <path d="M 850 210 L 850 260" class="arrow"/>
+  <text x="870" y="235" class="text" font-size="11">Every 30 mins</text>
+
+  <rect x="750" y="260" width="200" height="70" class="process-box" rx="5"/>
+  <text x="850" y="280" text-anchor="middle" class="text" font-weight="bold">HTTP Request (Retrofit)</text>
+  <text x="760" y="300" class="text">POST /api/usage/log</text>
+  <text x="760" y="315" class="text">{ category, duration }</text>
+
+  <!-- Network -->
+  <path d="M 950 295 L 1030 295" class="arrow"/>
+  <text x="985" y="285" class="text" font-size="11">HTTPS</text>
+
+  <!-- Backend API -->
+  <rect x="1030" y="260" width="200" height="70" class="process-box" rx="5"/>
+  <text x="1130" y="280" text-anchor="middle" class="text" font-weight="bold">Backend API Handler</text>
+  <text x="1040" y="300" class="text">POST /api/usage/log</text>
+  <text x="1040" y="315" class="text">(Verify JWT)</text>
+
+  <!-- Database Write -->
+  <path d="M 1130 330 L 1130 380" class="arrow"/>
+  <text x="1150" y="355" class="text" font-size="11">SQL Insert</text>
+
+  <ellipse cx="1130" cy="430" rx="80" ry="40" class="data-store"/>
+  <text x="1130" y="425" text-anchor="middle" class="text" font-weight="bold">app_usage Table</text>
+  <text x="1130" y="440" class="text">(SQLite)</text>
+
+  <path d="M 1030 295 L 950 295" class="dashed-arrow"/>
+  <text x="985" y="285" class="text" font-size="10">Response {success}</text>
+
+  <!-- FLOW 2: BURNOUT PREDICTION -->
+  <text x="50" y="500" class="subtitle">🔴 FLOW 2: BURNOUT RISK COMPUTATION (Server-side ML)</text>
+
+  <!-- Data Aggregation -->
+  <circle cx="100" cy="570" r="45" class="data-store"/>
+  <text x="100" y="575" text-anchor="middle" class="text" font-size="11">sleep_mood</text>
+  <text x="100" y="588" text-anchor="middle" class="text" font-size="11">table</text>
+
+  <circle cx="200" cy="570" r="45" class="data-store"/>
+  <text x="200" y="575" text-anchor="middle" class="text" font-size="11">physical</text>
+  <text x="200" y="588" text-anchor="middle" class="text" font-size="11">activity</text>
+
+  <circle cx="300" cy="570" r="45" class="data-store"/>
+  <text x="300" y="575" text-anchor="middle" class="text" font-size="11">app_usage</text>
+  <text x="300" y="588" text-anchor="middle" class="text" font-size="11">table</text>
+
+  <circle cx="400" cy="570" r="45" class="data-store"/>
+  <text x="400" y="575" text-anchor="middle" class="text" font-size="11">study</text>
+  <text x="400" y="588" text-anchor="middle" class="text" font-size="11">sessions</text>
+
+  <!-- Converge to aggregation -->
+  <path d="M 145 570 L 200 570 L 200 605 M 245 570 L 300 570 L 300 605 M 345 570 L 400 570 L 400 605 M 100 615 L 100 650 L 250 650 L 250 685" class="arrow"/>
+
+  <rect x="180" y="685" width="140" height="70" class="process-box" rx="5"/>
+  <text x="250" y="705" text-anchor="middle" class="text" font-weight="bold">Data Aggregation</text>
+  <text x="190" y="725" class="text">Calculate daily totals:</text>
+  <text x="190" y="740" class="text">• Sleep avg, Activity count</text>
+  <text x="190" y="753" class="text">• Usage by category</text>
+
+  <!-- Normalization -->
+  <path d="M 320 720 L 395 720" class="arrow"/>
+  <text x="350" y="710" class="text" font-size="11">Aggregated</text>
+  <text x="350" y="725" class="text" font-size="11">Data</text>
+
+  <rect x="395" y="685" width="140" height="70" class="process-box" rx="5"/>
+  <text x="465" y="705" text-anchor="middle" class="text" font-weight="bold">Normalization</text>
+  <text x="405" y="725" class="text">Scale to 0-1 range:</text>
+  <text x="405" y="740" class="text">Sleep (0-24h → 0-1)</text>
+  <text x="405" y="753" class="text">Activity (0-10k → 0-1)</text>
+
+  <!-- ML Computation -->
+  <path d="M 535 720 L 610 720" class="arrow"/>
+
+  <rect x="610" y="685" width="180" height="70" class="process-box" rx="5" style="fill: #FFE0B2; stroke: #F57C00; stroke-width: 2;"/>
+  <text x="700" y="705" text-anchor="middle" class="text" font-weight="bold">🤖 Burnout Algorithm</text>
+  <text x="620" y="725" class="text">Score = (Sleep×0.25)+</text>
+  <text x="620" y="740" class="text">(Activity×0.20)+(Load×0.25)</text>
+  <text x="620" y="753" class="text">+(Mood×0.30)</text>
+
+  <!-- Result -->
+  <path d="M 790 720 L 865 720" class="arrow"/>
+
+  <rect x="865" y="685" width="140" height="70" class="process-box" rx="5"/>
+  <text x="935" y="705" text-anchor="middle" class="text" font-weight="bold">Risk Classification</text>
+  <text x="875" y="725" class="text">Score → Level:</text>
+  <text x="875" y="740" class="text">Low/Moderate/</text>
+  <text x="875" y="753" class="text">High/Critical</text>
+
+  <!-- Recommendations -->
+  <path d="M 1005 720 L 1080 720" class="arrow"/>
+
+  <rect x="1080" y="685" width="160" height="70" class="process-box" rx="5"/>
+  <text x="1160" y="705" text-anchor="middle" class="text" font-weight="bold">Recommendation</text>
+  <text x="1090" y="725" class="text">Engine</text>
+  <text x="1090" y="740" class="text">Generate:</text>
+  <text x="1090" y="753" class="text">• Warnings • Tips</text>
+
+  <!-- Store Result -->
+  <path d="M 935 755 L 935 790" class="arrow"/>
+
+  <ellipse cx="935" cy="840" rx="90" ry="40" class="data-store"/>
+  <text x="935" y="835" text-anchor="middle" class="text" font-weight="bold">burnout_assessments</text>
+  <text x="935" y="850" class="text">Table (Results saved)</text>
+
+  <!-- FLOW 3: SLEEP & MOOD LOGGING -->
+  <text x="50" y="900" class="subtitle">💤 FLOW 3: SLEEP & MOOD MANUAL LOGGING</text>
+
+  <rect x="50" y="920" width="160" height="60" class="external" rx="5"/>
+  <text x="130" y="945" text-anchor="middle" class="text" font-weight="bold">User Action</text>
+  <text x="60" y="965" class="text">Sleep: 8h, Quality: 8/10</text>
+  <text x="60" y="975" class="text">Mood: 😊 Score: 9/10</text>
+
+  <path d="M 210 950 L 280 950" class="arrow"/>
+  <text x="240" y="940" class="text" font-size="10">Form Input</text>
+
+  <rect x="280" y="920" width="170" height="60" class="process-box" rx="5"/>
+  <text x="365" y="945" text-anchor="middle" class="text" font-weight="bold">Validation</text>
+  <text x="290" y="965" class="text">• Check ranges</text>
+  <text x="290" y="975" class="text">• Format date/time</text>
+
+  <path d="M 450 950 L 530 950" class="arrow"/>
+
+  <rect x="530" y="920" width="180" height="60" class="process-box" rx="5"/>
+  <text x="620" y="945" text-anchor="middle" class="text" font-weight="bold">HTTP Request</text>
+  <text x="540" y="965" class="text">POST /api/sleep-mood/log</text>
+  <text x="540" y="975" class="text">(with JWT token)</text>
+
+  <path d="M 710 950 L 790 950" class="arrow"/>
+
+  <ellipse cx="850" cy="950" rx="80" ry="35" class="data-store"/>
+  <text x="850" y="945" text-anchor="middle" class="text" font-weight="bold">sleep_mood_logs</text>
+  <text x="850" y="963" class="text">Table (persist)</text>
+
+  <!-- Legend -->
+  <rect x="0" y="0" width="1400" height="1000" style="fill: none; stroke: #ccc; stroke-width: 1; stroke-dasharray: 0;"/>
+
+  <text x="50" y="1000" class="text" font-size="11">
+    🔵 Process (transforms data)  |  🟢 Data Store (SQLite tables)  |  🟠 External System (sensors/APIs)
+  </text>
+</svg>

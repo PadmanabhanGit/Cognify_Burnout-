@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 950">
+  <defs>
+    <style>
+      .entity { fill: #E3F2FD; stroke: #1565C0; stroke-width: 2; }
+      .pk { fill: #FFE082; font-weight: bold; }
+      .fk { fill: #FFCCBC; font-weight: bold; }
+      .field { font-family: Arial; font-size: 11px; }
+      .relation-line { stroke: #D32F2F; stroke-width: 2; }
+      .title { font-size: 24px; font-weight: bold; fill: #1565C0; }
+      .subtitle { font-size: 12px; fill: #666; }
+      .cardinality { font-size: 10px; fill: #D32F2F; font-weight: bold; }
+    </style>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="40" text-anchor="middle" class="title">Entity-Relationship Diagram (ERD)</text>
+  <text x="700" y="58" text-anchor="middle" class="subtitle">BurnOut Tracker Database Schema</text>
+
+  <!-- USERS ENTITY (Central) -->
+  <rect x="550" y="80" width="300" height="200" class="entity" rx="5"/>
+  <text x="700" y="110" text-anchor="middle" style="font-weight: bold; font-size: 14px;">USERS (Central Entity)</text>
+  <line x1="560" y1="120" x2="840" y2="120" style="stroke: #1565C0; stroke-width: 1;"/>
+
+  <text x="570" y="140" class="field"><tspan class="pk">🔑 id</tspan> - TEXT (Primary Key)</text>
+  <text x="570" y="158" class="field"><tspan class="fk">📧 email</tspan> - TEXT (UNIQUE)</text>
+  <text x="570" y="176" class="field">password - TEXT (bcrypt)</text>
+  <text x="570" y="194" class="field">fullName - TEXT</text>
+  <text x="570" y="212" class="field">avatarUrl - TEXT (optional)</text>
+  <text x="570" y="230" class="field">created_at - TIMESTAMP</text>
+  <text x="570" y="248" class="field">updated_at - TIMESTAMP</text>
+  <text x="570" y="266" class="field">isActive - BOOLEAN</text>
+
+  <!-- SLEEP_MOOD_LOGS ENTITY -->
+  <rect x="50" y="350" width="280" height="200" class="entity" rx="5"/>
+  <text x="190" y="380" text-anchor="middle" style="font-weight: bold; font-size: 13px;">SLEEP_MOOD_LOGS</text>
+  <line x1="60" y1="390" x2="320" y2="390" style="stroke: #1565C0; stroke-width: 1;"/>
+
+  <text x="70" y="410" class="field"><tspan class="pk">🔑 id</tspan> - TEXT</text>
+  <text x="70" y="428" class="field"><tspan class="fk">👤 userId</tspan> → users.id</text>
+  <text x="70" y="446" class="field">date - TEXT (ISO)</text>
+  <text x="70" y="464" class="field">sleepDuration - REAL (hrs)</text>
+  <text x="70" y="482" class="field">sleepQuality - INT (1-10)</text>
+  <text x="70" y="500" class="field">mood - TEXT (category)</text>
+  <text x="70" y="518" class="field">moodScore - INT (1-10)</text>
+  <text x="70" y="536" class="field">notes - TEXT</text>
+
+  <!-- Relationship 1: users → sleep_mood_logs -->
+  <path d="M 550 180 Q 400 250 190 350" class="relation-line" fill="none" stroke-dasharray="5,5"/>
+  <text x="420" y="250" class="cardinality">1:N</text>
+
+  <!-- APP_USAGE ENTITY -->
+  <rect x="400" y="350" width="280" height="180" class="entity" rx="5"/>
+  <text x="540" y="380" text-anchor="middle" style="font-weight: bold; font-size: 13px;">APP_USAGE</text>
+  <line x1="410" y1="390" x2="670" y2="390" style="stroke: #1565C0; stroke-width: 1;"/>
+
+  <text x="420" y="410" class="field"><tspan class="pk">🔑 id</tspan> - TEXT</text>
+  <text x="420" y="428" class="field"><tspan class="fk">👤 userId</tspan> → users.id</text>
+  <text x="420" y="446" class="field">date - TEXT (ISO)</text>
+  <text x="420" y="464" class="field">category - TEXT</text>
+  <text x="420" y="482" class="field">  (Study/Work/Social/Ent)</text>
+  <text x="420" y="500" class="field">duration - INT (minutes)</text>
+  <text x="420" y="518" class="field">UNIQUE(userId, date, category)</text>
+
+  <!-- Relationship 2: users → app_usage -->
+  <path d="M 600 280 L 540 350" class="relation-line" fill="none" stroke-dasharray="5,5"/>
+  <text x="580" y="310" class="cardinality">1:N</text>
+
+  <!-- PHYSICAL_ACTIVITY ENTITY -->
+  <rect x="750" y="350" width="280" height="200" class="entity" rx="5"/>
+  <text x="890" y="380" text-anchor="middle" style="font-weight: bold; font-size: 13px;">PHYSICAL_ACTIVITY</text>
+  <line x1="760" y1="390" x2="1020" y2="390" style="stroke: #1565C0; stroke-width: 1;"/>
+
+  <text x="770" y="410" class="field"><tspan class="pk">🔑 id</tspan> - TEXT</text>
+  <text x="770" y="428" class="field"><tspan class="fk">👤 userId</tspan> → users.id</text>
+  <text x="770" y="446" class="field">date - TEXT (ISO)</text>
+  <text x="770" y="464" class="field">steps - INT</text>
+  <text x="770" y="482" class="field">calories - INT</text>
+  <text x="770" y="500" class="field">activeMinutes - INT</text>
+  <text x="770" y="518" class="field">source - TEXT</text>
+  <text x="770" y="536" class="field">  (SamsungHealth/GoogleFit)</text>
+  <text x="770" y="554" class="field">UNIQUE(userId, date)</text>
+
+  <!-- Relationship 3: users → physical_activity -->
+  <path d="M 750 180 Q 850 260 890 350" class="relation-line" fill="none" stroke-dasharray="5,5"/>
+  <text x="880" y="260" class="cardinality">1:N</text>
+
+  <!-- STUDY_SESSIONS ENTITY -->
+  <rect x="1100" y="350" width="280" height="180" class="entity" rx="5"/>
+  <text x="1240" y="380" text-anchor="middle" style="font-weight: bold; font-size: 13px;">STUDY_SESSIONS</text>
+  <line x1="1110" y1="390" x2="1370" y2="390" style="stroke: #1565C0; stroke-width: 1;"/>
+
+  <text x="1120" y="410" class="field"><tspan class="pk">🔑 id</tspan> - TEXT</text>
+  <text x="1120" y="428" class="field"><tspan class="fk">👤 userId</tspan> → users.id</text>
+  <text x="1120" y="446" class="field">subject - TEXT</text>
+  <text x="1120" y="464" class="field">duration - INT (minutes)</text>
+  <text x="1120" y="482" class="field">startTime - TIMESTAMP</text>
+  <text x="1120" y="500" class="field">endTime - TIMESTAMP</text>
+  <text x="1120" y="518" class="field">isActive - BOOLEAN</text>
+
+  <!-- Relationship 4: users → study_sessions -->
+  <path d="M 800 280 Q 950 310 1100 380" class="relation-line" fill="none" stroke-dasharray="5,5"/>
+  <text x="920" y="320" class="cardinality">1:N</text>
+
+  <!-- PRODUCTIVITY_LOGS ENTITY -->
+  <rect x="50" y="650" width="280" height="220" class="entity" rx="5"/>
+  <text x="190" y="680" text-anchor="middle" style="font-weight: bold; font-size: 13px;">PRODUCTIVITY_LOGS</text>
+  <line x1="60" y1="690" x2="320" y2="690" style="stroke: #1565C0; stroke-width: 1;"/>
+
+  <text x="70" y="710" class="field"><tspan class="pk">🔑 id</tspan> - TEXT</text>
+  <text x="70" y="728" class="field"><tspan class="fk">👤 userId</tspan> → users.id</text>
+  <text x="70" y="746" class="field">date - TEXT</text>
+  <text x="70" y="764" class="field">productivityScore - INT (1-10)</text>
+  <text x="70" y="782" class="field">focusHours - REAL</text>
+  <text x="70" y="800" class="field">breakHours - REAL</text>
+  <text x="70" y="818" class="field">tasksCompleted - INT</text>
+  <text x="70" y="836" class="field">tasksPlanned - INT</text>
+
+  <!-- Relationship 5: users → productivity_logs -->
+  <path d="M 550 280 Q 350 450 190 650" class="relation-line" fill="none" stroke-dasharray="5,5"/>
+  <text x="380" y="450" class="cardinality">1:N</text>
+
+  <!-- BURNOUT_ASSESSMENTS ENTITY -->
+  <rect x="400" y="650" width="320" height="240" class="entity" rx="5" style="fill: #FFF9C4; stroke: #F57F17; stroke-width: 2;"/>
+  <text x="560" y="680" text-anchor="middle" style="font-weight: bold; font-size: 13px;">🔴 BURNOUT_ASSESSMENTS (ML Results)</text>
+  <line x1="410" y1="690" x2="710" y2="690" style="stroke: #F57F17; stroke-width: 1;"/>
+
+  <text x="420" y="710" class="field"><tspan class="pk">🔑 id</tspan> - TEXT</text>
+  <text x="420" y="728" class="field"><tspan class="fk">👤 userId</tspan> → users.id</text>
+  <text x="420" y="746" class="field">date - TEXT (ISO)</text>
+  <text x="420" y="764" class="field">riskScore - INT (0-100)</text>
+  <text x="420" y="782" class="field">riskLevel - TEXT</text>
+  <text x="420" y="800" class="field">  (Low/Moderate/High/Critical)</text>
+  <text x="420" y="818" class="field">factors - JSON</text>
+  <text x="420" y="836" class="field">warnings - JSON Array</text>
+  <text x="420" y="854" class="field">recommendations - JSON</text>
+
+  <!-- Relationship 6: users → burnout_assessments -->
+  <path d="M 600 280 Q 580 450 560 650" class="relation-line" fill="none" stroke-dasharray="5,5"/>
+  <text x="620" y="450" class="cardinality">1:N</text>
+
+  <!-- AUTH_TOKENS ENTITY -->
+  <rect x="800" y="650" width="280" height="180" class="entity" rx="5"/>
+  <text x="940" y="680" text-anchor="middle" style="font-weight: bold; font-size: 13px;">AUTH_TOKENS</text>
+  <line x1="810" y1="690" x2="1070" y2="690" style="stroke: #1565C0; stroke-width: 1;"/>
+
+  <text x="820" y="710" class="field"><tspan class="pk">🔑 id</tspan> - TEXT</text>
+  <text x="820" y="728" class="field"><tspan class="fk">👤 userId</tspan> → users.id</text>
+  <text x="820" y="746" class="field">token - TEXT (JWT)</text>
+  <text x="820" y="764" class="field">expiresAt - TIMESTAMP</text>
+  <text x="820" y="782" class="field">created_at - TIMESTAMP</text>
+  <text x="820" y="800" class="field">isValid - BOOLEAN</text>
+
+  <!-- Relationship 7: users → auth_tokens -->
+  <path d="M 750 280 Q 820 450 940 650" class="relation-line" fill="none" stroke-dasharray="5,5"/>
+  <text x="880" y="450" class="cardinality">1:N</text>
+
+  <!-- REPORTS ENTITY -->
+  <rect x="1150" y="650" width="280" height="200" class="entity" rx="5"/>
+  <text x="1290" y="680" text-anchor="middle" style="font-weight: bold; font-size: 13px;">REPORTS</text>
+  <line x1="1160" y1="690" x2="1420" y2="690" style="stroke: #1565C0; stroke-width: 1;"/>
+
+  <text x="1170" y="710" class="field"><tspan class="pk">🔑 id</tspan> - TEXT</text>
+  <text x="1170" y="728" class="field"><tspan class="fk">👤 userId</tspan> → users.id</text>
+  <text x="1170" y="746" class="field">type - TEXT</text>
+  <text x="1170" y="764" class="field">  (Weekly/Monthly)</text>
+  <text x="1170" y="782" class="field">data - JSON</text>
+  <text x="1170" y="800" class="field">generated_at - TIMESTAMP</text>
+  <text x="1170" y="818" class="field">period - TEXT</text>
+
+  <!-- Relationship 8: users → reports -->
+  <path d="M 800 280 Q 1100 450 1290 650" class="relation-line" fill="none" stroke-dasharray="5,5"/>
+  <text x="1080" y="450" class="cardinality">1:N</text>
+
+  <!-- Legend -->
+  <rect x="50" y="900" width="1300" height="40" style="fill: #F5F5F5; stroke: #999; stroke-width: 1; border-radius: 3px;"/>
+  <text x="70" y="920" class="field" font-weight="bold">Legend:</text>
+  <text x="150" y="920" class="field"><tspan class="pk">🔑 PK</tspan> = Primary Key (unique identifier)</text>
+  <text x="450" y="920" class="field"><tspan class="fk">👤 FK</tspan> = Foreign Key (relationship reference)</text>
+  <text x="800" y="920" class="field">1:N = One-to-Many relationship</text>
+  <text x="1100" y="920" class="field">--- = Relationship line</text>
+
+</svg>

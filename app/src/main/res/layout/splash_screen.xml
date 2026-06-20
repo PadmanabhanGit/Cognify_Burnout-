@@ -1,0 +1,7 @@
+<RelativeLayout
+xmlns:android="http://schemas.android.com/apk/res/android"
+android:id="@+id/in1"
+android:layout_width="390dp"
+android:layout_height="884dp"
+android:background="#1E293B"
+ />

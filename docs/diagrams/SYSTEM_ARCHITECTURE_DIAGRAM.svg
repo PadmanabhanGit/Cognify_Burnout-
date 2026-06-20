@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900">
+  <defs>
+    <style>
+      .box { fill: #E8F4F8; stroke: #0D47A1; stroke-width: 2; }
+      .header { fill: #1976D2; color: white; font-weight: bold; }
+      .layer-title { fill: #0D47A1; font-size: 18px; font-weight: bold; }
+      .component { fill: #B3E5FC; stroke: #0277BD; stroke-width: 1.5; }
+      .arrow { stroke: #424242; stroke-width: 2; marker-end: url(#arrowhead); }
+      .text { font-family: Arial, sans-serif; font-size: 13px; }
+      .title { font-size: 24px; font-weight: bold; fill: #0D47A1; }
+      .subtitle { font-size: 12px; fill: #666; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#424242" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="30" text-anchor="middle" class="title">BurnOut Tracker - System Architecture</text>
+  <text x="700" y="48" text-anchor="middle" class="subtitle">Complete Data Flow & Component Interaction</text>
+
+  <!-- LAYER 1: DEVICES -->
+  <rect x="20" y="60" width="1360" height="170" class="box" rx="5"/>
+  <text x="30" y="80" class="layer-title">📱 LAYER 1: ANDROID DEVICES (Presentation & Services)</text>
+
+  <!-- Android Components -->
+  <rect x="40" y="100" width="200" height="100" class="component" rx="3"/>
+  <text x="140" y="120" text-anchor="middle" class="text" font-weight="bold">UI Layer</text>
+  <text x="50" y="140" class="text">• Compose Screens</text>
+  <text x="50" y="155" class="text">• Navigation (23 routes)</text>
+  <text x="50" y="170" class="text">• State Management</text>
+  <text x="50" y="185" class="text">• Material Design 3</text>
+
+  <rect x="270" y="100" width="200" height="100" class="component" rx="3"/>
+  <text x="370" y="120" text-anchor="middle" class="text" font-weight="bold">Services</text>
+  <text x="280" y="140" class="text">• AppMonitoringService</text>
+  <text x="280" y="155" class="text">• HealthSyncService</text>
+  <text x="280" y="170" class="text">• NotificationService</text>
+  <text x="280" y="185" class="text">• WorkManager (Tasks)</text>
+
+  <rect x="500" y="100" width="200" height="100" class="component" rx="3"/>
+  <text x="600" y="120" text-anchor="middle" class="text" font-weight="bold">ML Models</text>
+  <text x="510" y="140" class="text">• TensorFlow Lite v2.14.0</text>
+  <text x="510" y="155" class="text">• app_classifier.tflite</text>
+  <text x="510" y="170" class="text">• Real-time app categorization</text>
+  <text x="510" y="185" class="text">• On-device inference</text>
+
+  <rect x="730" y="100" width="200" height="100" class="component" rx="3"/>
+  <text x="830" y="120" text-anchor="middle" class="text" font-weight="bold">Data & API</text>
+  <text x="740" y="140" class="text">• Retrofit 2 HTTP Client</text>
+  <text x="740" y="155" class="text">• SharedPreferences (JWT)</text>
+  <text x="740" y="170" class="text">• AuthInterceptor</text>
+  <text x="740" y="185" class="text">• Gson Serialization</text>
+
+  <rect x="960" y="100" width="200" height="100" class="component" rx="3"/>
+  <text x="1060" y="120" text-anchor="middle" class="text" font-weight="bold">Database</text>
+  <text x="970" y="140" class="text">• Room Database</text>
+  <text x="970" y="155" class="text">• SQLite (local cache)</text>
+  <text x="970" y="170" class="text">• App usage logs</text>
+  <text x="970" y="185" class="text">• Persistent storage</text>
+
+  <rect x="1190" y="100" width="170" height="100" class="component" rx="3"/>
+  <text x="1275" y="120" text-anchor="middle" class="text" font-weight="bold">Health APIs</text>
+  <text x="1200" y="140" class="text">• Samsung Health</text>
+  <text x="1200" y="155" class="text">• Google Fit</text>
+  <text x="1200" y="170" class="text">• Health Connect</text>
+  <text x="1200" y="185" class="text">• Device sensors</text>
+
+  <!-- Arrows from Layer 1 to Layer 2 -->
+  <path d="M 700 270 L 700 310" class="arrow"/>
+
+  <!-- LAYER 2: BACKEND -->
+  <rect x="20" y="310" width="1360" height="280" class="box" rx="5"/>
+  <text x="30" y="330" class="layer-title">🖥️ LAYER 2: EXPRESS.JS BACKEND (API & Business Logic)</text>
+
+  <!-- API Routes -->
+  <rect x="40" y="350" width="160" height="220" class="component" rx="3"/>
+  <text x="120" y="370" text-anchor="middle" class="text" font-weight="bold">API Routes</text>
+  <text x="50" y="390" class="text" font-size="11">• POST /auth/register</text>
+  <text x="50" y="405" class="text" font-size="11">• POST /auth/login</text>
+  <text x="50" y="420" class="text" font-size="11">• POST /study/start|stop</text>
+  <text x="50" y="435" class="text" font-size="11">• GET /sleep-mood/logs</text>
+  <text x="50" y="450" class="text" font-size="11">• POST /usage/log</text>
+  <text x="50" y="465" class="text" font-size="11">• POST /activity/log</text>
+  <text x="50" y="480" class="text" font-size="11">• GET /burnout/compute</text>
+  <text x="50" y="495" class="text" font-size="11">• GET /dashboard</text>
+  <text x="50" y="510" class="text" font-size="11">• GET /report/weekly</text>
+  <text x="50" y="525" class="text" font-size="11">• GET /report/monthly</text>
+  <text x="50" y="545" class="text" font-size="10" font-weight="bold">(9+ endpoints)</text>
+
+  <!-- Middleware -->
+  <rect x="230" y="350" width="160" height="220" class="component" rx="3"/>
+  <text x="310" y="370" text-anchor="middle" class="text" font-weight="bold">Middleware</text>
+  <text x="240" y="390" class="text" font-size="11">• CORS Handler</text>
+  <text x="240" y="410" class="text" font-size="11">• Body Parser</text>
+  <text x="240" y="430" class="text" font-size="11">• JWT Verification</text>
+  <text x="240" y="450" class="text" font-size="11">• Auth Interceptor</text>
+  <text x="240" y="470" class="text" font-size="11">• Error Handler</text>
+  <text x="240" y="490" class="text" font-size="11">• Logging</text>
+  <text x="240" y="510" class="text" font-size="11">• Rate Limiting (future)</text>
+
+  <!-- Business Logic -->
+  <rect x="420" y="350" width="160" height="220" class="component" rx="3"/>
+  <text x="500" y="370" text-anchor="middle" class="text" font-weight="bold">Business Logic</text>
+  <text x="430" y="390" class="text" font-size="11">• User Management</text>
+  <text x="430" y="410" class="text" font-size="11">• Authentication</text>
+  <text x="430" y="430" class="text" font-size="11">• Data Aggregation</text>
+  <text x="430" y="450" class="text" font-size="11">• Validation Rules</text>
+  <text x="430" y="470" class="text" font-size="11">• Timestamp Handling</text>
+  <text x="430" y="490" class="text" font-size="11">• Report Generation</text>
+  <text x="430" y="510" class="text" font-size="11">• Recommendation Engine</text>
+
+  <!-- ML Engine (Burnout) -->
+  <rect x="610" y="350" width="160" height="220" class="component" rx="3" style="fill: #FFE0B2; stroke: #F57C00; stroke-width: 2;"/>
+  <text x="690" y="370" text-anchor="middle" class="text" font-weight="bold">🤖 ML Engine</text>
+  <text x="620" y="390" class="text" font-size="11" font-weight="bold">Burnout Algorithm</text>
+  <text x="620" y="410" class="text" font-size="11">Input:</text>
+  <text x="620" y="425" class="text" font-size="10">• Sleep hours (0.25)</text>
+  <text x="620" y="440" class="text" font-size="10">• Sleep quality (0.10)</text>
+  <text x="620" y="455" class="text" font-size="10">• App usage (0.25)</text>
+  <text x="620" y="470" class="text" font-size="10">• Activity (0.20)</text>
+  <text x="620" y="485" class="text" font-size="10">• Mood score (0.20)</text>
+  <text x="620" y="500" class="text" font-size="11">Output:</text>
+  <text x="620" y="515" class="text" font-size="10">• Risk Score (0-100)</text>
+  <text x="620" y="530" class="text" font-size="10">• Risk Level + Warnings</text>
+  <text x="620" y="545" class="text" font-size="10">• Recommendations</text>
+
+  <!-- JWT & Security -->
+  <rect x="800" y="350" width="160" height="220" class="component" rx="3"/>
+  <text x="880" y="370" text-anchor="middle" class="text" font-weight="bold">🔐 Security</text>
+  <text x="810" y="390" class="text" font-size="11">• JWT Token (HS256)</text>
+  <text x="810" y="410" class="text" font-size="11">• Password Hashing</text>
+  <text x="810" y="430" class="text" font-size="11">(bcrypt, 10 rounds)</text>
+  <text x="810" y="450" class="text" font-size="11">• Token Validation</text>
+  <text x="810" y="470" class="text" font-size="11">• Authorization Check</text>
+  <text x="810" y="490" class="text" font-size="11">• Input Sanitization</text>
+  <text x="810" y="510" class="text" font-size="11">• HTTPS Ready</text>
+
+  <!-- Data Processing -->
+  <rect x="990" y="350" width="160" height="220" class="component" rx="3"/>
+  <text x="1070" y="370" text-anchor="middle" class="text" font-weight="bold">Data Processing</text>
+  <text x="1000" y="390" class="text" font-size="11">• Data Aggregation</text>
+  <text x="1000" y="410" class="text" font-size="11">• Normalization</text>
+  <text x="1000" y="430" class="text" font-size="11">• Time Series Analysis</text>
+  <text x="1000" y="450" class="text" font-size="11">• Trend Calculation</text>
+  <text x="1000" y="470" class="text" font-size="11">• JSON Formatting</text>
+  <text x="1000" y="490" class="text" font-size="11">• Query Optimization</text>
+  <text x="1000" y="510" class="text" font-size="11">• Cache Management</text>
+
+  <!-- API Response -->
+  <rect x="1180" y="350" width="170" height="220" class="component" rx="3"/>
+  <text x="1265" y="370" text-anchor="middle" class="text" font-weight="bold">Response Layer</text>
+  <text x="1190" y="390" class="text" font-size="11">• JSON Formatting</text>
+  <text x="1190" y="410" class="text" font-size="11">• Status Codes</text>
+  <text x="1190" y="430" class="text" font-size="11">• Error Messages</text>
+  <text x="1190" y="450" class="text" font-size="11">• Pagination</text>
+  <text x="1190" y="470" class="text" font-size="11">• Compression (gzip)</text>
+  <text x="1190" y="490" class="text" font-size="11">• CORS Headers</text>
+  <text x="1190" y="510" class="text" font-size="11">• Metadata (timestamps)</text>
+
+  <!-- Arrow to Layer 3 -->
+  <path d="M 700 630 L 700 670" class="arrow"/>
+
+  <!-- LAYER 3: DATABASE -->
+  <rect x="20" y="670" width="1360" height="200" class="box" rx="5"/>
+  <text x="30" y="690" class="layer-title">🗄️ LAYER 3: DATA PERSISTENCE (SQLite Database)</text>
+
+  <!-- Database Tables -->
+  <text x="50" y="720" class="text" font-weight="bold">Core Tables:</text>
+
+  <rect x="50" y="735" width="130" height="120" class="component" rx="2" style="fill: #C8E6C9; stroke: #388E3C;"/>
+  <text x="115" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">users</text>
+  <text x="60" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="60" y="790" class="text" font-size="10">• email (UNIQUE)</text>
+  <text x="60" y="805" class="text" font-size="10">• password (bcrypt)</text>
+  <text x="60" y="820" class="text" font-size="10">• fullName</text>
+  <text x="60" y="835" class="text" font-size="10">• created_at</text>
+
+  <rect x="200" y="735" width="130" height="120" class="component" rx="2" style="fill: #C8E6C9; stroke: #388E3C;"/>
+  <text x="265" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">sleep_mood_logs</text>
+  <text x="210" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="210" y="790" class="text" font-size="10">• userId (FK)</text>
+  <text x="210" y="805" class="text" font-size="10">• sleepDuration</text>
+  <text x="210" y="820" class="text" font-size="10">• moodScore (1-10)</text>
+  <text x="210" y="835" class="text" font-size="10">• date</text>
+
+  <rect x="350" y="735" width="130" height="120" class="component" rx="2" style="fill: #C8E6C9; stroke: #388E3C;"/>
+  <text x="415" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">app_usage</text>
+  <text x="360" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="360" y="790" class="text" font-size="10">• userId (FK)</text>
+  <text x="360" y="805" class="text" font-size="10">• category</text>
+  <text x="360" y="820" class="text" font-size="10">• duration (mins)</text>
+  <text x="360" y="835" class="text" font-size="10">• date</text>
+
+  <rect x="500" y="735" width="130" height="120" class="component" rx="2" style="fill: #C8E6C9; stroke: #388E3C;"/>
+  <text x="565" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">physical_activity</text>
+  <text x="510" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="510" y="790" class="text" font-size="10">• userId (FK)</text>
+  <text x="510" y="805" class="text" font-size="10">• steps</text>
+  <text x="510" y="820" class="text" font-size="10">• calories</text>
+  <text x="510" y="835" class="text" font-size="10">• date</text>
+
+  <rect x="650" y="735" width="130" height="120" class="component" rx="2" style="fill: #C8E6C9; stroke: #388E3C;"/>
+  <text x="715" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">study_sessions</text>
+  <text x="660" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="660" y="790" class="text" font-size="10">• userId (FK)</text>
+  <text x="660" y="805" class="text" font-size="10">• subject</text>
+  <text x="660" y="820" class="text" font-size="10">• duration (mins)</text>
+  <text x="660" y="835" class="text" font-size="10">• isActive</text>
+
+  <rect x="800" y="735" width="130" height="120" class="component" rx="2" style="fill: #C8E6C9; stroke: #388E3C;"/>
+  <text x="865" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">productivity_logs</text>
+  <text x="810" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="810" y="790" class="text" font-size="10">• userId (FK)</text>
+  <text x="810" y="805" class="text" font-size="10">• productivityScore</text>
+  <text x="810" y="820" class="text" font-size="10">• focusHours</text>
+  <text x="810" y="835" class="text" font-size="10">• date</text>
+
+  <rect x="950" y="735" width="130" height="120" class="component" rx="2" style="fill: #FFE0B2; stroke: #F57C00; stroke-width: 1.5;"/>
+  <text x="1015" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">burnout_assessments</text>
+  <text x="960" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="960" y="790" class="text" font-size="10">• userId (FK)</text>
+  <text x="960" y="805" class="text" font-size="10">• riskScore (0-100)</text>
+  <text x="960" y="820" class="text" font-size="10">• riskLevel</text>
+  <text x="960" y="835" class="text" font-size="10">• date</text>
+
+  <rect x="1100" y="735" width="130" height="120" class="component" rx="2" style="fill: #C8E6C9; stroke: #388E3C;"/>
+  <text x="1165" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">auth_tokens</text>
+  <text x="1110" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="1110" y="790" class="text" font-size="10">• userId (FK)</text>
+  <text x="1110" y="805" class="text" font-size="10">• token (JWT)</text>
+  <text x="1110" y="820" class="text" font-size="10">• expiresAt</text>
+  <text x="1110" y="835" class="text" font-size="10">• created_at</text>
+
+  <rect x="1250" y="735" width="110" height="120" class="component" rx="2" style="fill: #C8E6C9; stroke: #388E3C;"/>
+  <text x="1305" y="755" text-anchor="middle" class="text" font-weight="bold" font-size="12">reports</text>
+  <text x="1260" y="775" class="text" font-size="10">• id (PK)</text>
+  <text x="1260" y="790" class="text" font-size="10">• userId (FK)</text>
+  <text x="1260" y="805" class="text" font-size="10">• type</text>
+  <text x="1260" y="820" class="text" font-size="10">• data (JSON)</text>
+  <text x="1260" y="835" class="text" font-size="10">• date</text>
+
+  <!-- Legend -->
+  <rect x="400" y="870" width="600" height="20" style="fill: none; stroke: none;"/>
+  <text x="410" y="885" class="text" font-size="11" font-weight="bold">🟦 Data Relationships: users(1) → many(sleep_mood_logs, app_usage, physical_activity, study_sessions, productivity_logs, burnout_assessments)</text>
+</svg>

@@ -1,0 +1,228 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900">
+  <defs>
+    <style>
+      .cloud { fill: #E3F2FD; stroke: #1976D2; stroke-width: 2; }
+      .server { fill: #FFF9C4; stroke: #F57C00; stroke-width: 2; }
+      .device { fill: #C8E6C9; stroke: #388E3C; stroke-width: 2; }
+      .network { stroke: #424242; stroke-width: 2; marker-end: url(#arrowhead); }
+      .dashed-network { stroke: #999; stroke-width: 2; stroke-dasharray: 5,5; marker-end: url(#arrowhead); }
+      .text { font-family: Arial; font-size: 12px; }
+      .title { font-size: 24px; font-weight: bold; fill: #1976D2; }
+      .subtitle { font-size: 13px; fill: #555; font-weight: bold; }
+      .label { font-size: 11px; fill: #333; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#424242" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="40" text-anchor="middle" class="title">Deployment Architecture</text>
+  <text x="700" y="60" text-anchor="middle" class="subtitle">Production Environment Setup</text>
+
+  <!-- LEFT SIDE: END USERS / DEVICES -->
+  <text x="150" y="90" class="subtitle">📱 CLIENT LAYER (End User Devices)</text>
+
+  <!-- Device 1: Android Phone -->
+  <rect x="50" y="110" width="200" height="140" class="device" rx="5"/>
+  <text x="150" y="135" text-anchor="middle" style="font-weight: bold;">Android Phone 1</text>
+  <text x="60" y="155" class="label">OS: Android 13+</text>
+  <text x="60" y="170" class="label">Device: Samsung Galaxy A35</text>
+  <text x="60" y="185" class="label">App: BurnOut Tracker v1.0</text>
+  <text x="60" y="200" class="label">Storage: 100+ MB</text>
+  <text x="60" y="215" class="label">RAM: 4GB+</text>
+  <text x="60" y="230" class="label">Network: 4G/WiFi</text>
+
+  <!-- Device 2: Android Tablet -->
+  <rect x="300" y="110" width="200" height="140" class="device" rx="5"/>
+  <text x="400" y="135" text-anchor="middle" style="font-weight: bold;">Android Tablet</text>
+  <text x="310" y="155" class="label">OS: Android 12+</text>
+  <text x="310" y="170" class="label">Device: iPad equivalent</text>
+  <text x="310" y="185" class="label">App: BurnOut Tracker v1.0</text>
+  <text x="310" y="200" class="label">Storage: 150+ MB</text>
+  <text x="310" y="215" class="label">RAM: 6GB+</text>
+  <text x="310" y="230" class="label">Network: 4G/WiFi</text>
+
+  <!-- Device 3: iOS (Future) -->
+  <rect x="550" y="110" width="200" height="140" class="device" rx="5" style="opacity: 0.6;"/>
+  <text x="650" y="135" text-anchor="middle" style="font-weight: bold; opacity: 0.7;">iOS (Future)</text>
+  <text x="560" y="155" class="label" style="opacity: 0.6;">OS: iOS 15+</text>
+  <text x="560" y="170" class="label" style="opacity: 0.6;">Device: iPhone/iPad</text>
+  <text x="560" y="185" class="label" style="opacity: 0.6;">App: Future Native App</text>
+  <text x="560" y="200" class="label" style="opacity: 0.6;">Status: Coming Soon</text>
+  <text x="560" y="215" class="label" style="opacity: 0.6;">Priority: Phase 2</text>
+
+  <!-- NETWORK CONNECTIONS FROM DEVICES -->
+  <path d="M 150 250 L 150 320" class="network"/>
+  <path d="M 400 250 L 400 320" class="network"/>
+  <path d="M 650 250 L 650 320" class="network"/>
+
+  <!-- MIDDLE: CLOUD/NETWORK INFRASTRUCTURE -->
+  <text x="150" y="300" class="label" text-anchor="middle">HTTP/HTTPS</text>
+  <text x="400" y="300" class="label" text-anchor="middle">REST API</text>
+  <text x="650" y="300" class="label" text-anchor="middle">TBD</text>
+
+  <!-- INTERNET CLOUD -->
+  <ellipse cx="400" cy="370" rx="280" ry="60" class="cloud" style="stroke-dasharray: 5,5;"/>
+  <text x="400" y="375" text-anchor="middle" style="font-weight: bold; font-size: 14px;">☁️ INTERNET (TLS 1.3 / HTTPS)</text>
+
+  <!-- RIGHT SIDE: BACKEND INFRASTRUCTURE -->
+  <text x="1100" y="90" class="subtitle">🖥️ SERVER LAYER (Backend Infrastructure)</text>
+
+  <!-- REVERSE PROXY / NGINX -->
+  <rect x="900" y="110" width="220" height="140" class="server" rx="5"/>
+  <text x="1010" y="135" text-anchor="middle" style="font-weight: bold;">Reverse Proxy</text>
+  <text x="910" y="155" class="label">Technology: Nginx</text>
+  <text x="910" y="170" class="label">Port: 443 (HTTPS)</text>
+  <text x="910" y="185" class="label">Function:</text>
+  <text x="910" y="198" class="label">  • SSL/TLS Termination</text>
+  <text x="910" y="211" class="label">  • Load Balancing</text>
+  <text x="910" y="224" class="label">  • Request Routing</text>
+  <text x="910" y="237" class="label">  • Compression (gzip)</text>
+
+  <!-- API SERVER -->
+  <rect x="1180" y="110" width="220" height="140" class="server" rx="5"/>
+  <text x="1290" y="135" text-anchor="middle" style="font-weight: bold;">API Server</text>
+  <text x="1190" y="155" class="label">Runtime: Node.js 18+</text>
+  <text x="1190" y="170" class="label">Framework: Express.js</text>
+  <text x="1190" y="185" class="label">Port: 5000 (internal)</text>
+  <text x="1190" y="198" class="label">Process Manager: PM2</text>
+  <text x="1190" y="211" class="label">Instances: 4-8</text>
+  <text x="1190" y="224" class="label">Memory: 512MB each</text>
+  <text x="1190" y="237" class="label">Health Check: /health</text>
+
+  <!-- Connections: Internet → Nginx → API -->
+  <path d="M 550 370 L 900 180" class="network"/>
+  <text x="700" y="260" class="label">Port 443</text>
+
+  <path d="M 1010 250 L 1200 250" class="network"/>
+  <text x="1100" y="243" class="label">Port 5000</text>
+
+  <!-- DATA LAYER -->
+  <text x="1100" y="350" class="subtitle">🗄️ DATA LAYER (Persistence & Caching)</text>
+
+  <!-- SQLite Database -->
+  <rect x="900" y="370" width="220" height="140" class="server" rx="5" style="fill: #F3E5F5; stroke: #6A1B9A;"/>
+  <text x="1010" y="395" text-anchor="middle" style="font-weight: bold;">SQLite Database</text>
+  <text x="910" y="415" class="label">File: cognify.db</text>
+  <text x="910" y="430" class="label">Size: ~100MB (init)</text>
+  <text x="910" y="445" class="label">Tables: 8 core tables</text>
+  <text x="910" y="460" class="label">Users: 1000+ support</text>
+  <text x="910" y="475" class="label">Backups: Daily (3.7z)</text>
+  <text x="910" y="488" class="label">Backup Location: AWS S3</text>
+
+  <!-- PostgreSQL (Optional) -->
+  <rect x="1180" y="370" width="220" height="140" class="server" rx="5" style="opacity: 0.5;"/>
+  <text x="1290" y="395" text-anchor="middle" style="font-weight: bold; opacity: 0.7;">PostgreSQL (Future)</text>
+  <text x="1190" y="415" class="label" style="opacity: 0.6;">Status: Phase 2 Scaling</text>
+  <text x="1190" y="430" class="label" style="opacity: 0.6;">Port: 5432</text>
+  <text x="1190" y="445" class="label" style="opacity: 0.6;">Use Case: 1000+ users</text>
+  <text x="1190" y="460" class="label" style="opacity: 0.6;">Connection Pooling: PgBouncer</text>
+  <text x="1190" y="475" class="label" style="opacity: 0.6;">Replication: Master-Slave</text>
+  <text x="1190" y="488" class="label" style="opacity: 0.6;">Backup: WAL Archiving</text>
+
+  <!-- Connection: API → Database -->
+  <path d="M 1200 250 L 1200 370" class="dashed-network"/>
+  <text x="1220" y="310" class="label">SQL Queries</text>
+
+  <!-- SUPPORTING SERVICES -->
+  <text x="150" y="350" class="subtitle">🛠️ SUPPORTING SERVICES</text>
+
+  <!-- Monitoring & Logging -->
+  <rect x="50" y="370" width="200" height="140" class="cloud" rx="5"/>
+  <text x="150" y="395" text-anchor="middle" style="font-weight: bold;">Monitoring</text>
+  <text x="60" y="415" class="label">Tools:</text>
+  <text x="60" y="430" class="label">  • PM2 Plus</text>
+  <text x="60" y="445" class="label">  • Node Exporter</text>
+  <text x="60" y="460" class="label">  • CloudWatch (AWS)</text>
+  <text x="60" y="475" class="label">Metrics:</text>
+  <text x="60" y="488" class="label">  • CPU, RAM, Disk</text>
+  <text x="60" y="503" class="label">  • Response times</text>
+
+  <!-- CI/CD Pipeline -->
+  <rect x="300" y="370" width="200" height="140" class="cloud" rx="5"/>
+  <text x="400" y="395" text-anchor="middle" style="font-weight: bold;">CI/CD Pipeline</text>
+  <text x="310" y="415" class="label">Platform: GitHub Actions</text>
+  <text x="310" y="430" class="label">Stages:</text>
+  <text x="310" y="445" class="label">  1. Code Lint & Test</text>
+  <text x="310" y="460" class="label">  2. Build Docker Image</text>
+  <text x="310" y="475" class="label">  3. Push to Registry</text>
+  <text x="310" y="488" class="label">  4. Deploy to Server</text>
+  <text x="310" y="503" class="label">  5. Smoke Tests</text>
+
+  <!-- SSL/TLS Certificates -->
+  <rect x="550" y="370" width="200" height="140" class="cloud" rx="5"/>
+  <text x="650" y="395" text-anchor="middle" style="font-weight: bold;">🔐 SSL/TLS</text>
+  <text x="560" y="415" class="label">Provider: Let's Encrypt</text>
+  <text x="560" y="430" class="label">Certificate: Domain SSL</text>
+  <text x="560" y="445" class="label">Protocol: TLS 1.3</text>
+  <text x="560" y="460" class="label">Renewal: Auto (60 days)</text>
+  <text x="560" y="475" class="label">Tool: Certbot</text>
+  <text x="560" y="488" class="label">Expiry Check: Daily</text>
+  <text x="560" y="503" class="label">Fallback: TLS 1.2</text>
+
+  <!-- DEVELOPMENT & TESTING -->
+  <text x="150" y="600" class="subtitle">🧪 DEVELOPMENT & TESTING ENVIRONMENTS</text>
+
+  <!-- Development Environment -->
+  <rect x="50" y="620" width="200" height="120" class="cloud" rx="5" style="opacity: 0.8;"/>
+  <text x="150" y="640" text-anchor="middle" style="font-weight: bold; opacity: 0.9;">Development</text>
+  <text x="60" y="660" class="label" style="opacity: 0.9;">Server: Local/VM</text>
+  <text x="60" y="675" class="label" style="opacity: 0.9;">Node.js: Latest</text>
+  <text x="60" y="690" class="label" style="opacity: 0.9;">DB: SQLite (test.db)</text>
+  <text x="60" y="705" class="label" style="opacity: 0.9;">Reload: Auto (nodemon)</text>
+  <text x="60" y="720" class="label" style="opacity: 0.9;">Port: 3000</text>
+
+  <!-- Staging Environment -->
+  <rect x="300" y="620" width="200" height="120" class="cloud" rx="5" style="opacity: 0.8;"/>
+  <text x="400" y="640" text-anchor="middle" style="font-weight: bold; opacity: 0.9;">Staging</text>
+  <text x="310" y="660" class="label" style="opacity: 0.9;">Server: Cloud VM</text>
+  <text x="310" y="675" class="label" style="opacity: 0.9;">Node.js: Production</text>
+  <text x="310" y="690" class="label" style="opacity: 0.9;">DB: Copy of Production</text>
+  <text x="310" y="705" class="label" style="opacity: 0.9;">Status: Pre-release</text>
+  <text x="310" y="720" class="label" style="opacity: 0.9;">Port: 8000</text>
+
+  <!-- Production Environment -->
+  <rect x="550" y="620" width="200" height="120" class="server" rx="5"/>
+  <text x="650" y="640" text-anchor="middle" style="font-weight: bold;">Production</text>
+  <text x="560" y="660" class="label">Server: AWS EC2 (t3.medium)</text>
+  <text x="560" y="675" class="label">OS: Ubuntu 22.04 LTS</text>
+  <text x="560" y="690" class="label">Region: us-east-1</text>
+  <text x="560" y="705" class="label">Uptime SLA: 99.5%</text>
+  <text x="560" y="720" class="label">Security: VPC + Security Groups</text>
+
+  <!-- BACKUP & DISASTER RECOVERY -->
+  <text x="900" y="600" class="subtitle">💾 BACKUP & DISASTER RECOVERY</text>
+
+  <!-- Backup Strategy -->
+  <rect x="900" y="620" width="220" height="120" class="cloud" rx="5"/>
+  <text x="1010" y="640" text-anchor="middle" style="font-weight: bold;">Backup Strategy</text>
+  <text x="910" y="660" class="label">Frequency: Daily (12 AM UTC)</text>
+  <text x="910" y="675" class="label">Location: AWS S3</text>
+  <text x="910" y="690" class="label">Retention: 30 days</text>
+  <text x="910" y="705" class="label">Encryption: AES-256</text>
+  <text x="910" y="720" class="label">Restore Time: < 1 hour</text>
+
+  <!-- Recovery Procedures -->
+  <rect x="1180" y="620" width="220" height="120" class="cloud" rx="5"/>
+  <text x="1290" y="640" text-anchor="middle" style="font-weight: bold;">Recovery Target</text>
+  <text x="1190" y="660" class="label">RTO: 4 hours</text>
+  <text x="1190" y="675" class="label">RPO: 1 day</text>
+  <text x="1190" y="690" class="label">Failover: Manual</text>
+  <text x="1190" y="705" class="label">Geo-Redundancy: Secondary</text>
+  <text x="1190" y="720" class="label">region ready</text>
+
+  <!-- Legend -->
+  <text x="50" y="800" class="label" font-weight="bold">Development Path:</text>
+  <path d="M 250 795 L 280 795" class="dashed-network" style="stroke: #999;"/>
+  <text x="300" y="800" class="label">Dev → Staging → Production</text>
+
+  <text x="50" y="825" class="label" font-weight="bold">API Flow:</text>
+  <path d="M 150 820 L 180 820" class="network"/>
+  <text x="200" y="825" class="label">Device (HTTPS) → Nginx (443) → Node.js (5000) → SQLite</text>
+
+  <text x="50" y="850" class="label" font-weight="bold">Database Backup:</text>
+  <path d="M 200 845 L 230 845" class="dashed-network"/>
+  <text x="250" y="850" class="label">Production DB → AWS S3 (daily @ 12 AM)</text>
+
+</svg>

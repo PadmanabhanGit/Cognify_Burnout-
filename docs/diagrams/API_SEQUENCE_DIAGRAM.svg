@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1200">
+  <defs>
+    <style>
+      .actor { fill: #E8F4F8; stroke: #0D47A1; stroke-width: 2; }
+      .lifeline { stroke: #0D47A1; stroke-width: 1; stroke-dasharray: 5,5; }
+      .message { stroke: #0D47A1; stroke-width: 2; marker-end: url(#arrowhead); }
+      .return { stroke: #FF6F00; stroke-width: 1.5; stroke-dasharray: 5,5; marker-end: url(#arrowhead-return); }
+      .activation { fill: #FFE082; stroke: #F57C00; stroke-width: 1; }
+      .text { font-family: Arial; font-size: 11px; }
+      .title { font-size: 22px; font-weight: bold; fill: #0D47A1; }
+      .sequence { font-size: 10px; fill: #666; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#0D47A1" />
+    </marker>
+    <marker id="arrowhead-return" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#FF6F00" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="30" text-anchor="middle" class="title">Sequence Diagram: Complete API Interaction</text>
+
+  <!-- ACTORS/PARTICIPANTS -->
+  <!-- User/App -->
+  <rect x="50" y="50" width="120" height="60" class="actor" rx="5"/>
+  <text x="110" y="75" text-anchor="middle" style="font-weight: bold; font-size: 12px;">User's</text>
+  <text x="110" y="90" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Android App</text>
+
+  <!-- Retrofit HTTP Client -->
+  <rect x="230" y="50" width="120" height="60" class="actor" rx="5"/>
+  <text x="290" y="75" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Retrofit 2</text>
+  <text x="290" y="90" text-anchor="middle" style="font-weight: bold; font-size: 12px;">HTTP Client</text>
+
+  <!-- Nginx Reverse Proxy -->
+  <rect x="410" y="50" width="120" height="60" class="actor" rx="5"/>
+  <text x="470" y="75" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Nginx</text>
+  <text x="470" y="90" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Reverse Proxy</text>
+
+  <!-- Express.js Server -->
+  <rect x="590" y="50" width="120" height="60" class="actor" rx="5"/>
+  <text x="650" y="75" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Express.js</text>
+  <text x="650" y="90" text-anchor="middle" style="font-weight: bold; font-size: 12px;">API Server</text>
+
+  <!-- Auth/Middleware -->
+  <rect x="770" y="50" width="120" height="60" class="actor" rx="5"/>
+  <text x="830" y="75" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Auth &amp;</text>
+  <text x="830" y="90" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Middleware</text>
+
+  <!-- Business Logic -->
+  <rect x="950" y="50" width="120" height="60" class="actor" rx="5"/>
+  <text x="1010" y="75" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Business</text>
+  <text x="1010" y="90" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Logic Engine</text>
+
+  <!-- Database -->
+  <rect x="1130" y="50" width="120" height="60" class="actor" rx="5"/>
+  <text x="1190" y="75" text-anchor="middle" style="font-weight: bold; font-size: 12px;">SQLite</text>
+  <text x="1190" y="90" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Database</text>
+
+  <!-- LIFELINES -->
+  <line x1="110" y1="110" x2="110" y2="1180" class="lifeline"/>
+  <line x1="290" y1="110" x2="290" y2="1180" class="lifeline"/>
+  <line x1="470" y1="110" x2="470" y2="1180" class="lifeline"/>
+  <line x1="650" y1="110" x2="650" y2="1180" class="lifeline"/>
+  <line x1="830" y1="110" x2="830" y2="1180" class="lifeline"/>
+  <line x1="1010" y1="110" x2="1010" y2="1180" class="lifeline"/>
+  <line x1="1190" y1="110" x2="1190" y2="1180" class="lifeline"/>
+
+  <!-- ========== SCENARIO 1: USER REGISTRATION ========== -->
+  <text x="50" y="130" class="title" font-size="14px;">📝 SCENARIO 1: User Registration</text>
+
+  <!-- AppBar 1: Form filled -->
+  <rect x="50" y="150" width="110" height="35" class="activation"/>
+  <text x="105" y="172" text-anchor="middle" class="sequence">1. Enter credentials</text>
+
+  <!-- Message 1: Register request -->
+  <path d="M 110 200 L 290 220" class="message"/>
+  <text x="180" y="195" class="text">POST /api/auth/register</text>
+  <text x="180" y="208" class="text">{email, password}</text>
+
+  <!-- Message 2: Forward to server -->
+  <path d="M 290 240 L 470 260" class="message"/>
+  <text x="360" y="235" class="text">HTTPS Request</text>
+  <text x="360" y="248" class="text">(TLS 1.3)</text>
+
+  <!-- Message 3: Route to handler -->
+  <path d="M 470 280 L 650 300" class="message"/>
+  <text x="540" y="275" class="text">Parse Request</text>
+
+  <!-- Message 4: Verify Auth -->
+  <path d="M 650 320 L 830 340" class="message"/>
+  <text x="720" y="315" class="text">Validate Input</text>
+
+  <!-- Message 5: Process -->
+  <path d="M 830 360 L 1010 380" class="message"/>
+  <text x="890" y="355" class="text">Hash Password</text>
+  <text x="890" y="368" class="text">(bcrypt)</text>
+
+  <!-- Message 6: DB Write -->
+  <path d="M 1010 400 L 1190 420" class="message"/>
+  <text x="1080" y="395" class="text">INSERT users table</text>
+
+  <!-- Return 1: DB Confirm -->
+  <path d="M 1190 440 L 1010 460" class="return"/>
+  <text x="1080" y="455" class="text">User Created</text>
+
+  <!-- Return 2: Business Logic -->
+  <path d="M 1010 480 L 830 500" class="return"/>
+  <text x="890" y="495" class="text">Generate JWT</text>
+
+  <!-- Return 3: Middleware -->
+  <path d="M 830 520 L 650 540" class="return"/>
+  <text x="720" y="535" class="text">Auth Success</text>
+
+  <!-- Return 4: Express -->
+  <path d="M 650 560 L 470 580" class="return"/>
+  <text x="540" y="575" class="text">JSON Response</text>
+
+  <!-- Return 5: Nginx -->
+  <path d="M 470 600 L 290 620" class="return"/>
+  <text x="360" y="615" class="text">HTTPS Response</text>
+
+  <!-- Return 6: App -->
+  <path d="M 290 640 L 110 660" class="return"/>
+  <text x="180" y="655" class="text">{token, user}</text>
+
+  <!-- App stores token -->
+  <rect x="50" y="670" width="110" height="35" class="activation"/>
+  <text x="105" y="692" text-anchor="middle" class="sequence">7. Save token</text>
+
+  <!-- ========== SCENARIO 2: GET DASHBOARD ========== -->
+  <text x="50" y="750" class="title" font-size="14px;">📊 SCENARIO 2: Fetch Dashboard (with Authentication)</text>
+
+  <!-- User Action -->
+  <rect x="50" y="770" width="110" height="35" class="activation"/>
+  <text x="105" y="792" text-anchor="middle" class="sequence">1. View Dashboard</text>
+
+  <!-- Request with Auth Header -->
+  <path d="M 110 820 L 290 840" class="message"/>
+  <text x="180" y="815" class="text">GET /api/dashboard</text>
+  <text x="180" y="828" class="text">+ Authorization: Bearer &lt;token&gt;</text>
+
+  <!-- Forward -->
+  <path d="M 290 860 L 470 880" class="message"/>
+  <text x="360" y="875" class="text">HTTPS Request</text>
+
+  <!-- Route -->
+  <path d="M 470 900 L 650 920" class="message"/>
+  <text x="540" y="915" class="text">Parse JWT</text>
+
+  <!-- Verify Token -->
+  <path d="M 650 940 L 830 960" class="message"/>
+  <text x="720" y="955" class="text">Verify Signature</text>
+  <text x="720" y="968" class="text">&amp; Expiration</text>
+
+  <!-- Process -->
+  <path d="M 830 980 L 1010 1000" class="message"/>
+  <text x="890" y="995" class="text">Extract userId</text>
+
+  <!-- Query DB -->
+  <path d="M 1010 1020 L 1190 1040" class="message"/>
+  <text x="1080" y="1015" class="text">SELECT aggregated</text>
+  <text x="1080" y="1028" class="text">dashboard data</text>
+
+  <!-- DB Response -->
+  <path d="M 1190 1060 L 1010 1080" class="return"/>
+  <text x="1080" y="1075" class="text">{sleepData, mood...}</text>
+
+  <!-- Format Response -->
+  <path d="M 1010 1100 L 830 1120" class="return"/>
+  <text x="890" y="1115" class="text">Format JSON</text>
+
+  <!-- Send Response -->
+  <path d="M 830 1140 L 650 1160" class="return"/>
+  <text x="720" y="1155" class="text">Response</text>
+
+  <!-- Through Nginx -->
+  <path d="M 650 1180 L 470 1200" class="return"/>
+  <text x="540" y="1195" class="text">Compress (gzip)</text>
+
+  <!-- Back to App -->
+  <path d="M 470 1220 L 290 1240" class="return"/>
+  <text x="360" y="1235" class="text">Dashboard JSON</text>
+
+  <!-- Receive -->
+  <path d="M 290 1260 L 110 1280" class="return"/>
+  <text x="180" y="1270" class="text">Parse &amp; Display</text>
+
+  <!-- App Update UI -->
+  <rect x="50" y="1290" width="110" height="35" class="activation"/>
+  <text x="105" y="1312" text-anchor="middle" class="sequence">8. Update UI</text>
+
+</svg>

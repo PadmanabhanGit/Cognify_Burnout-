@@ -1,0 +1,7 @@
+{
+  "name": "burnout-tracker",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "./gradlew :app:wasmJsBrowserDistribution"
+  }
+}

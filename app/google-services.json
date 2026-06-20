@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "966389564228",
+    "project_id": "burnouttracker-a3738a4f",
+    "storage_bucket": "burnouttracker-a3738a4f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:966389564228:android:ff2fcd66186641c1fc8d11",
+        "android_client_info": {
+          "package_name": "com.simats.burnouttracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "966389564228-11fjr41ca3giq8nl2dvt6rpfd90qgqmp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simats.burnouttracker",
+            "certificate_hash": "6b91533a0525c19746d59d1b79b2529153909f5d"
+          }
+        },
+        {
+          "client_id": "966389564228-vq6558vla737es6aqu6l61bqqjg2u1ar.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9_G9adRw3eAuAtIShU9Pv58ffpxyh6fU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "966389564228-vq6558vla737es6aqu6l61bqqjg2u1ar.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

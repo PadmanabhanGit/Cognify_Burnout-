@@ -1,0 +1,266 @@
+package com.simats.burnouttracker
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.simats.burnouttracker.utils.rememberPlatformSettings
+
+@Composable
+fun PersonalInformationScreen(navController: NavController) {
+    val settings = rememberPlatformSettings("personal_info")
+
+    var firstName by remember { mutableStateOf(settings.getString("firstName", "John") ?: "John") }
+    var lastName by remember { mutableStateOf(settings.getString("lastName", "Doe") ?: "Doe") }
+    var fullName by remember { mutableStateOf(settings.getString("fullName", "John Doe") ?: "John Doe") }
+    var email by remember { mutableStateOf(settings.getString("email", "student@example.com") ?: "student@example.com") }
+    var age by remember { mutableStateOf(settings.getString("age", "21") ?: "21") }
+    var location by remember { mutableStateOf(settings.getString("location", "Chennai, India") ?: "Chennai, India") }
+
+    val headerGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFF9333EA), Color(0xFF2563EB))
+    )
+
+    val buttonGradient = Brush.horizontalGradient(
+        colors = listOf(Color(0xFF9333EA), Color(0xFF2563EB))
+    )
+
+    Scaffold(
+        containerColor = Color(0xFFF9FAFB)
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Header Section
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .background(headerGradient, RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+                    .padding(top = 48.dp, start = 24.dp, end = 24.dp)
+            ) {
+                Column {
+                    Surface(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clickable { navController.popBackStack() },
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.2f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Text(
+                        text = "Personal Information",
+                        color = Color.White,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Fill in your details to personalize your experience",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            // Details Form Card
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .offset(y = (-40).dp)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color.White,
+                    shadowElevation = 4.dp
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.AssignmentInd,
+                                contentDescription = null,
+                                tint = Color(0xFF9333EA),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Your Details",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // First Name & Last Name Row
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                FormLabel("First Name")
+                                FormField(value = firstName, onValueChange = { firstName = it }, placeholder = "John")
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                FormLabel("Last Name")
+                                FormField(value = lastName, onValueChange = { lastName = it }, placeholder = "Doe")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Full Name
+                        FormLabel("Full Name")
+                        FormField(value = fullName, onValueChange = { fullName = it }, placeholder = "John Doe")
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Email Address
+                        FormLabel("Email Address")
+                        FormField(
+                            value = email,
+                            onValueChange = { email = it },
+                            placeholder = "student@example.com",
+                            leadingIcon = Icons.Outlined.Email
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Age & Location Row
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Column(modifier = Modifier.weight(0.35f)) {
+                                FormLabel("Age")
+                                FormField(value = age, onValueChange = { age = it }, placeholder = "21")
+                            }
+                            Column(modifier = Modifier.weight(0.65f)) {
+                                FormLabel("Location")
+                                FormField(
+                                    value = location,
+                                    onValueChange = { location = it },
+                                    placeholder = "Chennai, India",
+                                    leadingIcon = Icons.Outlined.LocationOn
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Save Button
+                Button(
+                    onClick = {
+                        settings.putString("firstName", firstName)
+                        settings.putString("lastName", lastName)
+                        settings.putString("fullName", fullName)
+                        settings.putString("email", email)
+                        settings.putString("age", age)
+                        settings.putString("location", location)
+                        navController.popBackStack()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    contentPadding = PaddingValues(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(buttonGradient),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Save Information",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(40.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun FormLabel(text: String) {
+    Text(
+        text = text,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
+        color = Color(0xFF4B5563),
+        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+    )
+}
+
+@Composable
+fun FormField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    leadingIcon: ImageVector? = null
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(text = placeholder, color = Color(0xFF9CA3AF), fontSize = 14.sp) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        leadingIcon = if (leadingIcon != null) {
+            { Icon(leadingIcon, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp)) }
+        } else null,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.Black,
+            unfocusedTextColor = Color.Black,
+            unfocusedContainerColor = Color(0xFFF9FAFB),
+            focusedContainerColor = Color.White,
+            unfocusedBorderColor = Color(0xFFE5E8F0),
+            focusedBorderColor = Color(0xFF9333EA)
+        ),
+        singleLine = true
+    )
+}

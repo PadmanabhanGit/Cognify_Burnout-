@@ -1,0 +1,354 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1100">
+  <defs>
+    <style>
+      .layer-bg { fill: #F5F5F5; stroke: #999; stroke-width: 1; }
+      .component { fill: #E3F2FD; stroke: #1565C0; stroke-width: 2; }
+      .subcomponent { fill: #B3E5FC; stroke: #0277BD; stroke-width: 1.5; }
+      .connection { stroke: #424242; stroke-width: 2; marker-end: url(#arrowhead); }
+      .text { font-family: Arial; font-size: 11px; }
+      .title { font-size: 24px; font-weight: bold; fill: #1565C0; }
+      .layer-title { font-size: 14px; font-weight: bold; fill: #0D47A1; }
+      .component-title { font-size: 12px; font-weight: bold; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#424242" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="35" text-anchor="middle" class="title">Component Architecture Diagram</text>
+  <text x="700" y="55" text-anchor="middle" style="font-size: 12px; fill: #666;">All Layers & Internal Connections</text>
+
+  <!-- ============ PRESENTATION LAYER ============ -->
+  <rect x="20" y="70" width="1360" height="180" class="layer-bg" rx="5"/>
+  <text x="35" y="90" class="layer-title">🎨 PRESENTATION LAYER (Jetpack Compose UI)</text>
+  <line x1="30" y1="100" x2="1370" y2="100" style="stroke: #0D47A1; stroke-width: 1;"/>
+
+  <!-- Screens -->
+  <rect x="30" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="90" y="135" text-anchor="middle" class="component-title">Auth Screens</text>
+  <text x="40" y="155" class="text">• LoginScreen</text>
+  <text x="40" y="170" class="text">• RegisterScreen</text>
+  <text x="40" y="185" class="text">• SplashScreen</text>
+  <text x="40" y="200" class="text">• OnboardingScreen</text>
+
+  <rect x="170" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="230" y="135" text-anchor="middle" class="component-title">Home Screens</text>
+  <text x="180" y="155" class="text">• DashboardScreen</text>
+  <text x="180" y="170" class="text">• NavigationBar</text>
+  <text x="180" y="185" class="text">• HomeScreen</text>
+  <text x="180" y="200" class="text">• BottomSheet</text>
+
+  <rect x="310" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="370" y="135" text-anchor="middle" class="component-title">Data Screens</text>
+  <text x="320" y="155" class="text">• SleepMoodScreen</text>
+  <text x="320" y="170" class="text">• StudyTrackerScreen</text>
+  <text x="320" y="185" class="text">• ActivityScreen</text>
+  <text x="320" y="200" class="text">• AnalyticsScreen</text>
+
+  <rect x="450" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="510" y="135" text-anchor="middle" class="component-title">Analysis Screens</text>
+  <text x="460" y="155" class="text">• BurnoutRiskScreen</text>
+  <text x="460" y="170" class="text">• ReportScreen</text>
+  <text x="460" y="185" class="text">• TrendsScreen</text>
+  <text x="460" y="200" class="text">• CalendarScreen</text>
+
+  <rect x="590" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="650" y="135" text-anchor="middle" class="component-title">Settings Screens</text>
+  <text x="600" y="155" class="text">• SettingsScreen</text>
+  <text x="600" y="170" class="text">• ProfileScreen</text>
+  <text x="600" y="185" class="text">• PreferencesScreen</text>
+  <text x="600" y="200" class="text">• SecurityScreen</text>
+
+  <rect x="730" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="790" y="135" text-anchor="middle" class="component-title">Theme & Style</text>
+  <text x="740" y="155" class="text">• BurnOutTrackerTheme</text>
+  <text x="740" y="170" class="text">• ColorScheme</text>
+  <text x="740" y="185" class="text">• TextStyles</text>
+  <text x="740" y="200" class="text">• Animations</text>
+
+  <rect x="870" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="930" y="135" text-anchor="middle" class="component-title">Navigation</text>
+  <text x="880" y="155" class="text">• NavGraph</text>
+  <text x="880" y="170" class="text">• NavController</text>
+  <text x="880" y="185" class="text">• Routes (23)</text>
+  <text x="880" y="200" class="text">• DeepLinks</text>
+
+  <rect x="1010" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="1070" y="135" text-anchor="middle" class="component-title">State Mgmt</text>
+  <text x="1020" y="155" class="text">• ViewModel</text>
+  <text x="1020" y="170" class="text">• Flow/StateFlow</text>
+  <text x="1020" y="185" class="text">• Compose State</text>
+  <text x="1020" y="200" class="text">• Hilt (DI)</text>
+
+  <rect x="1150" y="110" width="120" height="130" class="component" rx="3"/>
+  <text x="1210" y="135" text-anchor="middle" class="component-title">Components</text>
+  <text x="1160" y="155" class="text">• CustomButton</text>
+  <text x="1160" y="170" class="text">• CardView</text>
+  <text x="1160" y="185" class="text">• Chart/Graph</text>
+  <text x="1160" y="200" class="text">• Dialog/Alert</text>
+
+  <rect x="1290" y="110" width="80" height="130" class="component" rx="3"/>
+  <text x="1330" y="135" text-anchor="middle" class="component-title">Utils</text>
+  <text x="1300" y="155" class="text">• Logger</text>
+  <text x="1300" y="170" class="text">• Formatter</text>
+  <text x="1300" y="185" class="text">• Constants</text>
+  <text x="1300" y="200" class="text">• DateUtil</text>
+
+  <!-- ============ SERVICE LAYER ============ -->
+  <rect x="20" y="260" width="1360" height="160" class="layer-bg" rx="5"/>
+  <text x="35" y="280" class="layer-title">🔧 SERVICE & BUSINESS LOGIC LAYER</text>
+  <line x1="30" y1="290" x2="1370" y2="290" style="stroke: #0D47A1; stroke-width: 1;"/>
+
+  <!-- ViewModels -->
+  <rect x="30" y="300" width="110" height="100" class="component" rx="3"/>
+  <text x="85" y="320" text-anchor="middle" class="component-title">ViewModels</text>
+  <text x="40" y="340" class="text">• AuthViewModel</text>
+  <text x="40" y="353" class="text">• DashViewModel</text>
+  <text x="40" y="366" class="text">• BurnoutViewModel</text>
+  <text x="40" y="379" class="text">• SettingsViewModel</text>
+
+  <!-- Services -->
+  <rect x="160" y="300" width="110" height="100" class="component" rx="3"/>
+  <text x="215" y="320" text-anchor="middle" class="component-title">Services</text>
+  <text x="170" y="340" class="text">• AppMonitoringService</text>
+  <text x="170" y="353" class="text">• NotificationService</text>
+  <text x="170" y="366" class="text">• HealthSyncService</text>
+  <text x="170" y="379" class="text">• CacheService</text>
+
+  <!-- Workers/Background -->
+  <rect x="290" y="300" width="110" height="100" class="component" rx="3"/>
+  <text x="345" y="320" text-anchor="middle" class="component-title">WorkManager</text>
+  <text x="300" y="340" class="text">• SyncWorker</text>
+  <text x="300" y="353" class="text">• HealthWorker</text>
+  <text x="300" y="366" class="text">• ReportWorker</text>
+  <text x="300" y="379" class="text">• CleanupWorker</text>
+
+  <!-- Repositories -->
+  <rect x="420" y="300" width="110" height="100" class="component" rx="3" style="fill: #FFF9C4; stroke: #F57C00; stroke-width: 2;"/>
+  <text x="475" y="320" text-anchor="middle" class="component-title">Repositories</text>
+  <text x="430" y="340" class="text">• UserRepository</text>
+  <text x="430" y="353" class="text">• MoodRepository</text>
+  <text x="430" y="366" class="text">• ActivityRepository</text>
+  <text x="430" y="379" class="text">• BurnoutRepository</text>
+
+  <!-- ML Module -->
+  <rect x="550" y="300" width="110" height="100" class="component" rx="3" style="fill: #FFE0B2; stroke: #D84315; stroke-width: 2;"/>
+  <text x="605" y="320" text-anchor="middle" class="component-title">ML Module</text>
+  <text x="560" y="340" class="text">• TensorFlow Lite</text>
+  <text x="560" y="353" class="text">• ModelLoader</text>
+  <text x="560" y="366" class="text">• Inference Engine</text>
+  <text x="560" y="379" class="text">• Predictions</text>
+
+  <!-- API Service -->
+  <rect x="680" y="300" width="110" height="100" class="component" rx="3"/>
+  <text x="735" y="320" text-anchor="middle" class="component-title">API Service</text>
+  <text x="690" y="340" class="text">• ApiClient</text>
+  <text x="690" y="353" class="text">• Interceptors</text>
+  <text x="690" y="366" class="text">• Request/Response</text>
+  <text x="690" y="379" class="text">• Error Handling</text>
+
+  <!-- Data Validators -->
+  <rect x="810" y="300" width="110" height="100" class="component" rx="3"/>
+  <text x="865" y="320" text-anchor="middle" class="component-title">Validators</text>
+  <text x="820" y="340" class="text">• InputValidator</text>
+  <text x="820" y="353" class="text">• TokenValidator</text>
+  <text x="820" y="366" class="text">• DateValidator</text>
+  <text x="820" y="379" class="text">• RangeValidator</text>
+
+  <!-- Storage -->
+  <rect x="940" y="300" width="110" height="100" class="component" rx="3"/>
+  <text x="995" y="320" text-anchor="middle" class="component-title">Storage</text>
+  <text x="950" y="340" class="text">• SharedPreferences</text>
+  <text x="950" y="353" class="text">• Secure Storage</text>
+  <text x="950" y="366" class="text">• File Caching</text>
+  <text x="950" y="379" class="text">• Encryption</text>
+
+  <!-- Auth Manager -->
+  <rect x="1070" y="300" width="110" height="100" class="component" rx="3" style="fill: #C8E6C9; stroke: #388E3C; stroke-width: 2;"/>
+  <text x="1125" y="320" text-anchor="middle" class="component-title">Auth Manager</text>
+  <text x="1080" y="340" class="text">• JWTHandler</text>
+  <text x="1080" y="353" class="text">• OAuth (future)</text>
+  <text x="1080" y="366" class="text">• SessionManager</text>
+  <text x="1080" y="379" class="text">• TokenRefresh</text>
+
+  <!-- Utils -->
+  <rect x="1200" y="300" width="110" height="100" class="component" rx="3"/>
+  <text x="1255" y="320" text-anchor="middle" class="component-title">Utilities</text>
+  <text x="1210" y="340" class="text">• Logger</text>
+  <text x="1210" y="353" class="text">• Analytics</text>
+  <text x="1210" y="366" class="text">• CrashReporting</text>
+  <text x="1210" y="379" class="text">• Performance</text>
+
+  <!-- ============ DATA LAYER ============ -->
+  <rect x="20" y="430" width="1360" height="160" class="layer-bg" rx="5"/>
+  <text x="35" y="450" class="layer-title">💾 DATA LAYER (Local & Remote Storage)</text>
+  <line x1="30" y1="460" x2="1370" y2="460" style="stroke: #0D47A1; stroke-width: 1;"/>
+
+  <!-- Room Database -->
+  <rect x="30" y="470" width="130" height="100" class="component" rx="3" style="fill: #F3E5F5; stroke: #6A1B9A; stroke-width: 2;"/>
+  <text x="95" y="490" text-anchor="middle" class="component-title">Room Database</text>
+  <text x="40" y="510" class="text">• DAOs (Data Access)</text>
+  <text x="40" y="523" class="text">• Entities (Models)</text>
+  <text x="40" y="536" class="text">• Database</text>
+  <text x="40" y="549" class="text">• Migrations</text>
+
+  <!-- Retrofit API Client -->
+  <rect x="180" y="470" width="130" height="100" class="component" rx="3" style="fill: #E0F2F1; stroke: #00796B; stroke-width: 2;"/>
+  <text x="245" y="490" text-anchor="middle" class="component-title">Retrofit HTTP Client</text>
+  <text x="190" y="510" class="text">• API Interfaces</text>
+  <text x="190" y="523" class="text">• OkHttp</text>
+  <text x="190" y="536" class="text">• Interceptors</text>
+  <text x="190" y="549" class="text">• Gson Converter</text>
+
+  <!-- Models/DTOs -->
+  <rect x="330" y="470" width="130" height="100" class="component" rx="3"/>
+  <text x="395" y="490" text-anchor="middle" class="component-title">Models (DTOs)</text>
+  <text x="340" y="510" class="text">• UserModel</text>
+  <text x="340" y="523" class="text">• SleepMoodDTO</text>
+  <text x="340" y="536" class="text">• ActivityDTO</text>
+  <text x="340" y="549" class="text">• BurnoutDTO</text>
+
+  <!-- ML Models/Assets -->
+  <rect x="480" y="470" width="130" height="100" class="component" rx="3" style="fill: #FFE0B2; stroke: #D84315; stroke-width: 2;"/>
+  <text x="545" y="490" text-anchor="middle" class="component-title">ML Assets</text>
+  <text x="490" y="510" class="text">• app_classifier.tflite</text>
+  <text x="490" y="523" class="text">• label_encoder.pkl</text>
+  <text x="490" y="536" class="text">• vocab.txt</text>
+  <text x="490" y="549" class="text">• Metadata.json</text>
+
+  <!-- Server Connection -->
+  <rect x="630" y="470" width="130" height="100" class="component" rx="3" style="fill: #E0F2F1; stroke: #00796B; stroke-width: 2;"/>
+  <text x="695" y="490" text-anchor="middle" class="component-title">Backend API</text>
+  <text x="640" y="510" class="text">• Express.js Server</text>
+  <text x="640" y="523" class="text">• Port: 5000</text>
+  <text x="640" y="536" class="text">• REST Endpoints</text>
+  <text x="640" y="549" class="text">• JWT Auth</text>
+
+  <!-- Health Connect -->
+  <rect x="780" y="470" width="130" height="100" class="component" rx="3" style="fill: #C8E6C9; stroke: #388E3C; stroke-width: 2;"/>
+  <text x="845" y="490" text-anchor="middle" class="component-title">Health Connect</text>
+  <text x="790" y="510" class="text">• Samsung Health</text>
+  <text x="790" y="523" class="text">• Google Fit</text>
+  <text x="790" y="536" class="text">• Device Sensors</text>
+  <text x="790" y="549" class="text">• Step Counter</text>
+
+  <!-- Caching Layer -->
+  <rect x="930" y="470" width="130" height="100" class="component" rx="3"/>
+  <text x="995" y="490" text-anchor="middle" class="component-title">Cache Layer</text>
+  <text x="940" y="510" class="text">• In-Memory Cache</text>
+  <text x="940" y="523" class="text">• SharedPreferences</text>
+  <text x="940" y="536" class="text">• Disk Cache</text>
+  <text x="940" y="549" class="text">• TTL Management</text>
+
+  <!-- Sync Manager -->
+  <rect x="1080" y="470" width="130" height="100" class="component" rx="3" style="fill: #FFF9C4; stroke: #F57C00; stroke-width: 2;"/>
+  <text x="1145" y="490" text-anchor="middle" class="component-title">Sync Manager</text>
+  <text x="1090" y="510" class="text">• Offline Mode</text>
+  <text x="1090" y="523" class="text">• Queue Management</text>
+  <text x="1090" y="536" class="text">• Conflict Resolution</text>
+  <text x="1090" y="549" class="text">• Retry Logic</text>
+
+  <!-- Analytics -->
+  <rect x="1230" y="470" width="130" height="100" class="component" rx="3"/>
+  <text x="1295" y="490" text-anchor="middle" class="component-title">Analytics & Logs</text>
+  <text x="1240" y="510" class="text">• Event Tracking</text>
+  <text x="1240" y="523" class="text">• Error Logging</text>
+  <text x="1240" y="536" class="text">• Performance Metrics</text>
+  <text x="1240" y="549" class="text">• Crash Reports</text>
+
+  <!-- ============ EXTERNAL SYSTEMS ============ -->
+  <rect x="20" y="600" width="1360" height="140" class="layer-bg" rx="5"/>
+  <text x="35" y="620" class="layer-title">🌐 EXTERNAL SYSTEMS & INTEGRATION</text>
+  <line x1="30" y1="630" x2="1370" y2="630" style="stroke: #0D47A1; stroke-width: 1;"/>
+
+  <!-- OS Services -->
+  <rect x="30" y="640" width="120" height="80" class="component" rx="3" style="fill: #C8E6C9; stroke: #388E3C; stroke-width: 2;"/>
+  <text x="90" y="660" text-anchor="middle" class="component-title">Android OS Services</text>
+  <text x="40" y="680" class="text">• UsageStatsManager</text>
+  <text x="40" y="693" class="text">• AccessibilityService</text>
+  <text x="40" y="706" class="text">• WorkManager</text>
+
+  <!-- Google APIs -->
+  <rect x="170" y="640" width="120" height="80" class="component" rx="3" style="fill: #E0F2F1; stroke: #00796B; stroke-width: 2;"/>
+  <text x="230" y="660" text-anchor="middle" class="component-title">Google APIs</text>
+  <text x="180" y="680" class="text">• Google Fit</text>
+  <text x="180" y="693" class="text">• Google Play Services</text>
+  <text x="180" y="706" class="text">• Firebase (future)</text>
+
+  <!-- Cloud Services -->
+  <rect x="310" y="640" width="120" height="80" class="component" rx="3" style="fill: #FFF9C4; stroke: #F57C00; stroke-width: 2;"/>
+  <text x="370" y="660" text-anchor="middle" class="component-title">Cloud Services</text>
+  <text x="320" y="680" class="text">• AWS S3 (Backups)</text>
+  <text x="320" y="693" class="text">• CloudWatch</text>
+  <text x="320" y="706" class="text">• EC2 (Server)</text>
+
+  <!-- Third-Party Libs -->
+  <rect x="450" y="640" width="120" height="80" class="component" rx="3"/>
+  <text x="510" y="660" text-anchor="middle" class="component-title">Third-Party Libs</text>
+  <text x="460" y="680" class="text">• TensorFlow Lite</text>
+  <text x="460" y="693" class="text">• Hilt (DI)</text>
+  <text x="460" y="706" class="text">• Lottie Animations</text>
+
+  <!-- Database Service -->
+  <rect x="590" y="640" width="120" height="80" class="component" rx="3" style="fill: #F3E5F5; stroke: #6A1B9A; stroke-width: 2;"/>
+  <text x="650" y="660" text-anchor="middle" class="component-title">PostgreSQL (Future)</text>
+  <text x="600" y="680" class="text">• Phase 2 Scaling</text>
+  <text x="600" y="693" class="text">• Production DB</text>
+  <text x="600" y="706" class="text">• Connection Pooling</text>
+
+  <!-- Monitoring -->
+  <rect x="730" y="640" width="120" height="80" class="component" rx="3"/>
+  <text x="790" y="660" text-anchor="middle" class="component-title">Monitoring</text>
+  <text x="740" y="680" class="text">• PM2 Plus</text>
+  <text x="740" y="693" class="text">• Sentry</text>
+  <text x="740" y="706" class="text">• New Relic (future)</text>
+
+  <!-- CI/CD -->
+  <rect x="870" y="640" width="120" height="80" class="component" rx="3" style="fill: #FFE0B2; stroke: #D84315; stroke-width: 2;"/>
+  <text x="930" y="660" text-anchor="middle" class="component-title">CI/CD Pipeline</text>
+  <text x="880" y="680" class="text">• GitHub Actions</text>
+  <text x="880" y="693" class="text">• Docker</text>
+  <text x="880" y="706" class="text">• Automated Deploys</text>
+
+  <!-- Email Service -->
+  <rect x="1010" y="640" width="120" height="80" class="component" rx="3"/>
+  <text x="1070" y="660" text-anchor="middle" class="component-title">Email Service</text>
+  <text x="1020" y="680" class="text">• SendGrid (future)</text>
+  <text x="1020" y="693" class="text">• Password Reset</text>
+  <text x="1020" y="706" class="text">• Notifications</text>
+
+  <!-- Analytics Service -->
+  <rect x="1150" y="640" width="120" height="80" class="component" rx="3"/>
+  <text x="1210" y="660" text-anchor="middle" class="component-title">Analytics</text>
+  <text x="1160" y="680" class="text">• Segment (future)</text>
+  <text x="1160" y="693" class="text">• User Behavior</text>
+  <text x="1160" y="706" class="text">• Engagement Metrics</text>
+
+  <!-- Version Control -->
+  <rect x="1290" y="640" width="80" height="80" class="component" rx="3"/>
+  <text x="1330" y="660" text-anchor="middle" class="component-title">Version Control</text>
+  <text x="1300" y="680" class="text">• GitHub</text>
+  <text x="1300" y="693" class="text">• Git Hooks</text>
+  <text x="1300" y="706" class="text">• Code Review</text>
+
+  <!-- KEY STATISTICS -->
+  <rect x="20" y="760" width="1360" height="150" style="fill: #F0F4F8; stroke: #1565C0; stroke-width: 2; border-radius: 5px;"/>
+  <text x="40" y="785" style="font-size: 13px; font-weight: bold; fill: #0D47A1;">📊 ARCHITECTURE STATISTICS & METRICS</text>
+  <line x1="30" y1="795" x2="1370" y2="795" style="stroke: #0D47A1; stroke-width: 1;"/>
+
+  <text x="50" y="815" class="text" font-weight="bold">Layers:</text> <text x="120" y="815" class="text">6 (Presentation → Services → Data → External)</text>
+  <text x="50" y="830" class="text" font-weight="bold">Components:</text> <text x="150" y="830" class="text">50+ (UI, Logic, Services, Storage)</text>
+  <text x="50" y="845" class="text" font-weight="bold">Routes:</text> <text x="120" y="845" class="text">23 (Navigation screens)</text>
+  <text x="50" y="860" class="text" font-weight="bold">API Endpoints:</text> <text x="180" y="860" class="text">9+ (Auth, Data, ML, Reports)</text>
+
+  <text x="650" y="815" class="text" font-weight="bold">Database Tables:</text> <text x="810" y="815" class="text">8 (Core tables)</text>
+  <text x="650" y="830" class="text" font-weight="bold">Models/DTOs:</text> <text x="810" y="830" class="text">20+</text>
+  <text x="650" y="845" class="text" font-weight="bold">Services:</text> <text x="810" y="845" class="text">15+ (Network, Local, Background)</text>
+  <text x="650" y="860" class="text" font-weight="bold">External Integrations:</text> <text x="870" y="860" class="text">10+ (Health Connect, Google Fit, AWS, etc)</text>
+
+  <text x="40" y="890" class="text" style="font-style: italic; fill: #666;">✅ This architecture supports scalability from MVP (single user) to 1000+ concurrent users with proper database migration to PostgreSQL</text>
+  <text x="40" y="905" class="text" style="font-style: italic; fill: #666;">✅ All components follow SOLID principles with clear separation of concerns and dependency injection (Hilt) for testability</text>
+  <text x="40" y="920" class="text" style="font-style: italic; fill: #666;">✅ Security implemented via JWTs, bcrypt password hashing, HTTPS/TLS, and encrypted local storage (future: Android Keystore)</text>
+
+</svg>

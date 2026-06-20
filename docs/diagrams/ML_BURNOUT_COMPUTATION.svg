@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1000">
+  <defs>
+    <style>
+      .input-box { fill: #E8F4F8; stroke: #0D47A1; stroke-width: 2; }
+      .process-box { fill: #FFF9C4; stroke: #F57C00; stroke-width: 2; }
+      .ml-box { fill: #FFE0B2; stroke: #D84315; stroke-width: 2.5; }
+      .output-box { fill: #C8E6C9; stroke: #388E3C; stroke-width: 2; }
+      .arrow { stroke: #424242; stroke-width: 2; marker-end: url(#arrowhead); }
+      .text { font-family: Arial, sans-serif; font-size: 11px; }
+      .title { font-size: 24px; font-weight: bold; fill: #D84315; }
+      .formula { font-family: 'Courier New', monospace; font-size: 10px; fill: #333; }
+      .label { font-size: 10px; fill: #555; font-weight: bold; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#424242" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="35" text-anchor="middle" class="title">🤖 Burnout Risk Computation Engine</text>
+  <text x="700" y="55" text-anchor="middle" style="font-size: 12px; fill: #666;">Complete ML Algorithm Breakdown</text>
+
+  <!-- STEP 1: DATA COLLECTION -->
+  <text x="50" y="90" class="label" style="font-size: 13px;">📊 STEP 1: DATA AGGREGATION</text>
+
+  <rect x="50" y="110" width="110" height="100" class="input-box" rx="5"/>
+  <text x="105" y="130" text-anchor="middle" style="font-weight: bold; font-size: 11px;">Sleep Logs</text>
+  <text x="60" y="150" class="text">• Duration (hrs)</text>
+  <text x="60" y="165" class="text">• Quality (1-10)</text>
+  <text x="60" y="180" class="text">• Notes</text>
+  <text x="60" y="195" class="text">• Last 7 days avg</text>
+
+  <rect x="190" y="110" width="110" height="100" class="input-box" rx="5"/>
+  <text x="245" y="130" text-anchor="middle" style="font-weight: bold; font-size: 11px;">Physical Activity</text>
+  <text x="200" y="150" class="text">• Steps</text>
+  <text x="200" y="165" class="text">• Calories burned</text>
+  <text x="200" y="180" class="text">• Active minutes</text>
+  <text x="200" y="195" class="text">• Last 7 days total</text>
+
+  <rect x="330" y="110" width="110" height="100" class="input-box" rx="5"/>
+  <text x="385" y="130" text-anchor="middle" style="font-weight: bold; font-size: 11px;">App Usage</text>
+  <text x="340" y="150" class="text">• By category</text>
+  <text x="340" y="165" class="text">  (Study/Ent)</text>
+  <text x="340" y="180" class="text">• Duration per app</text>
+  <text x="340" y="195" class="text">• Today total</text>
+
+  <rect x="470" y="110" width="110" height="100" class="input-box" rx="5"/>
+  <text x="525" y="130" text-anchor="middle" style="font-weight: bold; font-size: 11px;">Study Sessions</text>
+  <text x="480" y="150" class="text">• Duration (mins)</text>
+  <text x="480" y="165" class="text">• Subject</text>
+  <text x="480" y="180" class="text">• Focus quality</text>
+  <text x="480" y="195" class="text">• Weekly total</text>
+
+  <rect x="610" y="110" width="110" height="100" class="input-box" rx="5"/>
+  <text x="665" y="130" text-anchor="middle" style="font-weight: bold; font-size: 11px;">Mood Logs</text>
+  <text x="620" y="150" class="text">• Mood score (1-10)</text>
+  <text x="620" y="165" class="text">• Category (emoji)</text>
+  <text x="620" y="180" class="text">• Notes</text>
+  <text x="620" y="195" class="text">• Today reading</text>
+
+  <!-- Arrows converging -->
+  <path d="M 105 210 L 280 260" class="arrow"/>
+  <path d="M 245 210 L 280 260" class="arrow"/>
+  <path d="M 385 210 L 280 260" class="arrow"/>
+  <path d="M 525 210 L 280 260" class="arrow"/>
+  <path d="M 665 210 L 280 260" class="arrow"/>
+
+  <!-- STEP 2: NORMALIZATION -->
+  <text x="50" y="285" class="label" style="font-size: 13px;">🔄 STEP 2: DATA NORMALIZATION & SCALING</text>
+
+  <rect x="150" y="305" width="260" height="120" class="process-box" rx="5"/>
+  <text x="280" y="325" text-anchor="middle" style="font-weight: bold; font-size: 12px;">Normalize to 0-1 Scale</text>
+  <text x="160" y="345" class="formula">Sleep: hours / 24 = normalized_sleep</text>
+  <text x="160" y="360" class="formula">Activity: steps / 10000 = normalized_activity</text>
+  <text x="160" y="375" class="formula">Focus: study_mins / 480 = normalized_focus</text>
+  <text x="160" y="390" class="formula">App_Usage: ent_mins / total_mins = normalized_usage</text>
+  <text x="160" y="405" class="formula">Mood: mood_score / 10 = normalized_mood</text>
+
+  <path d="M 280 260 L 280 305" class="arrow"/>
+
+  <!-- STEP 3: RISK FACTOR CALCULATION -->
+  <text x="50" y="480" class="label" style="font-size: 13px;">⚠️ STEP 3: RISK FACTOR EXTRACTION</text>
+
+  <!-- Sleep Risk -->
+  <rect x="50" y="500" width="130" height="120" class="process-box" rx="5"/>
+  <text x="115" y="520" text-anchor="middle" style="font-weight: bold;">Sleep Risk</text>
+  <text x="60" y="540" class="text">Input:</text>
+  <text x="60" y="553" class="text">  norm_sleep (0-1)</text>
+  <text x="60" y="566" class="text">  sleep_quality (1-10)</text>
+  <text x="60" y="579" class="text">Calculation:</text>
+  <text x="60" y="592" class="formula">sleep_risk = (1 -</text>
+  <text x="60" y="605" class="formula">  norm_sleep ×0.7 +</text>
+  <text x="60" y="618" class="formula">  quality×0.3) × 25</text>
+
+  <!-- Activity Risk -->
+  <rect x="210" y="500" width="130" height="120" class="process-box" rx="5"/>
+  <text x="275" y="520" text-anchor="middle" style="font-weight: bold;">Activity Risk</text>
+  <text x="220" y="540" class="text">Input:</text>
+  <text x="220" y="553" class="text">  norm_activity (0-1)</text>
+  <text x="220" y="566" class="text">  active_minutes</text>
+  <text x="220" y="579" class="text">Calculation:</text>
+  <text x="220" y="592" class="formula">activity_risk = (1 -</text>
+  <text x="220" y="605" class="formula">  norm_activity) × 20</text>
+  <text x="220" y="618" class="formula"></text>
+
+  <!-- Cognitive Load Risk -->
+  <rect x="370" y="500" width="130" height="120" class="process-box" rx="5"/>
+  <text x="435" y="520" text-anchor="middle" style="font-weight: bold;">Cognitive Load</text>
+  <text x="380" y="540" class="text">Input:</text>
+  <text x="380" y="553" class="text">  study_time (min)</text>
+  <text x="380" y="566" class="text">  ent_usage (ratio)</text>
+  <text x="380" y="579" class="text">Calculation:</text>
+  <text x="380" y="592" class="formula">load_risk = |study -</text>
+  <text x="380" y="605" class="formula">  ent×0.8| × 0.25 × 25</text>
+  <text x="380" y="618" class="formula"></text>
+
+  <!-- Mood Risk -->
+  <rect x="530" y="500" width="130" height="120" class="process-box" rx="5"/>
+  <text x="595" y="520" text-anchor="middle" style="font-weight: bold;">Mood Risk</text>
+  <text x="540" y="540" class="text">Input:</text>
+  <text x="540" y="553" class="text">  norm_mood (0-1)</text>
+  <text x="540" y="566" class="text">Calculation:</text>
+  <text x="540" y="579" class="text"></text>
+  <text x="540" y="592" class="formula">mood_risk = (1 -</text>
+  <text x="540" y="605" class="formula">  norm_mood) × 30</text>
+  <text x="540" y="618" class="formula"></text>
+
+  <!-- Arrows converging to ML -->
+  <path d="M 115 620 L 280 680" class="arrow"/>
+  <path d="M 275 620 L 280 680" class="arrow"/>
+  <path d="M 435 620 L 280 680" class="arrow"/>
+  <path d="M 595 620 L 280 680" class="arrow"/>
+
+  <!-- STEP 4: ML ALGORITHM -->
+  <text x="50" y="705" class="label" style="font-size: 13px;">🤖 STEP 4: WEIGHTED BURNOUT COMPUTATION</text>
+
+  <rect x="80" y="725" width="400" height="140" class="ml-box" rx="5"/>
+  <text x="280" y="750" text-anchor="middle" style="font-weight: bold; font-size: 13px;">Burnout Risk Score Calculation</text>
+  <line x1="90" y1="760" x2="470" y2="760" style="stroke: #D84315; stroke-width: 1;"/>
+
+  <text x="100" y="780" class="formula" style="font-size: 11px;">burnout_score = (sleep_risk × 0.25) +</text>
+  <text x="100" y="795" class="formula" style="font-size: 11px;">                (activity_risk × 0.20) +</text>
+  <text x="100" y="810" class="formula" style="font-size: 11px;">                (load_risk × 0.25) +</text>
+  <text x="100" y="825" class="formula" style="font-size: 11px;">                (mood_risk × 0.30)</text>
+  <text x="100" y="840" class="formula" style="font-size: 11px; background: yellow;">= Score between 0-100</text>
+
+  <path d="M 280 680 L 280 725" class="arrow"/>
+
+  <!-- STEP 5: RISK CLASSIFICATION -->
+  <text x="750" y="705" class="label" style="font-size: 13px;">📊 STEP 5: RISK LEVEL CLASSIFICATION</text>
+
+  <!-- Low Risk -->
+  <rect x="750" y="725" width="130" height="80" class="output-box" rx="5" style="fill: #C8E6C9; stroke: #2E7D32; stroke-width: 2;"/>
+  <text x="815" y="745" text-anchor="middle" style="font-weight: bold; color: #2E7D32;">✅ LOW</text>
+  <text x="760" y="760" class="text">Score: 0-30</text>
+  <text x="760" y="775" class="text">Status: Healthy</text>
+  <text x="760" y="790" class="text">Risk: Minimal</text>
+
+  <!-- Moderate Risk -->
+  <rect x="910" y="725" width="130" height="80" class="output-box" rx="5" style="fill: #FFF9C4; stroke: #F57C00; stroke-width: 2;"/>
+  <text x="975" y="745" text-anchor="middle" style="font-weight: bold; color: #F57C00;">⚠️ MODERATE</text>
+  <text x="920" y="760" class="text">Score: 30-50</text>
+  <text x="920" y="775" class="text">Status: Caution</text>
+  <text x="920" y="790" class="text">Risk: Watch</text>
+
+  <!-- High Risk -->
+  <rect x="1070" y="725" width="130" height="80" class="output-box" rx="5" style="fill: #FFCCBC; stroke: #D84315; stroke-width: 2;"/>
+  <text x="1135" y="745" text-anchor="middle" style="font-weight: bold; color: #D84315;">🔴 HIGH</text>
+  <text x="1080" y="760" class="text">Score: 50-75</text>
+  <text x="1080" y="775" class="text">Status: Alert</text>
+  <text x="1080" y="790" class="text">Risk: Significant</text>
+
+  <!-- Critical Risk -->
+  <rect x="1230" y="725" width="130" height="80" class="output-box" rx="5" style="fill: #EF9A9A; stroke: #C62828; stroke-width: 2;"/>
+  <text x="1295" y="745" text-anchor="middle" style="font-weight: bold; color: #C62828;">🚨 CRITICAL</text>
+  <text x="1240" y="760" class="text">Score: 75-100</text>
+  <text x="1240" y="775" class="text">Status: Urgent</text>
+  <text x="1240" y="790" class="text">Risk: Severe</text>
+
+  <path d="M 280 865 L 815 725" class="arrow"/>
+  <path d="M 280 865 L 975 725" class="arrow"/>
+  <path d="M 280 865 L 1135 725" class="arrow"/>
+  <path d="M 280 865 L 1295 725" class="arrow"/>
+
+  <!-- STEP 6: RECOMMENDATIONS -->
+  <text x="50" y="870" class="label" style="font-size: 13px;">💡 STEP 6: PERSONALIZED RECOMMENDATIONS</text>
+
+  <!-- Example Recommendations -->
+  <rect x="50" y="890" width="1300" height="100" class="output-box" rx="5" style="fill: #E8F5E9; stroke: #388E3C; stroke-width: 2;"/>
+  <text x="60" y="910" style="font-weight: bold; font-size: 11px;">Based on Risk Level and Contributing Factors, System Generates:</text>
+  <text x="70" y="930" class="text">• "Your sleep is below recommended 7-8 hours. Consider maintaining consistent sleep schedule."</text>
+  <text x="70" y="945" class="text">• "Physical activity is low. Try 30 mins of walking or light exercise to reduce cognitive fatigue."</text>
+  <text x="70" y="960" class="text">• "High entertainment app usage detected. Consider taking regular breaks (20-20-20 rule: every 20 min look 20ft away for 20 sec)."</text>
+  <text x="70" y="975" class="text">• "Mood trend declining. Try mindfulness, meditation, or consult a mental health professional."</text>
+
+</svg>
