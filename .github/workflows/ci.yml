@@ -1,0 +1,56 @@
+name: BurnOutTracker CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Web App Dependencies
+        working-directory: ./web-app
+        run: npm install
+
+      - name: Build Web App
+        working-directory: ./web-app
+        run: npm run build
+
+      # Add steps here to run Selenium tests in headless mode
+      # - name: Run Selenium Tests
+      #   working-directory: ./tests/web
+      #   run: npm install selenium-webdriver && node dashboard.test.js
+
+  build-and-test-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Android APK
+        run: ./gradlew assembleDebug
+
+      # Add steps here to run Appium tests via ReactiveCircus/android-emulator-runner
+      # - name: Run Appium Tests
+      #   uses: reactivecircus/android-emulator-runner@v2
+      #   with:
+      #     api-level: 29
+      #     script: cd tests/android && npm install webdriverio && node login.test.js
