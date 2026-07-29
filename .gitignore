@@ -1,4 +1,4 @@
-*.iml
+﻿*.iml
 .gradle
 /local.properties
 /.idea/
@@ -13,3 +13,5 @@ node_modules/
 *.db
 *.log
 .kotlin/
+
+New Server updated parallely for web app(with tested code)/
