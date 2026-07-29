@@ -1,10 +1,7 @@
 // ─── Retrofit Client Singleton ────────────────────────────────────────────────
-// Copy this file into your Android project under:
-//   app/src/main/java/com/yourpackage/data/api/
 
 package com.simats.burnouttracker.data.api
 
-import android.content.Context
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -13,9 +10,6 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // ⚠️ CHANGE THIS to match your setup:
-    //   • Android Emulator  → "http://10.0.2.2:5000/"
-    //   • Physical device    → "http://<your-computer-ip>:5000/"
     private const val BASE_URL = "https://cognify-backend-kin1.onrender.com/"
 
     @Volatile
@@ -24,25 +18,21 @@ object RetrofitClient {
     /**
      * Get the singleton ApiService instance.
      * Call this from your ViewModel or Repository.
-     *
-     * Example:
-     *   val api = RetrofitClient.getApiService(applicationContext)
-     *   val response = api.login(LoginRequest("test@email.com", "password123"))
      */
-    fun getApiService(context: Context): ApiService {
+    fun getApiService(): ApiService {
         return apiService ?: synchronized(this) {
-            apiService ?: buildApiService(context).also { apiService = it }
+            apiService ?: buildApiService().also { apiService = it }
         }
     }
 
-    private fun buildApiService(context: Context): ApiService {
+    private fun buildApiService(): ApiService {
         // Logging interceptor — shows request/response in Logcat (debug only)
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
-        // Auth interceptor — auto-attaches JWT token
-        val authInterceptor = AuthInterceptor(context.applicationContext)
+        // Auth interceptor — auto-attaches Firebase ID token
+        val authInterceptor = AuthInterceptor()
 
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(authInterceptor)

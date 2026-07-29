@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import com.simats.burnouttracker.R
+import com.simats.burnouttracker.data.api.RetrofitClient
+import com.simats.burnouttracker.data.models.RegisterRequest
 import kotlinx.coroutines.tasks.await
 
 @Composable
@@ -63,6 +65,15 @@ class AndroidAuthService : AuthService {
                 .setDisplayName(fullName)
                 .build()
             result.user?.updateProfile(profileUpdates)?.await()
+
+            // Create the profile via backend
+            val apiService = RetrofitClient.getApiService()
+            val response = apiService.register(RegisterRequest(fullName = fullName))
+
+            if (!response.isSuccessful) {
+                return AuthResult(false, "Account created but profile setup failed")
+            }
+
             AuthResult(true)
         } catch (e: Exception) {
             AuthResult(false, e.message ?: "Registration failed")

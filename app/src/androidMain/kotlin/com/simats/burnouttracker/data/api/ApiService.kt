@@ -1,6 +1,4 @@
 // ─── Retrofit API Service Interface ──────────────────────────────────────────
-// Copy this file into your Android project under:
-//   app/src/main/java/com/yourpackage/data/api/
 
 package com.simats.burnouttracker.data.api
 
@@ -13,12 +11,9 @@ interface ApiService {
     // ─── Authentication ────────────────────────────────────────────────────────
 
     @POST("api/auth/register")
-    suspend fun register(@Body request: RegisterRequest): Response<AuthResponse>
+    suspend fun register(@Body request: RegisterRequest): Response<SimpleResponse>
 
-    @POST("api/auth/login")
-    suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
-
-    @GET("api/auth/profile")
+    @GET("api/auth/me")
     suspend fun getProfile(): Response<ProfileResponse>
 
     // ─── Dashboard ─────────────────────────────────────────────────────────────
