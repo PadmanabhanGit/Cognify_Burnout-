@@ -1,42 +1,42 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
 const auth = require('../middleware/auth');
-const db = require('../database');
+const { db } = require('../firebase');
 
 // @route   POST api/activity/sync
-// @desc    Sync steps and activity from health provider
-router.post('/sync', auth, (req, res) => {
+router.post('/sync', auth, async (req, res) => {
   const { steps, calories, activeMinutes, source, date } = req.body;
-  const userId = req.user.id;
+  const userId = req.user.uid;
   const syncDate = date || new Date().toISOString().split('T')[0];
-  const id = uuidv4();
+  const docId = `${userId}_${syncDate}`; // one doc per user per day, overwrite on resync
 
-  db.run(
-    `INSERT INTO physical_activity (id, userId, date, steps, calories, activeMinutes, source)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(userId, date) DO UPDATE SET
-     steps = excluded.steps,
-     calories = excluded.calories,
-     activeMinutes = excluded.activeMinutes,
-     source = excluded.source`,
-    [id, userId, syncDate, steps, calories, activeMinutes, source],
-    function(err) {
-      if (err) return res.status(500).json({ success: false, message: 'Activity sync failed' });
-      res.json({ success: true, message: 'Activity updated' });
-    }
-  );
+  try {
+    await db.collection('physicalActivity').doc(docId).set({
+      userId,
+      date: syncDate,
+      steps,
+      calories,
+      activeMinutes,
+      source,
+    }, { merge: true });
+    res.json({ success: true, message: 'Activity updated' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Activity sync failed' });
+  }
 });
 
 // @route   GET api/activity/today
-router.get('/today', auth, (req, res) => {
-    const userId = req.user.id;
-    const today = new Date().toISOString().split('T')[0];
+router.get('/today', auth, async (req, res) => {
+  const userId = req.user.uid;
+  const today = new Date().toISOString().split('T')[0];
+  const docId = `${userId}_${today}`;
 
-    db.get('SELECT * FROM physical_activity WHERE userId = ? AND date = ?', [userId, today], (err, row) => {
-        if (err) return res.status(500).json({ success: false });
-        res.json({ success: true, activity: row || { steps: 0, calories: 0, activeMinutes: 0 } });
-    });
+  try {
+    const doc = await db.collection('physicalActivity').doc(docId).get();
+    res.json({ success: true, activity: doc.exists ? doc.data() : { steps: 0, calories: 0, activeMinutes: 0 } });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
 });
 
 module.exports = router;

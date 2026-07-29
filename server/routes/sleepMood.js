@@ -1,59 +1,74 @@
 const express = require('express');
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
 const auth = require('../middleware/auth');
-const db = require('../database');
+const { db } = require('../firebase');
 
 // @route   POST api/sleep-mood/log
-// @desc    Save sleep and mood log
-router.post('/log', auth, (req, res) => {
+router.post('/log', auth, async (req, res) => {
   const { sleepDuration, sleepQuality, mood, moodScore, notes, date } = req.body;
-  const userId = req.user.id;
-  const id = uuidv4();
+  const userId = req.user.uid;
   const logDate = date || new Date().toISOString();
 
-  db.run(
-    'INSERT INTO sleep_mood_logs (id, userId, date, sleepDuration, sleepQuality, mood, moodScore, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, userId, logDate, sleepDuration, sleepQuality, mood, moodScore, notes],
-    function(err) {
-      if (err) return res.status(500).json({ success: false, message: 'Error saving log' });
+  try {
+    const docRef = await db.collection('sleepMoodLogs').add({
+      userId,
+      date: logDate,
+      sleepDuration: sleepDuration ?? null,
+      sleepQuality: sleepQuality ?? null,
+      mood: mood ?? null,
+      moodScore: moodScore ?? null,
+      notes: notes ?? null,
+    });
 
-      db.get('SELECT * FROM sleep_mood_logs WHERE id = ?', [id], (err, log) => {
-        res.json({ success: true, log });
-      });
-    }
-  );
+    const doc = await docRef.get();
+    res.json({ success: true, log: { id: doc.id, ...doc.data() } });
+  } catch (err) {
+    console.error('Error saving sleep/mood log:', err.message);
+    res.status(500).json({ success: false, message: 'Error saving log' });
+  }
 });
 
 // @route   GET api/sleep-mood/logs
-// @desc    Get recent sleep and mood logs
-router.get('/logs', auth, (req, res) => {
-  const userId = req.user.id;
-  const limit = req.query.limit || 7;
+router.get('/logs', auth, async (req, res) => {
+  const userId = req.user.uid;
+  const limit = parseInt(req.query.limit) || 7;
 
-  db.all(
-    'SELECT * FROM sleep_mood_logs WHERE userId = ? ORDER BY date DESC LIMIT ?',
-    [userId, limit],
-    (err, logs) => {
-      if (err) return res.status(500).json({ success: false, message: 'Error fetching logs' });
-      res.json({ success: true, logs });
-    }
-  );
+  try {
+    const snapshot = await db.collection('sleepMoodLogs')
+      .where('userId', '==', userId)
+      .orderBy('date', 'desc')
+      .limit(limit)
+      .get();
+
+    res.json({ success: true, logs: snapshot.docs.map(d => ({ id: d.id, ...d.data() })) });
+  } catch (err) {
+    console.error('Error fetching logs:', err.message);
+    res.status(500).json({ success: false, message: 'Error fetching logs' });
+  }
 });
 
 // @route   GET api/sleep-mood/trends/sleep
-router.get('/trends/sleep', auth, (req, res) => {
-    const userId = req.user.id;
-    const days = req.query.days || 30;
+router.get('/trends/sleep', auth, async (req, res) => {
+  const userId = req.user.uid;
+  const days = parseInt(req.query.days) || 30;
 
-    db.all(
-        'SELECT date, sleepDuration, sleepQuality FROM sleep_mood_logs WHERE userId = ? ORDER BY date ASC LIMIT ?',
-        [userId, days],
-        (err, trends) => {
-            if (err) return res.status(500).json({ success: false });
-            res.json({ success: true, trends });
-        }
-    );
+  try {
+    const snapshot = await db.collection('sleepMoodLogs')
+      .where('userId', '==', userId)
+      .orderBy('date', 'asc')
+      .limit(days)
+      .get();
+
+    const trends = snapshot.docs.map(d => {
+      const data = d.data();
+      return { date: data.date, sleepDuration: data.sleepDuration, sleepQuality: data.sleepQuality };
+    });
+
+    res.json({ success: true, trends });
+  } catch (err) {
+    console.error('Error fetching trends:', err.message);
+    res.status(500).json({ success: false });
+  }
 });
 
 module.exports = router;
