@@ -117,20 +117,16 @@ export default function AppUsage() {
             <div style={{ color: '#6B7280', fontSize: '14px' }}>No specific apps recorded today.</div>
           ) : (
             topApps.map((item, index) => {
-              const colors = {
-                'Social Media': '#F43F5E',
-                'Gaming': '#F59E0B',
-                'Streaming': '#3B82F6',
-                'Productivity': '#10B981'
-              };
               return (
                 <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '5px', backgroundColor: colors[item.category] || '#6B7280', marginRight: '12px' }}></div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#374151', textTransform: 'capitalize' }}>{item.name}</div>
-                    <div style={{ fontSize: '11px', color: 'gray' }}>{item.category}</div>
+                  <div style={{ width: '100%', maxWidth: '300px', display: 'flex', alignItems: 'center' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '5px', backgroundColor: item.color || '#6B7280', marginRight: '12px' }}></div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#374151', textTransform: 'capitalize' }}>{item.name}</div>
+                      <div style={{ fontSize: '11px', color: 'gray' }}>{item.category}</div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#111827' }}>{item.time}</div>
+                  <div style={{ flex: 1, textAlign: 'right', fontSize: '14px', fontWeight: 800, color: '#111827' }}>{item.time}</div>
                 </div>
               );
             })

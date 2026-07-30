@@ -59,17 +59,20 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                 
                 // Sync to backend
                 try {
-                    val usageItems = realFeatures.topApps.map { 
+                    AppData.isSyncing = true
+                    val usageItems = realFeatures.topApps.map { appUsage: DetailedAppUsage ->
                         UsageItemRequest(
-                            packageName = it.name,
-                            duration = (it.hours * 60).toLong()
+                            packageName = appUsage.packageName,
+                            category = appUsage.category,
+                            duration = (appUsage.hours * 60).toLong()
                         )
                     }
-                    println("DEBUG_SYNC: Sending usage for " + usageItems.size + " apps to backend...")
                     val response = ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems))
-                    println("DEBUG_SYNC: Backend response: " + response.success + " - " + response.message)
+                    AppData.lastSyncFailed = !response.success
                 } catch (e: Exception) {
-                    println("DEBUG_SYNC: Sync failed: " + e.message)
+                    AppData.lastSyncFailed = true
+                } finally {
+                    AppData.isSyncing = false
                 }
             }
             delay(30000) // Update every 30 seconds
@@ -173,10 +176,20 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                             Text(text = "Daily Entertainment Usage", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                             Column(horizontalAlignment = Alignment.End) {
                                 Surface(color = Color(0xFFF3F4F6), shape = RoundedCornerShape(8.dp)) {
-                                    Text(text = "Today", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 12.sp, color = Color(0xFF6B7280))
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                                        if (AppData.isSyncing) {
+                                            CircularProgressIndicator(modifier = Modifier.size(10.dp), strokeWidth = 1.dp, color = Color(0xFF6B7280))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                        }
+                                        Text(text = "Today", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                    }
                                 }
                                 if (AppData.lastUpdatedTime.isNotEmpty()) {
-                                    Text(text = "Updated: ${AppData.lastUpdatedTime}", fontSize = 10.sp, color = Color.Gray)
+                                    Text(
+                                        text = if (AppData.lastSyncFailed) "Sync Failed" else "Updated: ${AppData.lastUpdatedTime}", 
+                                        fontSize = 10.sp, 
+                                        color = if (AppData.lastSyncFailed) Color.Red else Color.Gray
+                                    )
                                 }
                             }
                         }

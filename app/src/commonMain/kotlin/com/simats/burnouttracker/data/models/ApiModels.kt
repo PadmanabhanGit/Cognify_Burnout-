@@ -406,6 +406,7 @@ data class UsageSyncRequest(
 @Serializable
 data class UsageItemRequest(
     val packageName: String,
+    val category: String,
     val duration: Long // minutes
 )
 

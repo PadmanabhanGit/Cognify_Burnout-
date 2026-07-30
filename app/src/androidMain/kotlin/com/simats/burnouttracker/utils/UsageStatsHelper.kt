@@ -92,7 +92,7 @@ actual class UsageStatsHelper(private val context: Context) {
                 }
                 total += time
                 
-                appList.add(DetailedAppUsage(appName, category, time, color))
+                appList.add(DetailedAppUsage(appName, packageName, category, time, color))
             }
         }
 

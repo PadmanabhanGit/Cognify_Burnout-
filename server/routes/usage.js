@@ -13,7 +13,9 @@ router.post('/sync', auth, async (req, res) => {
   try {
     const batch = db.batch();
     for (const item of usageData) {
-      const category = await resolveCategory(item.packageName);
+      // Trust device category first, fallback to resolver
+      const category = item.category || await resolveCategory(item.packageName);
+
       // Doc for the specific app (e.g., whatsapp)
       const appDocId = `${userId}_${syncDate}_app_${item.packageName.replace(/\./g, '_')}`;
       const appRef = db.collection('appUsageDetails').doc(appDocId);
@@ -68,38 +70,43 @@ router.get('/today', auth, async (req, res) => {
   const today = new Date().toISOString().split('T')[0];
 
   try {
-    const snapshot = await db.collection('appUsageDetails')
+    const snapshot = await db.collection('appUsage')
       .where('userId', '==', userId)
       .where('date', '==', today)
       .get();
 
-    const apps = snapshot.docs.map(doc => doc.data());
-
-    // Group by category for the bars
-    const categories = {};
-    apps.forEach(app => {
-      if (!categories[app.category]) categories[app.category] = 0;
-      categories[app.category] += app.duration;
+    const formattedUsage = snapshot.docs.map(doc => {
+      const r = doc.data();
+      return {
+        category: r.category,
+        time: `${Math.floor(r.totalDuration / 60)}h ${r.totalDuration % 60}m`,
+        progress: Math.min(r.totalDuration / 480, 1.0),
+        color: getColorForCategory(r.category)
+      };
     });
 
-    const formattedUsage = Object.keys(categories).map(cat => ({
-      category: cat,
-      time: `${Math.floor(categories[cat] / 60)}h ${categories[cat] % 60}m`,
-      progress: Math.min(categories[cat] / 480, 1.0),
-      color: getColorForCategory(cat)
-    }));
+    // Also fetch top apps from appUsageDetails
+    const detailsSnapshot = await db.collection('appUsageDetails')
+      .where('userId', '==', userId)
+      .where('date', '==', today)
+      .orderBy('duration', 'desc')
+      .limit(10)
+      .get();
 
-    res.json({
-      success: true,
-      usage: formattedUsage,
-      topApps: apps.map(app => ({
-        name: app.appName,
-        category: app.category,
-        time: `${Math.floor(app.duration / 60)}h ${app.duration % 60}m`,
-        duration: app.duration
-      })).sort((a, b) => b.duration - a.duration).slice(0, 10)
+    const topApps = detailsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        name: data.appName,
+        category: data.category,
+        time: `${Math.floor(data.duration / 60)}h ${data.duration % 60}m`,
+        hours: data.duration / 60.0,
+        color: getColorForCategory(data.category)
+      };
     });
+
+    res.json({ success: true, usage: formattedUsage, topApps });
   } catch (err) {
+    console.error('Fetch failed:', err.message);
     res.status(500).json({ success: false });
   }
 });
@@ -107,6 +114,7 @@ router.get('/today', auth, async (req, res) => {
 function getColorForCategory(cat) {
   const colors = {
     'Entertainment': '#3B82F6',
+    'Streaming': '#3B82F6',
     'Social Media': '#EC4899',
     'Productivity': '#10B981',
     'Gaming': '#F97316'

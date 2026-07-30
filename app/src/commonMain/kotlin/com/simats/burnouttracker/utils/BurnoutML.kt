@@ -18,6 +18,7 @@ data class BurnoutFeatures(
 
 data class DetailedAppUsage(
     val name: String,
+    val packageName: String,
     val category: String,
     val hours: Float,
     val color: androidx.compose.ui.graphics.Color

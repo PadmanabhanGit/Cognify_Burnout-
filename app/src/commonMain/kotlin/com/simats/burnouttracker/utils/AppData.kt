@@ -46,6 +46,8 @@ object AppData {
 
     var hasData by mutableStateOf(false)
     var lastUpdatedTime by mutableStateOf("")
+    var isSyncing by mutableStateOf(false)
+    var lastSyncFailed by mutableStateOf(false)
 }
 
 @Composable

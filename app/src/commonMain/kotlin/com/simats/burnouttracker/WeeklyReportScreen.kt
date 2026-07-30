@@ -28,11 +28,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.simats.burnouttracker.data.api.ApiClient
+import com.simats.burnouttracker.data.models.WeeklyReportData
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.*
 import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
 fun WeeklyReportScreen(navController: NavController) {
+    var reportData by remember { mutableStateOf<WeeklyReportData?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        try {
+            val response = ApiClient.getWeeklyReport()
+            if (response.success) {
+                reportData = response.report
+            }
+        } catch (e: Exception) {
+        } finally {
+            isLoading = false
+        }
+    }
+
     val reportGradient = Brush.verticalGradient(
         colors = listOf(Color(0xFF9333EA), Color(0xFFDB2777))
     )
@@ -87,7 +107,7 @@ fun WeeklyReportScreen(navController: NavController) {
                         lineHeight = 30.sp
                     )
                     Text(
-                        text = "Feb 15 - Feb 21, 2025",
+                        text = reportData?.let { "${it.period.from} - ${it.period.to}" } ?: "Loading...",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 14.sp
                     )
