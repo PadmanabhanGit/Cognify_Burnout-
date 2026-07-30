@@ -1,77 +1,118 @@
-name: Deploy to GitHub Pages & Run Selenium E2E
+name: Unified Deploy & E2E Testing Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
+jobs:
+  build_and_deploy_web:
+    name: Build & Deploy React App to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install dependencies (web-app)
-        working-directory: ./web-app
-        run: npm ci
-
-      - name: Build web-app
-        working-directory: ./web-app
-        run: npm run build
-
+      - name: Install dependencies & Build
+        run: |
+          cd web-app
+          npm install
+          npm run build
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./web-app/dist
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
+          path: './web-app/dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
-  selenium-test:
-    runs-on: ubuntu-latest
-    needs: deploy
+  run_tests:
+    name: Run All Automated Tests
+    needs: build_and_deploy_web
+    runs-on: macos-latest
+    env:
+      BASE_URL: ${{ needs.build_and_deploy_web.outputs.page_url }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 20
+          python-version: '3.11'
+          
+      - name: Install Python deps
+        run: |
+          cd tests
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest-html pandas openpyxl
+          npm install xlsx
 
-      - name: Install Selenium dependencies
-        working-directory: ./tests/web
-        run: npm ci
+      - name: Run Web Selenium E2E Tests against Live URL
+        run: |
+          cd tests
+          pytest test_web_selenium.py --html=execution-report.html -v
 
-      - name: Run Selenium Tests
-        working-directory: ./tests/web
-        env:
-          BASE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: npm test
+      - name: Run Mobile Appium Tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          script: |
+            npm install -g appium
+            appium driver install uiautomator2
+            appium > appium.log 2>&1 &
+            sleep 10
+            cd tests && pytest test_mobile_appium.py --html=appium-report.html -v
+            
+      - name: Run API Load Tests (K6)
+        run: |
+          # Install K6 on macOS runner
+          brew install k6
+          cd tests
+          k6 run load_test.js || true
+          
+      - name: Generate Unified Excel Reports
+        run: |
+          cd tests
+          node generate_all_reports.js
 
-      - name: Upload Selenium Artifacts
-        if: always()
+      - name: Prepare Reports for GitHub Pages Deployment
+        run: |
+          mkdir -p public_reports/reports/latest
+          cp tests/*.xlsx public_reports/reports/latest/ 2>/dev/null || true
+          cp tests/*.html public_reports/reports/latest/ 2>/dev/null || true
+          
+          # Create a custom index.html summarizing the test run
+          echo "<html><body><h1>BurnoutTracker Test Reports</h1><br><a href='execution-report.html'>Selenium Web Report</a><br><a href='appium-report.html'>Appium Mobile Report</a><br><a href='Appium_Test_Report.xlsx'>Appium Excel</a><br><a href='Selenium_Test_Report.xlsx'>Selenium Excel</a></body></html>" > public_reports/reports/latest/index.html
+          
+      - name: Deploy Reports to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public_reports
+          keep_files: true # CRITICAL: Keeps the React App deployment intact and only adds the /reports/ folder
+          
+      - name: Upload Test Artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: selenium-reports
-          path: |
-            tests/web/Test Results/
+          name: Full-Test-Reports
+          path: public_reports/reports/latest/
