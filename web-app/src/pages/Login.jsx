@@ -48,7 +48,7 @@ export default function Login() {
       <div className="white-card-lg" style={{ marginTop: '32px', width: '90%', maxWidth: '500px', padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ fontSize: '32px', fontWeight: 700, color: '#1E293B' }}>Welcome</div>
         
-        {error && <div style={{ color: 'red', fontSize: '14px', marginTop: '8px' }}>{error}</div>}
+        {error && <div className="error-message" style={{ color: 'red', fontSize: '14px', marginTop: '8px' }}>{error}</div>}
         
         <form onSubmit={handleSignIn} style={{ width: '100%', marginTop: '32px' }}>
           <div style={{ width: '100%' }}>
