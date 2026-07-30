@@ -1,0 +1,62 @@
+name: Automated Testing Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test-and-report:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install Python dependencies
+      run: |
+        cd tests
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Backend Security Tests
+      run: |
+        cd tests
+        pytest test_backend_security.py -v
+
+    - name: Run Web Selenium Tests
+      run: |
+        # In a real scenario, start the web server in background first
+        # npm --prefix web-app run start &
+        cd tests
+        pytest test_web_selenium.py -v
+
+    - name: Run Mobile Appium Tests
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 29
+        script: |
+          npm install -g appium
+          appium &
+          sleep 10
+          cd tests
+          pytest test_mobile_appium.py -v
+
+    - name: Upload Test Report Excel Sheet
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: BurnoutTracker-Test-Report
+        path: tests/Test_Report_BurnoutTracker.xlsx
