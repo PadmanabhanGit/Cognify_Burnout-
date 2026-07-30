@@ -127,4 +127,14 @@ object ApiClient {
             StudyWeeklyResponse(success = false)
         }
     }
+
+    suspend fun getWeeklyReport(): WeeklyReportResponse {
+        return try {
+            client.get("api/report/weekly") {
+                authHeader()?.let { header(HttpHeaders.Authorization, it) }
+            }.body()
+        } catch (e: Exception) {
+            WeeklyReportResponse(success = false, report = null)
+        }
+    }
 }
