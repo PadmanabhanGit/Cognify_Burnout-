@@ -10,8 +10,7 @@ def driver():
     options = UiAutomator2Options()
     options.platform_name = 'Android'
     options.device_name = 'Android Emulator'
-    options.app_package = 'com.simats.burnouttracker'
-    options.app_activity = '.MainActivity'
+    options.browser_name = 'Chrome'
     options.automation_name = 'UiAutomator2'
     options.no_reset = True
     

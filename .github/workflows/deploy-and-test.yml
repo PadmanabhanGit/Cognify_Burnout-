@@ -89,10 +89,11 @@ jobs:
             sleep 10
             cd tests && pytest test_mobile_appium.py --html=appium-report.html -v
             
+      - name: Setup K6
+        uses: grafana/setup-k6-action@v1
+
       - name: Run API Load Tests (K6)
         run: |
-          # Install K6 on macOS runner
-          brew install k6
           cd tests
           k6 run load_test.js || true
           
