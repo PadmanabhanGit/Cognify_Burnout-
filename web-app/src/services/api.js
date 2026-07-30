@@ -2,7 +2,7 @@ import axios from 'axios';
 import { auth } from '../firebase';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? 'https://cognify-burnout.onrender.com' : 'http://localhost:5000'),
 });
 
 // Add a request interceptor to attach the Firebase token
