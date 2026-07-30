@@ -33,7 +33,18 @@ router.get('/', auth, async (req, res) => {
     const weeklyStudyMinutes = studySnap.docs.reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
     const weeklyStudyHours = Math.round((weeklyStudyMinutes / 60) * 10) / 10;
 
-    const burnout = await computeBurnoutRisk(userId, today);
+    const burnoutSnap = await db.collection('burnoutAssessments')
+      .where('userId', '==', userId)
+      .get();
+    const burnoutDocs = burnoutSnap.docs.map(d => d.data()).sort((a, b) => b.date.localeCompare(a.date));
+    let burnout = null;
+    if (burnoutDocs.length > 0) {
+      burnout = burnoutDocs[0];
+    } else {
+      burnout = await computeBurnoutRisk(userId, today);
+    }
+    
+    if (!burnout.warnings) burnout.warnings = [];
 
     res.json({
       success: true,

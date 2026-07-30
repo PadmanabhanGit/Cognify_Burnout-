@@ -54,26 +54,38 @@ export default function Dashboard() {
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh' }}>
-      <div className="dashboard-header-bg" style={{ padding: '40px 24px 60px 24px' }}>
+      <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', padding: '40px 24px 60px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>Hello, {firstName}!</div>
             <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>{currentDate}</div>
           </div>
-          <div style={{ width: '48px', height: '48px', borderRadius: '24px', backgroundColor: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div onClick={() => navigate('/profile')} style={{ width: '48px', height: '48px', borderRadius: '24px', backgroundColor: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
             <PsychologyIcon style={{ color: '#6B21A8', fontSize: '28px' }} />
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-          <SummaryCard icon={AccessTimeIcon} value={`${studyHours}h`} label="Study Today" />
-          <SummaryCard icon={BedtimeIcon} value={`${sleepHours}h`} label="Sleep" />
-          <SummaryCard icon={SentimentSatisfiedAltIcon} value={moodEmoji} label="Mood" />
+          <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
+            <AccessTimeIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
+            <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{studyHours}h</div>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Study Today</div>
+          </div>
+          <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
+            <BedtimeIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
+            <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{sleepHours}h</div>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Sleep</div>
+          </div>
+          <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
+            <SentimentSatisfiedAltIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
+            <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{moodEmoji}</div>
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Mood</div>
+          </div>
         </div>
       </div>
 
       <div className="desktop-padding" style={{ padding: '0 24px', marginTop: '-30px' }}>
-        <BurnoutAlertBox riskLevel={alertLevel} riskScore={alertScore} onClick={() => alert('Navigating to Burnout Alert Details')} />
+        <BurnoutAlertBox riskLevel={alertLevel} riskScore={alertScore} onClick={() => navigate('/burnout')} />
 
         <div style={{ fontSize: '22px', fontWeight: 800, color: '#1F2937', marginTop: '16px', marginBottom: '16px' }}>Features</div>
 

@@ -14,6 +14,7 @@ import SleepMoodLogger from './pages/SleepMoodLogger';
 import SleepMoodAnalytics from './pages/SleepMoodAnalytics';
 import AppUsage from './pages/AppUsage';
 import Productivity from './pages/Productivity';
+import Profile from './pages/Profile';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -48,7 +49,9 @@ function App() {
           <Route path="/report" element={user ? <WeeklyReport /> : <Navigate to="/login" />} />
           <Route path="/weekly-report" element={user ? <WeeklyReport /> : <Navigate to="/login" />} />
           <Route path="/burnout-risk" element={user ? <BurnoutRisk /> : <Navigate to="/login" />} />
+          <Route path="/burnout" element={user ? <BurnoutRisk /> : <Navigate to="/login" />} />
           <Route path="/action-plan" element={user ? <ActionPlan /> : <Navigate to="/login" />} />
+          <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
       </BrowserRouter>
