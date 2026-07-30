@@ -35,7 +35,8 @@ function generateReport(suiteName, fileName, testCount, componentName) {
     
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Test Results");
+    const sheetName = fileName.replace('.xlsx', '').substring(0, 31);
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     XLSX.writeFile(workbook, fileName);
     console.log(`✅ Generated ${fileName} | Suite: ${suiteName} | Total: ${testCount} | Passed: ${passed}`);
