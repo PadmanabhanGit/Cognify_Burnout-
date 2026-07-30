@@ -35,7 +35,18 @@ actual fun rememberAuthService(): AuthService {
 }
 
 class AndroidAuthService : AuthService {
-    private val auth = FirebaseAuth.getInstance()
+    private val auth = FirebaseAuth.getInstance().apply {
+        // Use emulator for local testing on physical device
+        // If the build fails to find BuildConfig, you can temporarily hardcode this to true 
+        // or check if it's a debug build using other methods.
+        try {
+            // Use your computer's LAN IP (found via ipconfig)
+            // Note: Phone must be on the same WiFi as the computer
+            useEmulator("192.168.1.10", 9099)
+        } catch (e: Exception) {
+            // Emulator might already be initialized or IP unreachable
+        }
+    }
 
     override fun isLoggedIn(): Boolean {
         return auth.currentUser != null
@@ -68,7 +79,7 @@ class AndroidAuthService : AuthService {
 
             // Create the profile via backend
             val apiService = RetrofitClient.getApiService()
-            val response = apiService.register(RegisterRequest(fullName = fullName))
+            val response = apiService.register(RegisterRequest(email = email, password = password, fullName = fullName))
 
             if (!response.isSuccessful) {
                 return AuthResult(false, "Account created but profile setup failed")

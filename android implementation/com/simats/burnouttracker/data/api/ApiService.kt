@@ -90,30 +90,3 @@ interface ApiService {
     @GET("api/usage/today")
     suspend fun getTodayUsage(): Response<UsageTodayResponse>
 }
-
-data class UsageSyncRequest(
-    val usageData: List<UsageItemRequest>,
-    val date: String? = null
-)
-
-data class UsageItemRequest(
-    val packageName: String,
-    val duration: Long // minutes
-)
-
-data class UsageTodayResponse(
-    val success: Boolean,
-    val usage: List<UsageItemBackend>
-)
-
-data class UsageItemBackend(
-    val category: String,
-    val time: String,
-    val progress: Float,
-    val color: String
-)
-
-data class SimpleResponse(
-    val success: Boolean,
-    val message: String
-)

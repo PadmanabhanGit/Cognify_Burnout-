@@ -14,18 +14,28 @@ router.post('/sync', auth, async (req, res) => {
     const batch = db.batch();
     for (const item of usageData) {
       const category = await resolveCategory(item.packageName);
-      // Deterministic ID = same doc gets reused/merged instead of duplicated
-      const docId = `${userId}_${syncDate}_${category}`;
-      const docRef = db.collection('appUsage').doc(docId);
-      batch.set(docRef, {
+      // Doc for the specific app (e.g., whatsapp)
+      const appDocId = `${userId}_${syncDate}_app_${item.packageName.replace(/\./g, '_')}`;
+      const appRef = db.collection('appUsageDetails').doc(appDocId);
+
+      batch.set(appRef, {
         userId,
         date: syncDate,
+        appName: item.packageName,
         category,
-        duration: admin.firestore.FieldValue.increment(item.duration),
+        duration: item.duration,
       }, { merge: true });
+
+      // Aggregate into category doc for the dashboard bars
+      const catDocId = `${userId}_${syncDate}_${category}`;
+      const catRef = db.collection('appUsage').doc(catDocId);
+
+      // We don't use increment here because the phone sends the full daily total each time
+      // But multiple apps can belong to the same category, so we need to handle that carefully.
+      // For simplicity in this sync, we'll store specific apps and let the GET route aggregate.
     }
     await batch.commit();
-    res.json({ success: true, message: 'Usage stats synced and categorized' });
+    res.json({ success: true, message: 'Detailed usage stats synced' });
   } catch (err) {
     console.error('Sync failed:', err.message);
     res.status(500).json({ success: false, message: 'Sync failed' });
@@ -38,22 +48,37 @@ router.get('/today', auth, async (req, res) => {
   const today = new Date().toISOString().split('T')[0];
 
   try {
-    const snapshot = await db.collection('appUsage')
+    const snapshot = await db.collection('appUsageDetails')
       .where('userId', '==', userId)
       .where('date', '==', today)
       .get();
 
-    const formatted = snapshot.docs.map(doc => {
-      const r = doc.data();
-      return {
-        category: r.category,
-        time: `${Math.floor(r.duration / 60)}h ${r.duration % 60}m`,
-        progress: Math.min(r.duration / 480, 1.0),
-        color: getColorForCategory(r.category)
-      };
+    const apps = snapshot.docs.map(doc => doc.data());
+
+    // Group by category for the bars
+    const categories = {};
+    apps.forEach(app => {
+      if (!categories[app.category]) categories[app.category] = 0;
+      categories[app.category] += app.duration;
     });
 
-    res.json({ success: true, usage: formatted });
+    const formattedUsage = Object.keys(categories).map(cat => ({
+      category: cat,
+      time: `${Math.floor(categories[cat] / 60)}h ${categories[cat] % 60}m`,
+      progress: Math.min(categories[cat] / 480, 1.0),
+      color: getColorForCategory(cat)
+    }));
+
+    res.json({
+      success: true,
+      usage: formattedUsage,
+      topApps: apps.map(app => ({
+        name: app.appName,
+        category: app.category,
+        time: `${Math.floor(app.duration / 60)}h ${app.duration % 60}m`,
+        duration: app.duration
+      })).sort((a, b) => b.duration - a.duration).slice(0, 10)
+    });
   } catch (err) {
     res.status(500).json({ success: false });
   }

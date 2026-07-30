@@ -19,11 +19,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.simats.burnouttracker.data.api.ApiClient
+import com.simats.burnouttracker.data.models.SleepMoodLogRequest
+import kotlinx.coroutines.launch
 
 @Composable
 fun SleepMoodLoggerScreen(navController: NavController) {
     var sleepHours by remember { mutableStateOf(8f) }
     var mood by remember { mutableStateOf("Neutral") }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val purpleGradient = Brush.verticalGradient(
         colors = listOf(Color(0xFF8B5CF6), Color(0xFF6366F1))
@@ -90,11 +95,43 @@ fun SleepMoodLoggerScreen(navController: NavController) {
                 }
 
                 Button(
-                    onClick = { navController.popBackStack() },
+                    onClick = { 
+                        scope.launch {
+                            isLoading = true
+                            println("DEBUG_SAVE: Button clicked. Starting network call...")
+                            try {
+                                val response = ApiClient.saveSleepMoodLog(
+                                    SleepMoodLogRequest(
+                                        sleepDuration = sleepHours.toDouble(),
+                                        sleepQuality = 8, // Placeholder
+                                        mood = mood.lowercase(),
+                                        moodScore = when(mood) {
+                                            "Happy" -> 10
+                                            "Neutral" -> 5
+                                            else -> 2
+                                        }
+                                    )
+                                )
+                                println("DEBUG_SAVE: Network call finished. Success: ${response.success}")
+                                navController.popBackStack()
+                            } catch (e: Exception) {
+                                println("DEBUG_SAVE: Network call FAILED. Error: ${e.message}")
+                                // Show error or fail silently
+                                navController.popBackStack()
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    },
+                    enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Save Log")
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text("Save Log")
+                    }
                 }
             }
         }

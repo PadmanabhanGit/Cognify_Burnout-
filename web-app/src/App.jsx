@@ -1,51 +1,58 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import axios from 'axios';
-import './App.css';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import SignUp from './pages/SignUp';
+import Dashboard from './pages/Dashboard';
+import { auth } from './firebase';
 
-// Dashboard Component
-const Dashboard = () => {
-  const [data, setData] = useState(null);
-
-  useEffect(() => {
-    // Example call to your Node.js server
-    // axios.get('http://localhost:5000/api/dashboard').then(res => setData(res.data));
-  }, []);
-
-  return (
-    <div className="dashboard-container">
-      <header className="glass-header">
-        <h1>BurnOutTracker Dashboard</h1>
-        <nav>
-          <Link to="/analytics">Analytics</Link>
-          <Link to="/profile">Profile</Link>
-        </nav>
-      </header>
-      
-      <main className="main-content">
-        <section className="stats-card glass-panel fade-in">
-          <h2>Daily Usage</h2>
-          <p className="metric">4h 23m</p>
-          <p className="subtitle">Screen time today</p>
-        </section>
-        
-        <section className="stats-card glass-panel fade-in delay-1">
-          <h2>Sleep Analytics</h2>
-          <p className="metric">7h 15m</p>
-          <p className="subtitle">Last night's rest</p>
-        </section>
-      </main>
-    </div>
-  );
-};
+import StudyTracking from './pages/StudyTracking';
+import WeeklyReport from './pages/WeeklyReport';
+import BurnoutRisk from './pages/BurnoutRisk';
+import ActionPlan from './pages/ActionPlan';
+import SleepMoodDashboard from './pages/SleepMoodDashboard';
+import SleepMoodLogger from './pages/SleepMoodLogger';
+import SleepMoodAnalytics from './pages/SleepMoodAnalytics';
+import AppUsage from './pages/AppUsage';
+import Productivity from './pages/Productivity';
 
 function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#8B5CF6' }}></div>;
+  }
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-      </Routes>
-    </Router>
+    <div className="app-container">
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+          <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+          <Route path="/signup" element={user ? <Navigate to="/dashboard" /> : <SignUp />} />
+          <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+          <Route path="/study" element={user ? <StudyTracking /> : <Navigate to="/login" />} />
+          <Route path="/sleep" element={user ? <SleepMoodDashboard /> : <Navigate to="/login" />} />
+          <Route path="/sleep/log" element={user ? <SleepMoodLogger /> : <Navigate to="/login" />} />
+          <Route path="/sleep/analytics" element={user ? <SleepMoodAnalytics /> : <Navigate to="/login" />} />
+          <Route path="/usage" element={user ? <AppUsage /> : <Navigate to="/login" />} />
+          <Route path="/productivity" element={user ? <Productivity /> : <Navigate to="/login" />} />
+          <Route path="/report" element={user ? <WeeklyReport /> : <Navigate to="/login" />} />
+          <Route path="/weekly-report" element={user ? <WeeklyReport /> : <Navigate to="/login" />} />
+          <Route path="/burnout-risk" element={user ? <BurnoutRisk /> : <Navigate to="/login" />} />
+          <Route path="/action-plan" element={user ? <ActionPlan /> : <Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </BrowserRouter>
+    </div>
   );
 }
 

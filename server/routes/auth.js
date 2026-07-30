@@ -11,6 +11,8 @@ router.post('/register', authMiddleware, async (req, res) => {
   const uid = req.user.uid;
   const email = req.user.email;
 
+  console.log(`Registering profile for UID: ${uid}, Email: ${email}, Name: ${fullName}`);
+
   try {
     await db.collection('users').doc(uid).set({
       fullName: fullName || '',

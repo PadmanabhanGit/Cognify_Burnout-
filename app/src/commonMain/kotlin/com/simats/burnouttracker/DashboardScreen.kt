@@ -62,6 +62,20 @@ fun DashboardScreen(navController: NavController) {
                 riskScore = prediction
                 riskLevel = getRiskLevelName(prediction)
                 
+                // Sync prediction to backend
+                try {
+                    ApiClient.saveBurnoutAssessment(
+                        com.simats.burnouttracker.data.models.BurnoutAssessmentRequest(
+                            riskScore = prediction.toInt(),
+                            riskLevel = riskLevel.lowercase(),
+                            warnings = if (prediction > 40) listOf("Elevated stress levels detected") else emptyList(),
+                            recommendations = if (prediction > 40) listOf("Take a short break", "Practice mindfulness") else emptyList()
+                        )
+                    )
+                } catch (e: Exception) {
+                    // Fail silently
+                }
+
                 // Add a mock log if empty
                 if (AppData.sleepLogs.isEmpty()) {
                     AppData.sleepLogs.add(

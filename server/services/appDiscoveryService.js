@@ -15,7 +15,12 @@ const appDictionary = {
   "com.chess": "Gaming",
   "com.tencent.ig": "Gaming", // PUBG
   "com.dts.freefireth": "Gaming",
-  "com.mojang.minecraftpe": "Gaming"
+  "com.mojang.minecraftpe": "Gaming",
+  "whatsapp": "Social Media",
+  "instagram": "Social Media",
+  "facebook": "Social Media",
+  "youtube": "Entertainment",
+  "netflix": "Entertainment"
 };
 
 /**

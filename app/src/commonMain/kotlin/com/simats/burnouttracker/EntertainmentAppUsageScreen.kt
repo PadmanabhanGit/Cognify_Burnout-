@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.simats.burnouttracker.data.api.ApiClient
+import com.simats.burnouttracker.data.models.*
 import com.simats.burnouttracker.utils.*
 import kotlinx.coroutines.delay
 import kotlin.math.PI
@@ -45,6 +47,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
 
     val usageHelper = rememberUsageStatsHelper()
     val predictor = rememberBurnoutPredictor()
+    val scope = rememberCoroutineScope()
 
     // Real-time update logic
     LaunchedEffect(Unit) {
@@ -53,6 +56,21 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                 val realFeatures = usageHelper.fetchDailyUsage()
                 AppData.currentFeatures = realFeatures
                 AppData.predictedScore = predictor.predict(realFeatures)
+                
+                // Sync to backend
+                try {
+                    val usageItems = realFeatures.topApps.map { 
+                        UsageItemRequest(
+                            packageName = it.name,
+                            duration = (it.hours * 60).toLong()
+                        )
+                    }
+                    println("DEBUG_SYNC: Sending usage for " + usageItems.size + " apps to backend...")
+                    val response = ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems))
+                    println("DEBUG_SYNC: Backend response: " + response.success + " - " + response.message)
+                } catch (e: Exception) {
+                    println("DEBUG_SYNC: Sync failed: " + e.message)
+                }
             }
             delay(30000) // Update every 30 seconds
         }

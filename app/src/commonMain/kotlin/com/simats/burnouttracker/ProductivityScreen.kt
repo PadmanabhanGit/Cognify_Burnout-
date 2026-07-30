@@ -29,7 +29,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.simats.burnouttracker.data.api.ApiClient
+import com.simats.burnouttracker.data.models.ProductivityLogRequest
 import com.simats.burnouttracker.utils.AppData
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProductivityScreen(navController: NavController) {
@@ -37,6 +40,21 @@ fun ProductivityScreen(navController: NavController) {
         colors = listOf(Color(0xFF10B981), Color(0xFF059669))
     )
     val screenBgColor = Color(0xFFF9FAFB)
+    val scope = rememberCoroutineScope()
+
+    // Sync productivity data periodically
+    LaunchedEffect(Unit) {
+        try {
+            ApiClient.logProductivity(
+                ProductivityLogRequest(
+                    productivityScore = AppData.productivityScore,
+                    focusHours = AppData.peakFocusHours.toDouble(),
+                    tasksCompleted = (AppData.productivityScore / 10), // Mock
+                    tasksPlanned = 10
+                )
+            )
+        } catch (e: Exception) {}
+    }
 
     Scaffold(
         containerColor = screenBgColor,

@@ -10,6 +10,7 @@ import com.simats.burnouttracker.utils.*
 
 @Composable
 fun AppNavigation() {
+    println("DEBUG_FORCE: AppNavigation started. If you see this, code updates ARE working.")
     val navController = rememberNavController()
     val isWeb = getPlatform() == PlatformType.WEB
     val settings = rememberPlatformSettings()

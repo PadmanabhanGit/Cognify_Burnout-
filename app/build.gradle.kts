@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalWasmDsl::class)
-
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTargetDsl
 
@@ -19,16 +17,6 @@ kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
-    }
-    
-    wasmJs {
-        moduleName = "composeApp"
-        browser {
-            commonWebpackConfig {
-                outputFileName = "composeApp.js"
-            }
-        }
-        binaries.executable()
     }
     
     sourceSets {
@@ -86,13 +74,6 @@ kotlin {
                 
                 // WorkManager
                 implementation(libs.androidx.work.runtime.ktx)
-            }
-        }
-        
-        val wasmJsMain by getting {
-            dependencies {
-                // Web specific dependencies if any
-                implementation(libs.ktor.client.js)
             }
         }
     }
