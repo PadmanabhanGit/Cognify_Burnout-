@@ -29,13 +29,33 @@ router.post('/sync', auth, async (req, res) => {
       // Aggregate into category doc for the dashboard bars
       const catDocId = `${userId}_${syncDate}_${category}`;
       const catRef = db.collection('appUsage').doc(catDocId);
-
-      // We don't use increment here because the phone sends the full daily total each time
-      // But multiple apps can belong to the same category, so we need to handle that carefully.
-      // For simplicity in this sync, we'll store specific apps and let the GET route aggregate.
+      batch.set(catRef, {
+        userId,
+        date: syncDate,
+        category,
+        totalDuration: admin.firestore.FieldValue.increment(0), // placeholder so merge works
+      }, { merge: true });
     }
     await batch.commit();
-    res.json({ success: true, message: 'Detailed usage stats synced' });
+
+    // Now update category totals by re-aggregating from appUsageDetails
+    const allApps = await db.collection('appUsageDetails')
+      .where('userId', '==', userId).where('date', '==', syncDate).get();
+
+    const categoryTotals = {};
+    allApps.docs.forEach(doc => {
+      const d = doc.data();
+      categoryTotals[d.category] = (categoryTotals[d.category] || 0) + d.duration;
+    });
+
+    const updateBatch = db.batch();
+    for (const [cat, total] of Object.entries(categoryTotals)) {
+      const catRef = db.collection('appUsage').doc(`${userId}_${syncDate}_${cat}`);
+      updateBatch.set(catRef, { userId, date: syncDate, category: cat, totalDuration: total }, { merge: true });
+    }
+    await updateBatch.commit();
+
+    res.json({ success: true, message: 'Usage stats synced and aggregated' });
   } catch (err) {
     console.error('Sync failed:', err.message);
     res.status(500).json({ success: false, message: 'Sync failed' });

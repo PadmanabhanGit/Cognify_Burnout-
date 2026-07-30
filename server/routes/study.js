@@ -56,4 +56,42 @@ router.patch('/stop/:sessionId', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/study/stats/weekly
+router.get('/stats/weekly', auth, async (req, res) => {
+  const userId = req.user.uid;
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  try {
+    const snapshot = await db.collection('studySessions')
+      .where('userId', '==', userId)
+      .where('startTime', '>=', weekAgo.toISOString())
+      .get();
+
+    const sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    const totalMinutes = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
+    const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
+
+    // Build daily breakdown for chart
+    const dailyMap = {};
+    sessions.forEach(s => {
+      const day = s.startTime ? s.startTime.split('T')[0] : 'unknown';
+      dailyMap[day] = (dailyMap[day] || 0) + (s.duration || 0);
+    });
+
+    res.json({
+      success: true,
+      stats: {
+        totalHours,
+        sessionCount: sessions.size || sessions.length,
+        dailyBreakdown: dailyMap,
+        recentSessions: sessions.slice(0, 5)
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching weekly stats:', err.message);
+    res.status(500).json({ success: false });
+  }
+});
+
 module.exports = router;

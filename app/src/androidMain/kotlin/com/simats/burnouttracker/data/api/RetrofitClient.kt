@@ -10,8 +10,7 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // Use your computer's LAN IP for local testing
-    private const val BASE_URL = "http://192.168.1.10:5000/"
+    private const val BASE_URL = "https://cognify-burnout.onrender.com/"
 
     @Volatile
     private var apiService: ApiService? = null

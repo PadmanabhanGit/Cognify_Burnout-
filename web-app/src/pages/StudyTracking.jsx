@@ -24,9 +24,12 @@ export default function StudyTracking() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await api.get('/api/dashboard');
+        const res = await api.get('/api/study/stats/weekly');
         if (res.data.success) {
-          setStats(res.data.dashboard.featureCards.study);
+          setStats({
+            weeklyHours: res.data.stats.totalHours,
+            sessionCount: res.data.stats.sessionCount,
+          });
         }
       } catch (err) {
         console.error(err);
