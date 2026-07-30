@@ -35,14 +35,31 @@ export default function AppUsage() {
     fetchUsage();
   }, []);
 
-  const totalMinutes = usage.reduce((acc, curr) => {
-    if (!curr || !curr.time) return acc;
-    const timeParts = String(curr.time).match(/(\d+)h\s*(\d+)m/);
-    if (timeParts) return acc + (parseInt(timeParts[1]) * 60) + parseInt(timeParts[2]);
-    return acc;
-  }, 0);
-  
+  // Normalize categories from backend — classifier may return "Entertainment", "Others", etc.
+  const normalizeCategory = (cat) => {
+    if (!cat) return 'Others';
+    const c = cat.toLowerCase();
+    if (c.includes('social')) return 'Social Media';
+    if (c.includes('gaming') || c.includes('game')) return 'Gaming';
+    if (c.includes('stream') || c.includes('entertainment') || c.includes('video') || c.includes('media')) return 'Streaming';
+    if (c.includes('product') || c.includes('work') || c.includes('study') || c.includes('edu')) return 'Productivity';
+    return 'Others';
+  };
+
+  // Aggregate minutes per normalized bucket
+  const buckets = { 'Social Media': 0, 'Gaming': 0, 'Streaming': 0, 'Productivity': 0 };
+  usage.forEach(u => {
+    const norm = normalizeCategory(u.category);
+    if (norm in buckets) {
+      const m = String(u.time || '').match(/(\d+)h\s*(\d+)m/);
+      buckets[norm] += m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 0;
+    }
+  });
+
+  const totalMinutes = Object.values(buckets).reduce((a, b) => a + b, 0);
   const totalHoursStr = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
+  const fmtMins = (mins) => `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m`;
+
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: '#F9FAFB' }}>
@@ -78,24 +95,13 @@ export default function AppUsage() {
           ) : (
             <>
               {['Social Media', 'Gaming', 'Streaming', 'Productivity'].map((cat, index) => {
-                const found = usage.find(u => u.category === cat);
-                const durationStr = found ? found.time : '0h 00m';
-                const progress = found ? found.progress : 0;
-                const colors = {
-                  'Social Media': '#F43F5E',
-                  'Gaming': '#F59E0B',
-                  'Streaming': '#3B82F6',
-                  'Productivity': '#10B981'
-                };
+                const mins = buckets[cat] || 0;
+                const durationStr = fmtMins(mins);
+                const progress = Math.min(mins / 480, 1.0);
+                const colors = { 'Social Media': '#F43F5E', 'Gaming': '#F59E0B', 'Streaming': '#3B82F6', 'Productivity': '#10B981' };
                 return (
-                  <UsageItem 
-                    key={index} 
-                    label={cat} 
-                    duration={durationStr} 
-                    progress={progress} 
-                    color={colors[cat] || '#6B7280'} 
-                    icon={getIconForCategory(cat)} 
-                  />
+                  <UsageItem key={index} label={cat} duration={durationStr} progress={progress}
+                    color={colors[cat] || '#6B7280'} icon={getIconForCategory(cat)} />
                 );
               })}
             </>
