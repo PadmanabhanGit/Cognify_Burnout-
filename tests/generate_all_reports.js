@@ -46,9 +46,10 @@ function generateAllReports() {
     console.log("Generating separate Excel test reports...");
     
     // Appium
+    const todayDate = new Date().toISOString().split('T')[0];
     generateReport(
         "BurnoutTracker App – Full Appium E2E Automation", 
-        "Appium_Test_Report.xlsx", 
+        `Appium_Test_Report_${todayDate}.xlsx`, 
         getRandomInt(350, 450),
         "Appium"
     );
