@@ -13,7 +13,7 @@ class LoginPage(BasePage):
         self.base_url = base_url
 
     def load(self):
-        self.driver.get(f"{self.base_url}/login")
+        self.driver.get(self.base_url)
 
     def login(self, email, password):
         self.enter_text(self.EMAIL_INPUT, email)
