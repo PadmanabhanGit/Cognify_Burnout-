@@ -32,7 +32,10 @@ export default function AppUsage() {
         setLoading(false);
       }
     };
-    fetchUsage();
+    
+    fetchUsage(); // initial fetch
+    const intervalId = setInterval(fetchUsage, 10000); // refresh every 10 seconds
+    return () => clearInterval(intervalId); // cleanup on unmount
   }, []);
 
   // Normalize categories from backend — classifier may return "Entertainment", "Others", etc.
