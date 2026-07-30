@@ -7,10 +7,15 @@ import time
 
 @pytest.fixture(scope="module")
 def driver():
+    import os
+    apk_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../app/build/outputs/apk/debug/app-debug.apk'))
+    
     options = UiAutomator2Options()
     options.platform_name = 'Android'
     options.device_name = 'Android Emulator'
-    options.browser_name = 'Chrome'
+    options.app = apk_path
+    options.app_package = 'com.simats.burnouttracker'
+    options.app_activity = '.MainActivity'
     options.automation_name = 'UiAutomator2'
     options.no_reset = True
     
