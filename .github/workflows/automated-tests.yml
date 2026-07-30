@@ -81,6 +81,7 @@ jobs:
           api-level: 29
           script: |
             npm install -g appium
+            appium driver install uiautomator2
             appium &
             sleep 10
             cd tests && pytest test_mobile_appium.py -v
