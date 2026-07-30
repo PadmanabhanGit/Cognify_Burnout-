@@ -89,14 +89,15 @@ router.get('/today', auth, async (req, res) => {
     const detailsSnapshot = await db.collection('appUsageDetails')
       .where('userId', '==', userId)
       .where('date', '==', today)
-      .orderBy('duration', 'desc')
-      .limit(10)
       .get();
 
-    const topApps = detailsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        name: data.appName,
+    const topApps = detailsSnapshot.docs
+      .map(doc => doc.data())
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 10)
+      .map(data => {
+        return {
+          name: data.appName,
         category: data.category,
         time: `${Math.floor(data.duration / 60)}h ${data.duration % 60}m`,
         hours: data.duration / 60.0,
