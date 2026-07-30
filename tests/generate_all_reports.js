@@ -7,36 +7,92 @@ function getRandomInt(min, max) {
 
 // Generate an individual report for a specific test suite
 function generateReport(suiteName, fileName, testCount, componentName) {
-    const data = [];
     let passed = 0;
+    let failed = 0;
+    let totalDuration = 0;
     
     const startTime = new Date();
     startTime.setMinutes(startTime.getMinutes() - 30);
+    const endTime = new Date();
     
-    // Generate individual test cases
+    const passedTests = [];
+    const failedTests = [];
+    const executionLog = [];
+    const testDetails = [];
+    
     for (let i = 1; i <= testCount; i++) {
-        const isPass = Math.random() > 0.01; // 99% pass rate
-        if (isPass) passed++;
-        
-        const durationSec = (Math.random() * 2).toFixed(2); // 0 to 2 seconds per test
+        const isPass = Math.random() > 0.01;
+        const durationSec = parseFloat((Math.random() * 2).toFixed(2));
+        totalDuration += durationSec;
         const testStartTime = new Date(startTime.getTime() + (i * 1000));
         
-        data.push({
-            "Test ID": `${componentName}-TC-${i.toString().padStart(4, '0')}`,
-            "Test Name": `Verify ${componentName} functionality module ${i}`,
-            "Status": isPass ? "Passed" : "Failed",
-            "Duration (sec)": parseFloat(durationSec),
-            "Timestamp": testStartTime.toISOString()
+        const category = `${componentName} Module ${Math.ceil(i / 10)}`;
+        const testName = `test_${componentName.toLowerCase()}_${i.toString().padStart(4, '0')}`;
+        
+        executionLog.push({
+            Timestamp: testStartTime.toISOString().replace('T', ' ').substring(0, 19),
+            Level: 'INFO',
+            Message: `[${category}] Initializing session for ${testName}`
         });
+        
+        if (isPass) {
+            passed++;
+            passedTests.push({
+                "No.": passed,
+                Category: category,
+                "Test Name": testName,
+                "Time (sec)": durationSec,
+                Status: 'PASSED'
+            });
+            testDetails.push({
+                "No.": i,
+                Category: category,
+                "Test Name": testName,
+                Status: 'PASSED',
+                "Error Details": 'None — test passed successfully.'
+            });
+        } else {
+            failed++;
+            failedTests.push({
+                "No.": failed,
+                Category: category,
+                "Test Name": testName,
+                "Time (sec)": durationSec,
+                Status: 'FAILED'
+            });
+            testDetails.push({
+                "No.": i,
+                Category: category,
+                "Test Name": testName,
+                Status: 'FAILED',
+                "Error Details": `AssertionError: expected true but got false at ${testName}`
+            });
+            executionLog.push({
+                Timestamp: testStartTime.toISOString().replace('T', ' ').substring(0, 19),
+                Level: 'ERROR',
+                Message: `[${category}] ${testName} failed with AssertionError`
+            });
+        }
     }
-
-    // Add a summary row at the top or bottom, or just let the raw test cases be the sheet
-    // We will just write the raw test cases.
     
-    const worksheet = XLSX.utils.json_to_sheet(data);
+    const summary = [{
+        'Test Suite': suiteName,
+        'Total Tests': testCount,
+        Passed: passed,
+        Failed: failed,
+        'Pass Rate %': Math.round((passed / testCount) * 100),
+        'Duration (sec)': parseFloat(totalDuration.toFixed(2)),
+        'Start Time': startTime.toISOString(),
+        'End Time': endTime.toISOString()
+    }];
+    
     const workbook = XLSX.utils.book_new();
-    const sheetName = fileName.replace('.xlsx', '').substring(0, 31);
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summary), 'Summary');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(passedTests), 'Passed Tests');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(failedTests), 'Failed Tests');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(executionLog), 'Execution Log');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(testDetails), 'Test Details');
 
     XLSX.writeFile(workbook, fileName);
     console.log(`✅ Generated ${fileName} | Suite: ${suiteName} | Total: ${testCount} | Passed: ${passed}`);
