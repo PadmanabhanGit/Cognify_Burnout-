@@ -11,17 +11,15 @@ router.get('/', auth, async (req, res) => {
   try {
     const sleepSnap = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
-      .orderBy('date', 'desc')
-      .limit(1)
       .get();
-    const lastSleep = sleepSnap.empty ? null : sleepSnap.docs[0].data();
+    const sleepDocs = sleepSnap.docs.map(d => d.data()).sort((a, b) => b.date.localeCompare(a.date));
+    const lastSleep = sleepDocs.length > 0 ? sleepDocs[0] : null;
 
     const prodSnap = await db.collection('productivityLogs')
       .where('userId', '==', userId)
-      .orderBy('date', 'desc')
-      .limit(1)
       .get();
-    const lastProd = prodSnap.empty ? null : prodSnap.docs[0].data();
+    const prodDocs = prodSnap.docs.map(d => d.data()).sort((a, b) => b.date.localeCompare(a.date));
+    const lastProd = prodDocs.length > 0 ? prodDocs[0] : null;
 
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);

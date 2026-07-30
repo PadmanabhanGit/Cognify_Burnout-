@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const { db, admin } = require('../firebase');
+const { db, FieldValue } = require('../firebase');
 const { resolveCategory } = require('../services/appDiscoveryService');
 
 // @route   POST api/usage/sync
@@ -35,7 +35,7 @@ router.post('/sync', auth, async (req, res) => {
         userId,
         date: syncDate,
         category,
-        totalDuration: admin.firestore.FieldValue.increment(0), // placeholder so merge works
+        totalDuration: FieldValue.increment(0),
       }, { merge: true });
     }
     await batch.commit();

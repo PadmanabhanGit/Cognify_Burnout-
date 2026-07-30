@@ -36,11 +36,12 @@ router.get('/logs', auth, async (req, res) => {
   try {
     const snapshot = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
-      .orderBy('date', 'desc')
-      .limit(limit)
       .get();
-
-    res.json({ success: true, logs: snapshot.docs.map(d => ({ id: d.id, ...d.data() })) });
+    const logs = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, limit);
+    res.json({ success: true, logs });
   } catch (err) {
     console.error('Error fetching logs:', err.message);
     res.status(500).json({ success: false, message: 'Error fetching logs' });
@@ -55,14 +56,12 @@ router.get('/trends/sleep', auth, async (req, res) => {
   try {
     const snapshot = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
-      .orderBy('date', 'asc')
-      .limit(days)
       .get();
 
-    const trends = snapshot.docs.map(d => {
-      const data = d.data();
-      return { date: data.date, sleepDuration: data.sleepDuration, sleepQuality: data.sleepQuality };
-    });
+    const trends = snapshot.docs
+      .map(d => { const data = d.data(); return { date: data.date, sleepDuration: data.sleepDuration, sleepQuality: data.sleepQuality }; })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, days);
 
     res.json({ success: true, trends });
   } catch (err) {
