@@ -51,7 +51,7 @@ jobs:
     needs: build_and_deploy_web
     runs-on: macos-latest
     env:
-      BASE_URL: https://padmanabhangit.github.io/Cognify_Burnout-/
+      BASE_URL: https://padmanabhangit.github.io/Cognify_Burnout-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
