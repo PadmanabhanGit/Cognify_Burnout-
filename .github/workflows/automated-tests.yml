@@ -51,8 +51,7 @@ jobs:
           npm install -g appium
           appium &
           sleep 10
-          cd tests
-          pytest test_mobile_appium.py -v
+          cd tests && pytest test_mobile_appium.py -v
 
     - name: Upload Test Report Excel Sheet
       uses: actions/upload-artifact@v4
