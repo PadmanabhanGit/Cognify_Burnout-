@@ -4,12 +4,12 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 // Using dummy config since Firebase is used in emulator mode typically for dev.
 // The user should update this with real config if using production.
 const firebaseConfig = {
-  apiKey: "dummy-api-key",
-  authDomain: "dummy-auth-domain",
-  projectId: "burnouttracker-a3738a4f", // Found in previous conversation logs
-  storageBucket: "dummy-bucket",
-  messagingSenderId: "dummy-sender",
-  appId: "dummy-app-id"
+  apiKey: "AIzaSyC9_G9adRw3eAuAtIShU9Pv58ffpxyh6fU",
+  authDomain: "burnouttracker-a3738a4f.firebaseapp.com",
+  projectId: "burnouttracker-a3738a4f",
+  storageBucket: "burnouttracker-a3738a4f.firebasestorage.app",
+  messagingSenderId: "966389564228",
+  appId: "1:966389564228:android:ff2fcd66186641c1fc8d11"
 };
 
 const app = initializeApp(firebaseConfig);
