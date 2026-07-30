@@ -51,10 +51,13 @@ jobs:
     needs: build_and_deploy_web
     runs-on: macos-latest
     env:
-      BASE_URL: ${{ needs.build_and_deploy_web.outputs.page_url }}
+      BASE_URL: https://padmanabhangit.github.io/Cognify_Burnout-/
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
+      - name: Wait for GitHub Pages Deployment to go live
+        run: sleep 30
       
       - name: Set up Python
         uses: actions/setup-python@v5
