@@ -74,9 +74,9 @@ jobs:
       - name: Add QR Code to Summary
         run: |
           # The EAS Update URL follows a deterministic format based on Project ID and Git Branch (main)
-          EXPO_URL="exp://u.expo.dev/3113a992-9873-460e-8fee-624798e43901?channel-name=main"
+          EXPO_URL="exp://u.expo.dev/ae3f39fb-e853-4c6f-8296-a6ed5c80ee61?channel-name=main"
           # We must encode the URL so the API parses it correctly
-          ENCODED_URL="exp%3A%2F%2Fu.expo.dev%2F3113a992-9873-460e-8fee-624798e43901%3Fchannel-name%3Dmain"
+          ENCODED_URL="exp%3A%2F%2Fu.expo.dev%2Fae3f39fb-e853-4c6f-8296-a6ed5c80ee61%3Fchannel-name%3Dmain"
           QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=$ENCODED_URL"
           
           cat << EOF >> $GITHUB_STEP_SUMMARY

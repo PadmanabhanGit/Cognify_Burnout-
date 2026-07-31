@@ -1,6 +1,6 @@
 {
   "expo": {
-    "owner": "padmanabhan01s-team",
+    "owner": "Padmanabhan01",
     "name": "expo-app",
     "slug": "cognify",
     "version": "1.0.0",
@@ -41,7 +41,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "3113a992-9873-460e-8fee-624798e43901"
+        "projectId": "ae3f39fb-e853-4c6f-8296-a6ed5c80ee61"
       }
     }
   }
