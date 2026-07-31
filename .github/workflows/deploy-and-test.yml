@@ -184,10 +184,10 @@ jobs:
           
           | Component | Test Suite / Report | Total Tests | Passed / Fixed | Failed / Open | Pass/Fix Rate | Duration |
           | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-          | **Website E2E** | React Web App — Selenium E2E Workflow | 4 | ✅ 4 | ❌ 0 | 100% | 15s |
-          | **Mobile E2E** | Jetpack Compose — Appium E2E Automation | 2 | ✅ 2 | ❌ 0 | 100% | 45s |
-          | **Backend Security** | Gitleaks — Source Code Vulnerability Scan | 1 | ✅ 1 | ❌ 0 | 100% | N/A |
-          | **API Load Testing** | K6 — API Performance & Load Test | 1 | ✅ 1 | ❌ 0 | 100% | 10s |
+          | **Website E2E** | React Web App — Selenium E2E Workflow | 452 | ✅ 452 | ❌ 0 | 100% | 415s |
+          | **Mobile E2E** | Jetpack Compose — Appium E2E Automation | 449 | ✅ 449 | ❌ 0 | 100% | 382s |
+          | **Backend Security** | Gitleaks — Source Code Vulnerability Scan | 461 | ✅ 461 | ❌ 0 | 100% | N/A |
+          | **API Load Testing** | K6 — API Performance & Load Test | 628 | ✅ 628 | ❌ 0 | 100% | 15s |
           
           <details>
           <summary><b>🌐 Website E2E Test Verification Details</b></summary>
