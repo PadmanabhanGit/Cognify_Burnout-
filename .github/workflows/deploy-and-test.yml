@@ -63,8 +63,15 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Install dependencies
         run: |
+          echo "Current working directory:"
+          pwd
           cd expo-app
-          npm ci
+          echo "Directory after cd:"
+          pwd
+          echo "Package.json contents:"
+          cat package.json
+          echo "Running npm ci..."
+          npm ci --no-workspaces
       - name: Publish to EAS
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
