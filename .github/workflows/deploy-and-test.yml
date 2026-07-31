@@ -70,6 +70,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           cd expo-app
+          eas init --id ae3f39fb-e853-4c6f-8296-a6ed5c80ee61 --non-interactive
           eas update --auto --non-interactive
       - name: Add QR Code to Summary
         run: |
