@@ -46,6 +46,47 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+  deploy_expo_wrapper:
+    name: Deploy Expo Wrapper & Generate QR
+    needs: build_and_deploy_web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        run: |
+          cd expo-app
+          npm install
+      - name: Publish to EAS
+        run: |
+          cd expo-app
+          eas update --auto --non-interactive
+      - name: Add QR Code to Summary
+        run: |
+          # The EAS Update URL follows a deterministic format based on Project ID and Git Branch (main)
+          EXPO_URL="exp://u.expo.dev/3113a992-9873-460e-8fee-624798e43901?channel-name=main"
+          # We must encode the URL so the API parses it correctly
+          ENCODED_URL="exp%3A%2F%2Fu.expo.dev%2F3113a992-9873-460e-8fee-624798e43901%3Fchannel-name%3Dmain"
+          QR_URL="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=$ENCODED_URL"
+          
+          cat << EOF >> $GITHUB_STEP_SUMMARY
+          # 📱 Expo Wrapper QR Code
+          
+          Scan this QR code with the **Expo Go** app on your phone to instantly test the application!
+          
+          ![Expo QR Code]($QR_URL)
+          
+          Alternatively, if you are viewing this on your phone, you can click this link: [$EXPO_URL]($EXPO_URL)
+          EOF
+
   test_web_selenium:
     name: Run Selenium E2E Tests
     needs: build_and_deploy_web
