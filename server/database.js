@@ -22,6 +22,16 @@ function createTables() {
       avatarUrl TEXT
     )`);
 
+    // User Profiles Table
+    db.run(`CREATE TABLE IF NOT EXISTS user_profiles (
+      userId TEXT PRIMARY KEY,
+      firstName TEXT,
+      lastName TEXT,
+      age TEXT,
+      location TEXT,
+      FOREIGN KEY (userId) REFERENCES users (id)
+    )`);
+
     // Study Sessions Table
     db.run(`CREATE TABLE IF NOT EXISTS study_sessions (
       id TEXT PRIMARY KEY,

@@ -30,26 +30,33 @@ def driver():
 
 def test_mobile_app_launch(driver):
     dashboard = AppDashboardPage(driver)
-    # Wait for the app to load and dashboard to be visible
-    # In a real environment, this assert would strictly fail if the app crashes
-    assert dashboard is not None
-    time.sleep(2)
+    # Verify that the dashboard loads by asserting the presence of the dashboard title element
+    assert dashboard.is_dashboard_loaded() is True
     
 def test_mobile_navigation_to_sleep_mood(driver):
     dashboard = AppDashboardPage(driver)
-    # Mocking the interaction: dashboard.navigate_to_sleep_mood()
-    # In full production, this would assert element visibility on the new screen
+    # Perform actual click on the Sleep & Mood feature card
+    dashboard.navigate_to_sleep_mood()
+    # Adding a brief sleep to allow Compose navigation animations to finish before the next test
     time.sleep(1)
-    assert True
 
 def test_mobile_navigation_to_productivity(driver):
-    dashboard = AppDashboardPage(driver)
-    # dashboard.navigate_to_productivity()
+    # Navigate back to dashboard (since previous test navigated away)
+    # Appium provides a standard back button action for Android
+    driver.back()
     time.sleep(1)
-    assert True
+    
+    dashboard = AppDashboardPage(driver)
+    # Perform actual click on the Productivity feature card
+    dashboard.navigate_to_productivity()
+    time.sleep(1)
 
 def test_mobile_navigation_to_study_tracker(driver):
-    dashboard = AppDashboardPage(driver)
-    # dashboard.navigate_to_study()
+    # Navigate back to dashboard
+    driver.back()
     time.sleep(1)
-    assert True
+    
+    dashboard = AppDashboardPage(driver)
+    # Perform actual click on the Study Tracking feature card
+    dashboard.navigate_to_study()
+    time.sleep(1)

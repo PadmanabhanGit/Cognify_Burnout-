@@ -17,9 +17,8 @@ export default function StudyTracking() {
   const [elapsed, setElapsed] = useState(0);
 
   const [stats, setStats] = useState({ weeklyHours: 0, sessionCount: 0 });
+  const [weeklyData, setWeeklyData] = useState([0, 0, 0, 0, 0, 0, 0]); // Sun-Sat or Mon-Sun depending on backend
   
-  // Mock data for weekly chart to match UI
-  const weeklyData = [1.2, 2.5, 3.0, 1.5, 0.5, 4.0, 2.0];
   const maxHours = Math.max(...weeklyData, 1);
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -42,6 +41,10 @@ export default function StudyTracking() {
             weeklyHours: res.data.stats.totalHours,
             sessionCount: res.data.stats.sessionCount,
           });
+          // Assuming backend might send an array of 7 days, else fallback
+          if (res.data.stats.dailyBreakdown) {
+            setWeeklyData(res.data.stats.dailyBreakdown);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -72,6 +75,17 @@ export default function StudyTracking() {
       await api.patch(`/api/study/stop/${session.id}`);
       setIsActive(false);
       setSession(null);
+      // Refresh stats
+      const res = await api.get('/api/study/stats/weekly');
+      if (res.data.success) {
+        setStats({
+          weeklyHours: res.data.stats.totalHours,
+          sessionCount: res.data.stats.sessionCount,
+        });
+        if (res.data.stats.dailyBreakdown) {
+          setWeeklyData(res.data.stats.dailyBreakdown);
+        }
+      }
     } catch (err) {
       console.error(err);
     }
@@ -160,7 +174,6 @@ export default function StudyTracking() {
               <CalendarMonthIcon style={{ color: '#4F46E5', fontSize: '20px', marginRight: '8px' }} />
               <div style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937' }}>Weekly Overview</div>
             </div>
-            <MoreHorizIcon style={{ color: 'gray' }} />
           </div>
           
           {/* Bar Chart */}
@@ -174,13 +187,7 @@ export default function StudyTracking() {
           </div>
 
           <div style={{ marginTop: '24px' }}>
-            <button 
-              onClick={() => alert('Detailed trends coming soon!')}
-              style={{ width: '100%', height: '48px', backgroundColor: 'white', border: '1px solid #F3F4F6', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px', cursor: 'pointer', color: '#9333EA', fontWeight: 700 }}
-            >
-              <span style={{ fontSize: '14px' }}>View Detailed Trends</span>
-              <KeyboardArrowRightIcon />
-            </button>
+            {/* Detailed trends button removed as it was static and unimplemented in Web App */}
           </div>
         </div>
 

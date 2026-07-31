@@ -21,6 +21,7 @@ app.use('/api/burnout', require('./routes/burnout'));
 app.use('/api/sleep-mood', require('./routes/sleepMood'));
 app.use('/api/productivity', require('./routes/productivity'));
 app.use('/api/report', require('./routes/report'));
+app.use('/api/profile', require('./routes/profile'));
 // app.use('/api/productivity', require('./routes/productivity'));
 // app.use('/api/burnout', require('./routes/burnout'));
 // app.use('/api/report', require('./routes/report'));

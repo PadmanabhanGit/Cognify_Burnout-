@@ -1,14 +1,54 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNavigation from '../components/BottomNavigation';
 import { auth } from '../firebase';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import EmailIcon from '@mui/icons-material/Email';
+import SaveIcon from '@mui/icons-material/Save';
+import api from '../services/api';
 
 export default function Profile() {
   const navigate = useNavigate();
   const user = auth.currentUser;
+  
+  const [profile, setProfile] = useState({
+    firstName: '',
+    lastName: '',
+    age: '',
+    location: ''
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await api.get('/api/profile');
+        if (res.data) {
+          setProfile(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.post('/api/profile', profile);
+      alert('Profile updated successfully!');
+    } catch (err) {
+      console.error('Failed to save profile', err);
+      alert('Failed to update profile.');
+    } finally {
+      setSaving(false);
+    }
+  };
   
   const handleLogout = async () => {
     try {
@@ -19,21 +59,97 @@ export default function Profile() {
     }
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfile(prev => ({ ...prev, [name]: value }));
+  };
+
   return (
-    <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: '#F9FAFB' }}>
+    <div style={{ paddingBottom: '90px', minHeight: '100vh', backgroundColor: '#F9FAFB' }}>
       <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', padding: '60px 24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '80px', height: '80px', borderRadius: '40px', backgroundColor: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '16px' }}>
             <PersonIcon style={{ fontSize: '48px', color: '#6366f1' }} />
           </div>
-          <div style={{ color: 'white', fontSize: '24px', fontWeight: 700 }}>{user?.email?.split('@')[0] || "User"}</div>
+          <div style={{ color: 'white', fontSize: '24px', fontWeight: 700 }}>
+            {profile.firstName || profile.lastName ? `${profile.firstName} ${profile.lastName}` : (user?.email?.split('@')[0] || "User")}
+          </div>
           <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '4px' }}>{user?.email}</div>
         </div>
       </div>
 
       <div className="desktop-padding" style={{ padding: '24px', marginTop: '20px' }}>
-        <div style={{ fontSize: '20px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>Settings</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>Personal Information</div>
         
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>Loading profile...</div>
+        ) : (
+          <div className="white-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px', display: 'block' }}>First Name</label>
+                <input 
+                  type="text" 
+                  name="firstName"
+                  value={profile.firstName || ''}
+                  onChange={handleChange}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }} 
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px', display: 'block' }}>Last Name</label>
+                <input 
+                  type="text" 
+                  name="lastName"
+                  value={profile.lastName || ''}
+                  onChange={handleChange}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }} 
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px', display: 'block' }}>Age</label>
+                <input 
+                  type="text" 
+                  name="age"
+                  value={profile.age || ''}
+                  onChange={handleChange}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }} 
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px', display: 'block' }}>Location</label>
+                <input 
+                  type="text" 
+                  name="location"
+                  value={profile.location || ''}
+                  onChange={handleChange}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }} 
+                />
+              </div>
+            </div>
+
+            <button 
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                marginTop: '10px', width: '100%', padding: '12px', borderRadius: '12px', border: 'none',
+                backgroundColor: '#3b82f6', color: 'white', fontWeight: 600, cursor: 'pointer',
+                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
+                opacity: saving ? 0.7 : 1
+              }}
+            >
+              <SaveIcon style={{ fontSize: '20px' }} />
+              {saving ? 'Saving...' : 'Save Profile'}
+            </button>
+
+          </div>
+        )}
+
+        <div style={{ fontSize: '20px', fontWeight: 700, color: '#1F2937', marginBottom: '16px', marginTop: '32px' }}>Settings</div>
         <div className="white-card" style={{ padding: '0' }}>
           <div style={{ display: 'flex', alignItems: 'center', padding: '16px', borderBottom: '1px solid #F3F4F6' }}>
             <EmailIcon style={{ color: '#6B7280', marginRight: '16px' }} />

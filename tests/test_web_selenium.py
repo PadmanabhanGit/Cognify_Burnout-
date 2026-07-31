@@ -21,21 +21,21 @@ def driver():
     except Exception as e:
         pytest.skip(f"Chrome WebDriver not found: {e}")
 
-def test_web_valid_login(driver):
+def test_web_empty_login_validation(driver):
     login_page = LoginPage(driver, BASE_URL)
     login_page.load()
-    login_page.login("web_login", "web_pass")
+    # Attempt to login with empty credentials
+    login_page.login("", "")
     
-    # Assert that we are navigated away from login (e.g. to dashboard)
-    # In a real deployed app, the URL changes or a dashboard element appears
-    assert "login" not in driver.current_url.lower() or "dashboard" in driver.current_url.lower()
+    # Assert that the validation error is displayed
+    assert login_page.is_error_displayed() is True
 
 def test_web_invalid_login(driver):
     login_page = LoginPage(driver, BASE_URL)
     login_page.load()
     login_page.login("invalid@user.com", "wrongpass")
     
-    # In a real app, an error message is displayed
+    # Assert that the Firebase auth error is displayed
     assert login_page.is_error_displayed() is True
 
 def test_web_navigation_links(driver):

@@ -22,18 +22,43 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.simats.burnouttracker.utils.rememberPlatformSettings
+import com.simats.burnouttracker.data.api.RetrofitClient
+import com.simats.burnouttracker.data.models.ProfileData
+import kotlinx.coroutines.launch
+import com.simats.burnouttracker.utils.rememberAuthService
 
 @Composable
 fun PersonalInformationScreen(navController: NavController) {
-    val settings = rememberPlatformSettings("personal_info")
+    val authService = rememberAuthService()
+    val coroutineScope = rememberCoroutineScope()
+    
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf(authService.getCurrentUserEmail() ?: "") }
+    var age by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(true) }
+    var isSaving by remember { mutableStateOf(false) }
 
-    var firstName by remember { mutableStateOf(settings.getString("firstName", "John") ?: "John") }
-    var lastName by remember { mutableStateOf(settings.getString("lastName", "Doe") ?: "Doe") }
-    var fullName by remember { mutableStateOf(settings.getString("fullName", "John Doe") ?: "John Doe") }
-    var email by remember { mutableStateOf(settings.getString("email", "student@example.com") ?: "student@example.com") }
-    var age by remember { mutableStateOf(settings.getString("age", "21") ?: "21") }
-    var location by remember { mutableStateOf(settings.getString("location", "Chennai, India") ?: "Chennai, India") }
+    LaunchedEffect(Unit) {
+        try {
+            val response = RetrofitClient.getApiService().getProfileInfo()
+            if (response.isSuccessful) {
+                response.body()?.let { data ->
+                    firstName = data.firstName ?: ""
+                    lastName = data.lastName ?: ""
+                    fullName = "${firstName} ${lastName}".trim()
+                    age = data.age ?: ""
+                    location = data.location ?: ""
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            isLoading = false
+        }
+    }
 
     val headerGradient = Brush.linearGradient(
         colors = listOf(Color(0xFF9333EA), Color(0xFF2563EB))
@@ -126,51 +151,55 @@ fun PersonalInformationScreen(navController: NavController) {
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // First Name & Last Name Row
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                FormLabel("First Name")
-                                FormField(value = firstName, onValueChange = { firstName = it }, placeholder = "John")
+                        if (isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        } else {
+                            // First Name & Last Name Row
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    FormLabel("First Name")
+                                    FormField(value = firstName, onValueChange = { firstName = it; fullName = "$firstName $lastName".trim() }, placeholder = "John")
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    FormLabel("Last Name")
+                                    FormField(value = lastName, onValueChange = { lastName = it; fullName = "$firstName $lastName".trim() }, placeholder = "Doe")
+                                }
                             }
-                            Column(modifier = Modifier.weight(1f)) {
-                                FormLabel("Last Name")
-                                FormField(value = lastName, onValueChange = { lastName = it }, placeholder = "Doe")
-                            }
-                        }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
-                        // Full Name
-                        FormLabel("Full Name")
-                        FormField(value = fullName, onValueChange = { fullName = it }, placeholder = "John Doe")
+                            // Full Name
+                            FormLabel("Full Name")
+                            FormField(value = fullName, onValueChange = { fullName = it }, placeholder = "John Doe")
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
-                        // Email Address
-                        FormLabel("Email Address")
-                        FormField(
-                            value = email,
-                            onValueChange = { email = it },
-                            placeholder = "student@example.com",
-                            leadingIcon = Icons.Outlined.Email
-                        )
+                            // Email Address
+                            FormLabel("Email Address")
+                            FormField(
+                                value = email,
+                                onValueChange = { email = it },
+                                placeholder = "student@example.com",
+                                leadingIcon = Icons.Outlined.Email
+                            )
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
-                        // Age & Location Row
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Column(modifier = Modifier.weight(0.35f)) {
-                                FormLabel("Age")
-                                FormField(value = age, onValueChange = { age = it }, placeholder = "21")
-                            }
-                            Column(modifier = Modifier.weight(0.65f)) {
-                                FormLabel("Location")
-                                FormField(
-                                    value = location,
-                                    onValueChange = { location = it },
-                                    placeholder = "Chennai, India",
-                                    leadingIcon = Icons.Outlined.LocationOn
-                                )
+                            // Age & Location Row
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Column(modifier = Modifier.weight(0.35f)) {
+                                    FormLabel("Age")
+                                    FormField(value = age, onValueChange = { age = it }, placeholder = "21")
+                                }
+                                Column(modifier = Modifier.weight(0.65f)) {
+                                    FormLabel("Location")
+                                    FormField(
+                                        value = location,
+                                        onValueChange = { location = it },
+                                        placeholder = "Chennai, India",
+                                        leadingIcon = Icons.Outlined.LocationOn
+                                    )
+                                }
                             }
                         }
                     }
@@ -181,13 +210,24 @@ fun PersonalInformationScreen(navController: NavController) {
                 // Save Button
                 Button(
                     onClick = {
-                        settings.putString("firstName", firstName)
-                        settings.putString("lastName", lastName)
-                        settings.putString("fullName", fullName)
-                        settings.putString("email", email)
-                        settings.putString("age", age)
-                        settings.putString("location", location)
-                        navController.popBackStack()
+                        if (isSaving) return@Button
+                        isSaving = true
+                        coroutineScope.launch {
+                            try {
+                                val req = ProfileData(
+                                    firstName = firstName,
+                                    lastName = lastName,
+                                    age = age,
+                                    location = location
+                                )
+                                RetrofitClient.getApiService().updateProfileInfo(req)
+                                navController.popBackStack()
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            } finally {
+                                isSaving = false
+                            }
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -204,7 +244,7 @@ fun PersonalInformationScreen(navController: NavController) {
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Save Information",
+                                text = if (isSaving) "Saving..." else "Save Information",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp

@@ -323,8 +323,14 @@ fun SettingsScreen(navController: NavController) {
                         .fillMaxWidth()
                         .clickable { 
                             authService.signOut()
-                            navController.navigate("login") {
-                                popUpTo(0) { inclusive = true }
+                            val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
+                                com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN
+                            ).build()
+                            val googleSignInClient = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
+                            googleSignInClient.signOut().addOnCompleteListener {
+                                navController.navigate("login") {
+                                    popUpTo(0) { inclusive = true }
+                                }
                             }
                         },
                     shape = RoundedCornerShape(16.dp),

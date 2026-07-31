@@ -40,6 +40,14 @@ data class ProfileResponse(
     val user: UserData? = null
 )
 
+@Serializable
+data class ProfileData(
+    val firstName: String? = null,
+    val lastName: String? = null,
+    val age: String? = null,
+    val location: String? = null
+)
+
 // ─── Study Sessions ────────────────────────────────────────────────────────────
 
 @Serializable

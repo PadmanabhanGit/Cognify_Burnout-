@@ -16,6 +16,12 @@ interface ApiService {
     @GET("api/auth/me")
     suspend fun getProfile(): Response<ProfileResponse>
 
+    @GET("api/profile")
+    suspend fun getProfileInfo(): Response<ProfileData>
+
+    @POST("api/profile")
+    suspend fun updateProfileInfo(@Body request: ProfileData): Response<SimpleResponse>
+
     // ─── Dashboard ─────────────────────────────────────────────────────────────
 
     @GET("api/dashboard")

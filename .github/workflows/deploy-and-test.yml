@@ -164,101 +164,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Generate Excel Reports
-        run: |
-          cd tests
-          npm install xlsx
-          node generate_all_reports.js
       - name: Prepare Reports Directory
         run: |
-          mkdir -p public_reports/reports/latest/website
-          mkdir -p public_reports/reports/latest/mobile/report
-          mkdir -p public_reports/reports/latest/backend
-          mkdir -p public_reports/reports/latest/load_testing
+          RUN_DIR="public_reports/test reports/test#${{ github.run_number }}"
+          mkdir -p "$RUN_DIR"
           
-          # Move Excel Reports
-          cp tests/Selenium_Test_Report.xlsx public_reports/reports/latest/website/E2E_Test_Report_Cognify_Latest.xlsx 2>/dev/null || true
-          cp tests/Appium_Test_Report.xlsx public_reports/reports/latest/mobile/report/Appium_Test_Report_Cognify_Latest.xlsx 2>/dev/null || true
-          cp tests/Security_Test_Report.xlsx public_reports/reports/latest/backend/Backend_Security_Assessment.xlsx 2>/dev/null || true
-          cp tests/API_Load_Test_Report.xlsx public_reports/reports/latest/load_testing/Load_Test_Report_Cognify_Latest.xlsx 2>/dev/null || true
-          
-          # Move HTML Reports
-          cp tests/artifacts/selenium-report/*.html public_reports/reports/latest/website/ 2>/dev/null || true
-          cp tests/artifacts/appium-report/*.html public_reports/reports/latest/mobile/report/ 2>/dev/null || true
+          # Move HTML Reports (Actual test outputs)
+          cp tests/artifacts/selenium-report/*.html "$RUN_DIR/" 2>/dev/null || true
+          cp tests/artifacts/appium-report/*.html "$RUN_DIR/" 2>/dev/null || true
 
       - name: Generate GitHub Actions Markdown Dashboard
         run: |
           cat << 'MARKDOWN_EOF' >> $GITHUB_STEP_SUMMARY
           # 🧪 Cognify Unified Test Verification Dashboard
           
-          This dashboard presents a unified summary of E2E tests, security scans, and API load testing across all major components: Website, Mobile App, Backend, and APIs.
-          
-          ## 📊 Unified Summary Overview
-          
-          | Component | Test Suite / Report | Total Tests | Passed / Fixed | Failed / Open | Pass/Fix Rate | Duration |
-          | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-          | **Website E2E** | Cognify Web App – Full E2E Workflow | 447 | ✅ 447 | ❌ 0 | 100% | 425s |
-          | **Mobile E2E** | Cognify Android – Full Appium E2E Automation | 447 | ✅ 447 | ❌ 0 | 100% | 353s |
-          | **Backend Security** | Cognify Backend — Security Vulnerability Report | 500 | ✅ 500 | ❌ 0 | 100% | N/A |
-          | **API Load Testing** | Cognify API Load Testing Report | 635 | ✅ 635 | ❌ 0 | 100% | 10s |
-          
-          ## 🌐 Website E2E Test Verification Details
-          <details>
-            <summary>Click to view Website E2E Test Cases (447 tests)</summary>
-            
-            **Website E2E Test Cases Summary**
-            - Total Tests Run: 447
-            - Passed: 447
-            - Failed: 0
-            - Pass Rate: 100%
-            - Report File: `E2E_Test_Report_Cognify_Latest.xlsx`
-          </details>
-          
-          ## 📱 Mobile App E2E Test Verification Details
-          <details>
-            <summary>Click to view Mobile E2E Test Cases (447 tests)</summary>
-            
-            **Mobile App E2E Test Cases Summary**
-            - Total Tests Run: 447
-            - Passed: 447
-            - Failed: 0
-            - Pass Rate: 100%
-            - Report File: `Appium_Test_Report_Cognify_Latest.xlsx`
-          </details>
-          
-          ## 🛡️ Backend Security Scan Details
-          **Severity Breakdown:** 🔴 Critical: 0 • 🟠 High: 0 • 🟡 Medium: 0 • 🔵 Low: 500
-          
-          <details>
-            <summary>Click to view Backend Security Findings (500 findings)</summary>
-            
-            **Backend Security Compliance checks**
-            - Total Security Validations: 500
-            - Passed / Compliant: 500
-            - Active Findings: 0
-            - Report File: `backend/Backend_Security_Assessment.xlsx`
-          </details>
-          
-          ## ⚡ API Load Testing Details
-          **Test Configuration:** Concurrency: 8 VUs • Duration: 10s per scenario
-          
-          <details>
-            <summary>Click to view API Load Testing Scenarios</summary>
-            
-            **API Load Testing Scenarios**
-            - Total Requests: 635
-            - Successful Requests: 635
-            - Failed Requests: 0
-            - Success Rate: 100%
-            - Report File: `Load_Test_Report_Cognify_Latest.xlsx`
-          </details>
+          This dashboard contains the actual test run artifacts from the E2E and automation testing suites.
+          The previous mocked data has been removed.
           
           ## 📦 Test Report Artifacts
-          The full test report files are uploaded as part of this workflow run and can be inspected in the artifacts list below, or accessed directly via GitHub Pages:
-          - **Website E2E Report:** `website/E2E_Test_Report_Cognify_Latest.xlsx`
-          - **Mobile E2E Report:** `mobile/report/Appium_Test_Report_Cognify_Latest.xlsx`
-          - **Backend Security Report:** `backend/Backend_Security_Assessment.xlsx`
-          - **Load Testing Report:** `load_testing/Load_Test_Report_Cognify_Latest.xlsx`
+          The test report HTML files are uploaded as part of this workflow run and can be inspected in the artifacts list below, or accessed directly via GitHub Pages:
+          - **Website E2E HTML Report:** `test reports/test#${{ github.run_number }}/execution-report.html`
+          - **Mobile E2E HTML Report:** `test reports/test#${{ github.run_number }}/appium-report.html`
           MARKDOWN_EOF
 
       - name: Deploy Reports to GitHub Pages
@@ -272,4 +198,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Full-Test-Reports
-          path: public_reports/reports/latest/
+          path: "public_reports/test reports/test#${{ github.run_number }}/"
