@@ -66,6 +66,8 @@ jobs:
           cd expo-app
           npm install
       - name: Publish to EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           cd expo-app
           eas update --auto --non-interactive
