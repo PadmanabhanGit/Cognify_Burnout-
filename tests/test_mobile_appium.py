@@ -32,7 +32,7 @@ def test_mobile_app_launch(driver):
     page = AppBasePage(driver)
     # The app starts on the Splash screen on a fresh install (like in CI).
     # Wait for the "Get Started" button to appear.
-    get_started_btn = (AppiumBy.ID, "com.simats.burnouttracker:id/getStartedButton")
+    get_started_btn = (AppiumBy.ACCESSIBILITY_ID, "getStartedButton")
     
     # Assert that the button is found and displayed
     element = page.find_element(*get_started_btn)
@@ -41,7 +41,7 @@ def test_mobile_app_launch(driver):
     
 def test_mobile_splash_navigation(driver):
     page = AppBasePage(driver)
-    get_started_btn = (AppiumBy.ID, "com.simats.burnouttracker:id/getStartedButton")
+    get_started_btn = (AppiumBy.ACCESSIBILITY_ID, "getStartedButton")
     
     # Click the Get Started button to navigate forward
     page.click(*get_started_btn)
