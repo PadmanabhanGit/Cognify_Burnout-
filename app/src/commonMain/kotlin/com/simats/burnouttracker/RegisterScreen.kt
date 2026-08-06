@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -32,8 +34,15 @@ import com.simats.burnouttracker.utils.rememberAuthService
 import com.simats.burnouttracker.utils.rememberPlatformSettings
 import kotlinx.coroutines.launch
 
+import androidx.compose.foundation.text.ClickableText
+
 @Composable
-fun RegisterScreen(onSignInClick: () -> Unit = {}, onSignUpClick: () -> Unit = {}) {
+fun RegisterScreen(
+    onSignInClick: () -> Unit = {}, 
+    onSignUpClick: () -> Unit = {},
+    onTermsClick: () -> Unit = {},
+    onPrivacyClick: () -> Unit = {}
+) {
     val scope = rememberCoroutineScope()
     val settings = rememberPlatformSettings()
     val authService = rememberAuthService()
@@ -167,7 +176,7 @@ fun RegisterScreen(onSignInClick: () -> Unit = {}, onSignUpClick: () -> Unit = {
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.Black,
                                 unfocusedTextColor = Color.Black,
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
+                                unfocusedBorderColor = ThemeColors.border,
                                 focusedBorderColor = Color(0xFF9333EA)
                             )
                         )
@@ -194,7 +203,7 @@ fun RegisterScreen(onSignInClick: () -> Unit = {}, onSignUpClick: () -> Unit = {
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.Black,
                                 unfocusedTextColor = Color.Black,
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
+                                unfocusedBorderColor = ThemeColors.border,
                                 focusedBorderColor = Color(0xFF9333EA)
                             )
                         )
@@ -223,7 +232,7 @@ fun RegisterScreen(onSignInClick: () -> Unit = {}, onSignUpClick: () -> Unit = {
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.Black,
                                 unfocusedTextColor = Color.Black,
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
+                                unfocusedBorderColor = ThemeColors.border,
                                 focusedBorderColor = Color(0xFF9333EA)
                             )
                         )
@@ -252,7 +261,7 @@ fun RegisterScreen(onSignInClick: () -> Unit = {}, onSignUpClick: () -> Unit = {
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.Black,
                                 unfocusedTextColor = Color.Black,
-                                unfocusedBorderColor = Color(0xFFE5E7EB),
+                                unfocusedBorderColor = ThemeColors.border,
                                 focusedBorderColor = Color(0xFF9333EA)
                             )
                         )
@@ -271,19 +280,29 @@ fun RegisterScreen(onSignInClick: () -> Unit = {}, onSignUpClick: () -> Unit = {
                             modifier = Modifier.testTag("termsCheckbox"),
                             colors = CheckboxDefaults.colors(checkedColor = Color(0xFF9333EA))
                         )
-                        Text(
-                            text = buildAnnotatedString {
-                                append("I agree to the ")
-                                withStyle(style = SpanStyle(color = Color(0xFF9333EA), fontWeight = FontWeight.Bold)) {
-                                    append("Terms & Conditions")
-                                }
-                                append(" and ")
-                                withStyle(style = SpanStyle(color = Color(0xFF9333EA), fontWeight = FontWeight.Bold)) {
-                                    append("Privacy Policy")
-                                }
-                            },
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                        val annotatedText = buildAnnotatedString {
+                            append("I agree to the ")
+                            pushStringAnnotation(tag = "terms", annotation = "terms")
+                            withStyle(style = SpanStyle(color = Color(0xFF9333EA), fontWeight = FontWeight.Bold)) {
+                                append("Terms & Conditions")
+                            }
+                            pop()
+                            append(" and ")
+                            pushStringAnnotation(tag = "privacy", annotation = "privacy")
+                            withStyle(style = SpanStyle(color = Color(0xFF9333EA), fontWeight = FontWeight.Bold)) {
+                                append("Privacy Policy")
+                            }
+                            pop()
+                        }
+                        ClickableText(
+                            text = annotatedText,
+                            style = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color.Gray),
+                            onClick = { offset ->
+                                annotatedText.getStringAnnotations(tag = "terms", start = offset, end = offset)
+                                    .firstOrNull()?.let { onTermsClick() }
+                                annotatedText.getStringAnnotations(tag = "privacy", start = offset, end = offset)
+                                    .firstOrNull()?.let { onPrivacyClick() }
+                            }
                         )
                     }
 

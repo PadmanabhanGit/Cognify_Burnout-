@@ -1,6 +1,11 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import android.content.Context
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,24 +31,76 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.simats.burnouttracker.utils.AppData
+import kotlinx.coroutines.launch
+import com.simats.burnouttracker.data.api.RetrofitClient
+import com.simats.burnouttracker.data.models.ProfileData
 
 @Composable
 fun PrivacyDataScreen(navController: NavController) {
     val context = LocalContext.current
-    val privacyPrefs = remember { context.getSharedPreferences("privacy_settings", Context.MODE_PRIVATE) }
+    val prefs = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
     
-    // State variables for privacy settings
-    var syncHealth by remember { mutableStateOf(privacyPrefs.getBoolean("syncHealth", true)) }
-    var anonymousAnalytics by remember { mutableStateOf(privacyPrefs.getBoolean("anonymousAnalytics", false)) }
-    var personalizedInsights by remember { mutableStateOf(privacyPrefs.getBoolean("personalizedInsights", true)) }
+    // Initialize global privacy settings from prefs if they haven't been bound yet
+    LaunchedEffect(Unit) {
+        if (prefs.contains("anonymousAnalytics")) {
+            AppData.anonymousAnalytics = prefs.getBoolean("anonymousAnalytics", false)
+            AppData.personalizedInsights = prefs.getBoolean("personalizedInsights", true)
+        }
+    }
+
+    val scope = rememberCoroutineScope()
 
     // Save function
     val saveSettings = {
-        with(privacyPrefs.edit()) {
-            putBoolean("syncHealth", syncHealth)
-            putBoolean("anonymousAnalytics", anonymousAnalytics)
-            putBoolean("personalizedInsights", personalizedInsights)
+        with(prefs.edit()) {
+            putBoolean("syncHealth", AppData.syncHealth)
+            putBoolean("anonymousAnalytics", AppData.anonymousAnalytics)
+            putBoolean("personalizedInsights", AppData.personalizedInsights)
             apply()
+        }
+        
+        scope.launch {
+            try {
+                RetrofitClient.getApiService().updateProfileInfo(
+                    ProfileData(
+                        syncHealth = AppData.syncHealth,
+                        anonymousAnalytics = AppData.anonymousAnalytics,
+                        personalizedInsights = AppData.personalizedInsights
+                    )
+                )
+                Toast.makeText(context, "Preferences Saved and Synced!", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Saved locally (Sync failed)", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    val data = """
+                        {
+                            "user": "${AppData.userFullName ?: "Anonymous"}",
+                            "preferences": {
+                                "syncHealth": ${AppData.syncHealth},
+                                "anonymousAnalytics": ${AppData.anonymousAnalytics},
+                                "personalizedInsights": ${AppData.personalizedInsights}
+                            },
+                            "burnoutPredictedScore": ${AppData.predictedScore}
+                        }
+                    """.trimIndent()
+                    outputStream.write(data.toByteArray())
+                }
+                Toast.makeText(context, "Data successfully downloaded", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Failed to download data", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -53,7 +110,7 @@ fun PrivacyDataScreen(navController: NavController) {
 
     Scaffold(
         bottomBar = { AppBottomNavigation(navController, "settings") },
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = ThemeColors.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -124,7 +181,7 @@ fun PrivacyDataScreen(navController: NavController) {
                             text = "Data Sharing",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
+                            color = ThemeColors.textPrimary
                         )
                     }
                     
@@ -133,22 +190,22 @@ fun PrivacyDataScreen(navController: NavController) {
                     PrivacyToggleItem(
                         title = "Sync with Health Apps",
                         subtitle = "Connect metrics with Health Connect",
-                        checked = syncHealth,
-                        onCheckedChange = { syncHealth = it }
+                        checked = AppData.syncHealth,
+                        onCheckedChange = { AppData.syncHealth = it }
                     )
                     
                     PrivacyToggleItem(
                         title = "Allow Anonymous Analytics",
                         subtitle = "Help improve the app using anonymous data",
-                        checked = anonymousAnalytics,
-                        onCheckedChange = { anonymousAnalytics = it }
+                        checked = AppData.anonymousAnalytics,
+                        onCheckedChange = { AppData.anonymousAnalytics = it }
                     )
                     
                     PrivacyToggleItem(
                         title = "Enable Personalized Insights",
                         subtitle = "Get recommendations based on your habits",
-                        checked = personalizedInsights,
-                        onCheckedChange = { personalizedInsights = it }
+                        checked = AppData.personalizedInsights,
+                        onCheckedChange = { AppData.personalizedInsights = it }
                     )
                 }
 
@@ -166,7 +223,7 @@ fun PrivacyDataScreen(navController: NavController) {
                             text = "Privacy Controls",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
+                            color = ThemeColors.textPrimary
                         )
                     }
                     
@@ -175,7 +232,7 @@ fun PrivacyDataScreen(navController: NavController) {
                     PrivacyActionItem(
                         icon = Icons.Default.FileDownload,
                         title = "Download My Data",
-                        onClick = { /* Handle download */ }
+                        onClick = { exportLauncher.launch("MyBurnoutData.json") }
                     )
                 }
 
@@ -256,12 +313,12 @@ fun PrivacyToggleItem(
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1F2937)
+                color = ThemeColors.textPrimary
             )
             Text(
                 text = subtitle,
                 fontSize = 12.sp,
-                color = Color(0xFF6B7280)
+                color = ThemeColors.textSecondary
             )
         }
         Switch(
@@ -308,13 +365,13 @@ fun PrivacyActionItem(
             text = title,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF1F2937),
+            color = ThemeColors.textPrimary,
             modifier = Modifier.weight(1f)
         )
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = Color(0xFF9CA3AF),
+            tint = ThemeColors.textTertiary,
             modifier = Modifier.size(20.dp)
         )
     }

@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -53,7 +55,7 @@ fun GeneralizedActionPlanScreen(navController: NavController) {
     var hydrationEnabled by remember { mutableStateOf(settings.getBoolean("hydration_reminder", true)) }
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = ThemeColors.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -225,7 +227,7 @@ fun ActionCard(title: String, icon: ImageVector, iconColor: Color, content: @Com
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -240,7 +242,7 @@ fun ActionCard(title: String, icon: ImageVector, iconColor: Color, content: @Com
                     }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1F2937))
+                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
             }
             Spacer(modifier = Modifier.height(20.dp))
             content()
@@ -274,7 +276,7 @@ fun DurationPicker(label: String, current: String, options: List<String>, onSele
     
     Column(modifier = Modifier.padding(top = 12.dp)) {
         Surface(
-            color = Color(0xFFF9FAFB),
+            color = ThemeColors.background,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()

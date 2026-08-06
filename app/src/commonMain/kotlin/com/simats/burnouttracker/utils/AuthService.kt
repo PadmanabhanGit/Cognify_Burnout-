@@ -9,6 +9,8 @@ interface AuthService {
     suspend fun signIn(email: String, password: String): AuthResult
     suspend fun signUp(email: String, password: String, fullName: String): AuthResult
     suspend fun signInWithGoogle(idToken: String): AuthResult
+    suspend fun changePassword(currentPassword: String, newPassword: String): AuthResult
+    suspend fun resetPassword(email: String): AuthResult
 }
 
 data class AuthResult(

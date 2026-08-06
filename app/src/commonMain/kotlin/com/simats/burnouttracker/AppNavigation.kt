@@ -9,7 +9,7 @@ import com.simats.burnouttracker.ui.theme.BurnOutTrackerTheme
 import com.simats.burnouttracker.utils.*
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(initialRoute: String? = null) {
     println("DEBUG_FORCE: AppNavigation started. If you see this, code updates ARE working.")
     val navController = rememberNavController()
     val isWeb = getPlatform() == PlatformType.WEB
@@ -21,6 +21,7 @@ fun AppNavigation() {
     val isLoggedIn = authService.isLoggedIn()
 
     val startDest = when {
+        isLoggedIn && initialRoute != null -> initialRoute
         isLoggedIn           -> "dashboard"
         isWeb                -> "login" 
         !arePermissionsViewed -> "splash" // Start at splash if permissions not done
@@ -45,7 +46,9 @@ fun AppNavigation() {
                     onSignInClick = { navController.navigate("login") },
                     onSignUpClick = {
                         navController.navigate("dashboard") { popUpTo("register") { inclusive = true } }
-                    }
+                    },
+                    onTermsClick = { navController.navigate("terms_of_service") },
+                    onPrivacyClick = { navController.navigate("privacy_policy") }
                 )
             }
             composable("dashboard") {

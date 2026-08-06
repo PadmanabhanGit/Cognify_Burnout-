@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,15 +27,88 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import android.content.Intent
+import android.net.Uri
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import com.simats.burnouttracker.utils.rememberAuthService
+import com.simats.burnouttracker.data.api.RetrofitClient
 
 @Composable
 fun LinkedAccountsScreen(navController: NavController) {
+    val context = LocalContext.current
+    val authService = rememberAuthService()
+    val coroutineScope = rememberCoroutineScope()
+    
+    var linkedAccounts by remember { mutableStateOf<List<String>>(emptyList()) }
+    
+    LaunchedEffect(Unit) {
+        try {
+            val response = RetrofitClient.getApiService().getProfileInfo()
+            if (response.isSuccessful) {
+                linkedAccounts = response.body()?.linkedAccounts ?: emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    val currentUserEmail = authService.getCurrentUserEmail()
+    val isGoogleLinked = currentUserEmail?.endsWith("@gmail.com") == true
+    val isFacebookLinked = linkedAccounts.contains("facebook")
+    val isLinkedInLinked = linkedAccounts.contains("linkedin")
+    
+    val webClientId = "966389564228-vq6558vla737es6aqu6l61bqqjg2u1ar.apps.googleusercontent.com"
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(webClientId)
+            .requestEmail()
+            .build()
+    }
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            val selectedEmail = account.email
+            
+            if (selectedEmail == currentUserEmail) {
+                Toast.makeText(context, "Account already linked", Toast.LENGTH_SHORT).show()
+            } else if (idToken != null) {
+                coroutineScope.launch {
+                    val authResult = authService.signInWithGoogle(idToken)
+                    if (authResult.success) {
+                        Toast.makeText(context, "Account switched successfully", Toast.LENGTH_SHORT).show()
+                        navController.navigate("home") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    } else {
+                        Toast.makeText(context, "Failed to link account: ${authResult.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        } catch (e: ApiException) {
+            Toast.makeText(context, "Google Sign-In canceled or failed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val headerGradient = Brush.linearGradient(
         colors = listOf(Color(0xFF9333EA), Color(0xFF2563EB))
     )
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = ThemeColors.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -101,7 +176,7 @@ fun LinkedAccountsScreen(navController: NavController) {
                             text = "Connect Accounts",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937),
+                            color = ThemeColors.textPrimary,
                             modifier = Modifier.padding(8.dp)
                         )
                         
@@ -110,29 +185,71 @@ fun LinkedAccountsScreen(navController: NavController) {
                         AccountLinkItem(
                             icon = R.drawable.ic_google,
                             name = "Google",
-                            status = "Linked",
-                            statusColor = Color(0xFF16A34A),
-                            onClick = { /* Handle Google link/unlink */ }
+                            status = if (isGoogleLinked) "Linked" else "Not Linked",
+                            statusColor = if (isGoogleLinked) Color(0xFF16A34A) else ThemeColors.textTertiary,
+                            onClick = { 
+                                googleSignInClient.signOut().addOnCompleteListener {
+                                    launcher.launch(googleSignInClient.signInIntent) 
+                                }
+                            }
                         )
                         
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = Color(0xFFF3F4F6))
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = ThemeColors.background)
                         
                         AccountLinkItem(
                             icon = R.drawable.ic_facebook,
                             name = "Facebook",
-                            status = "Not Linked",
-                            statusColor = Color(0xFF9CA3AF),
-                            onClick = { /* Handle Facebook link/unlink */ }
+                            status = if (isFacebookLinked) "Linked" else "Not Linked",
+                            statusColor = if (isFacebookLinked) Color(0xFF16A34A) else ThemeColors.textTertiary,
+                            onClick = { 
+                                coroutineScope.launch {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/v12.0/dialog/oauth"))
+                                    context.startActivity(intent)
+                                    // Mocking the backend sync on return
+                                    delay(2000)
+                                    try {
+                                        val currentProfileResponse = RetrofitClient.getApiService().getProfileInfo()
+                                        val profileData = currentProfileResponse.body()
+                                        if (profileData != null && !profileData.linkedAccounts.orEmpty().contains("facebook")) {
+                                            val updatedAccounts = profileData.linkedAccounts.orEmpty() + "facebook"
+                                            RetrofitClient.getApiService().updateProfileInfo(profileData.copy(linkedAccounts = updatedAccounts))
+                                            linkedAccounts = updatedAccounts
+                                            Toast.makeText(context, "Facebook Linked and Synced!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                            }
                         )
 
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = Color(0xFFF3F4F6))
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = ThemeColors.background)
 
                         AccountLinkItem(
                             icon = null, // Placeholder for LinkedIn since drawable is missing
                             name = "LinkedIn",
-                            status = "Not Linked",
-                            statusColor = Color(0xFF9CA3AF),
-                            onClick = { /* Handle LinkedIn link/unlink */ }
+                            status = if (isLinkedInLinked) "Linked" else "Not Linked",
+                            statusColor = if (isLinkedInLinked) Color(0xFF16A34A) else ThemeColors.textTertiary,
+                            onClick = { 
+                                coroutineScope.launch {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.linkedin.com/oauth/v2/authorization"))
+                                    context.startActivity(intent)
+                                    // Mocking the backend sync on return
+                                    delay(2000)
+                                    try {
+                                        val currentProfileResponse = RetrofitClient.getApiService().getProfileInfo()
+                                        val profileData = currentProfileResponse.body()
+                                        if (profileData != null && !profileData.linkedAccounts.orEmpty().contains("linkedin")) {
+                                            val updatedAccounts = profileData.linkedAccounts.orEmpty() + "linkedin"
+                                            RetrofitClient.getApiService().updateProfileInfo(profileData.copy(linkedAccounts = updatedAccounts))
+                                            linkedAccounts = updatedAccounts
+                                            Toast.makeText(context, "LinkedIn Linked and Synced!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                            }
                         )
                     }
                 }
@@ -188,8 +305,8 @@ fun AccountLinkItem(
         Surface(
             modifier = Modifier.size(48.dp),
             shape = CircleShape,
-            color = Color(0xFFF9FAFB),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF3F4F6))
+            color = ThemeColors.background,
+            border = androidx.compose.foundation.BorderStroke(1.dp, ThemeColors.background)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 if (icon != null) {
@@ -217,7 +334,7 @@ fun AccountLinkItem(
                 text = name,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1F2937)
+                color = ThemeColors.textPrimary
             )
             Text(
                 text = status,

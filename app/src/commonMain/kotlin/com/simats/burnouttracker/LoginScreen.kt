@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -48,6 +50,9 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
+    var resetMessage by remember { mutableStateOf<String?>(null) }
 
     val handleSignIn = {
         scope.launch {
@@ -183,14 +188,14 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
-                            placeholder = { Text("student@example.com", color = Color(0xFF94A3B8)) },
+                            placeholder = { Text("student@example.com", color = ThemeColors.textTertiary) },
                             modifier = Modifier.fillMaxWidth().testTag("loginEmailField"),
                             shape = RoundedCornerShape(12.dp),
                             leadingIcon = { 
                                 Icon(
                                     imageVector = Icons.Rounded.Mail, 
                                     contentDescription = null, 
-                                    tint = Color(0xFF94A3B8),
+                                    tint = ThemeColors.textTertiary,
                                     modifier = Modifier.size(20.dp)
                                 ) 
                             },
@@ -218,14 +223,14 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
-                            placeholder = { Text("********", color = Color(0xFF94A3B8)) },
+                            placeholder = { Text("********", color = ThemeColors.textTertiary) },
                             modifier = Modifier.fillMaxWidth().testTag("loginPasswordField"),
                             shape = RoundedCornerShape(12.dp),
                             leadingIcon = { 
                                 Icon(
                                     imageVector = Icons.Rounded.Lock, 
                                     contentDescription = null, 
-                                    tint = Color(0xFF94A3B8),
+                                    tint = ThemeColors.textTertiary,
                                     modifier = Modifier.size(20.dp)
                                 ) 
                             },
@@ -234,7 +239,7 @@ fun LoginScreen(
                                     Icon(
                                         imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                         contentDescription = null,
-                                        tint = Color(0xFF94A3B8),
+                                        tint = ThemeColors.textTertiary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -254,7 +259,7 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = onForgotPasswordClick) {
+                        TextButton(onClick = { showForgotPasswordDialog = true }) {
                             Text("Forgot Password?", color = Color(0xFF9333EA), fontWeight = FontWeight.Bold)
                         }
                     }
@@ -298,7 +303,7 @@ fun LoginScreen(
                         Text(
                             text = "OR CONTINUE WITH",
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = Color(0xFF94A3B8),
+                            color = ThemeColors.textTertiary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -307,33 +312,10 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Social Buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            GoogleSignInButton(
-                                onTokenReceived = { handleGoogleSignIn(it) },
-                                onFailure = { errorMessage = it }
-                            )
-                        }
-                        
-                        // Facebook Placeholder (as requested focus was Google)
-                        OutlinedButton(
-                            onClick = { /* Facebook Logic */ },
-                            modifier = Modifier.weight(1f).height(56.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                // Simple "f" placeholder for Facebook
-                                Text("f", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1877F2))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Facebook", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
+                    GoogleSignInButton(
+                        onTokenReceived = { handleGoogleSignIn(it) },
+                        onFailure = { errorMessage = it }
+                    )
                 }
             }
 
@@ -355,6 +337,58 @@ fun LoginScreen(
             }
             
             Spacer(modifier = Modifier.height(48.dp))
+        }
+
+        if (showForgotPasswordDialog) {
+            AlertDialog(
+                onDismissRequest = { 
+                    showForgotPasswordDialog = false 
+                    resetMessage = null
+                },
+                title = { Text("Reset Password") },
+                text = {
+                    Column {
+                        Text("Enter your email address to receive a password reset link.", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = resetEmail,
+                            onValueChange = { resetEmail = it },
+                            placeholder = { Text("Email Address") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        if (resetMessage != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(resetMessage!!, color = if (resetMessage!!.contains("sent", ignoreCase = true)) Color(0xFF10B981) else Color.Red, fontSize = 12.sp)
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (resetEmail.isBlank()) {
+                                resetMessage = "Please enter an email address"
+                            } else {
+                                scope.launch {
+                                    val result = authService.resetPassword(resetEmail)
+                                    if (result.success) {
+                                        resetMessage = "Password reset email sent!"
+                                    } else {
+                                        resetMessage = result.message ?: "Failed to send reset email"
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Send Link", color = Color(0xFF9333EA), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showForgotPasswordDialog = false; resetMessage = null }) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+                }
+            )
         }
     }
 }

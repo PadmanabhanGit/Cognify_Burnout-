@@ -82,8 +82,8 @@ export default function Productivity() {
           </div>
 
           <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '30px' }}>
-            <ChangeBox label="Weekly Change" value="+12%" color="#DCFCE7" textColor="#16A34A" />
-            <ChangeBox label="This Month" value="+6%" color="#EFF6FF" textColor="#2563EB" />
+            <ChangeBox label="Weekly Change" value={`+${(productivityScore % 15) + 5}%`} color="#DCFCE7" textColor="#16A34A" />
+            <ChangeBox label="This Month" value={`+${(productivityScore % 8) + 2}%`} color="#EFF6FF" textColor="#2563EB" />
           </div>
         </div>
 
@@ -93,16 +93,16 @@ export default function Productivity() {
           <div style={{ width: '100%', height: '140px', position: 'relative' }}>
             <svg viewBox="0 0 300 140" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
               {/* Overall (Green) */}
-              <polyline points="0,84 50,91 100,63 150,70 200,49 250,35 300,45" fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points={`0,${140 - 56 * (productivityScore / 100)} 50,${140 - 49 * (productivityScore / 100)} 100,${140 - 77 * (productivityScore / 100)} 150,${140 - 70 * (productivityScore / 100)} 200,${140 - 91 * (productivityScore / 100)} 250,${140 - 105 * (productivityScore / 100)} 300,${140 - 95 * (productivityScore / 100)}`} fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               {/* Focus (Blue, Dashed) */}
-              <polyline points="0,98 50,105 100,77 150,84 200,63 250,49 300,56" fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeDasharray="8,6" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points={`0,${140 - 42 * (productivityScore / 100)} 50,${140 - 35 * (productivityScore / 100)} 100,${140 - 63 * (productivityScore / 100)} 150,${140 - 56 * (productivityScore / 100)} 200,${140 - 77 * (productivityScore / 100)} 250,${140 - 91 * (productivityScore / 100)} 300,${140 - 84 * (productivityScore / 100)}`} fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeDasharray="8,6" strokeLinecap="round" strokeLinejoin="round" />
               {/* Efficiency (Purple) */}
-              <polyline points="0,70 50,77 100,49 150,56 200,35 250,21 300,28" fill="none" stroke="#8B5CF6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points={`0,${140 - 70 * (productivityScore / 100)} 50,${140 - 63 * (productivityScore / 100)} 100,${140 - 91 * (productivityScore / 100)} 150,${140 - 84 * (productivityScore / 100)} 200,${140 - 105 * (productivityScore / 100)} 250,${140 - 119 * (productivityScore / 100)} 300,${140 - 112 * (productivityScore / 100)}`} fill="none" stroke="#8B5CF6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               
               {/* Points for overall */}
               {[
-                {x: 0, y: 84}, {x: 50, y: 91}, {x: 100, y: 63}, {x: 150, y: 70}, 
-                {x: 200, y: 49}, {x: 250, y: 35}, {x: 300, y: 45}
+                {x: 0, y: 140 - 56 * (productivityScore / 100)}, {x: 50, y: 140 - 49 * (productivityScore / 100)}, {x: 100, y: 140 - 77 * (productivityScore / 100)}, {x: 150, y: 140 - 70 * (productivityScore / 100)}, 
+                {x: 200, y: 140 - 91 * (productivityScore / 100)}, {x: 250, y: 140 - 105 * (productivityScore / 100)}, {x: 300, y: 140 - 95 * (productivityScore / 100)}
               ].map((p, i) => (
                 <g key={i}>
                   <circle cx={p.x} cy={p.y} r="5" fill="#10B981" />
@@ -137,8 +137,8 @@ export default function Productivity() {
                   <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
                 </linearGradient>
               </defs>
-              <polygon points="0,100 0,80 60,30 120,60 180,70 240,50 300,80 300,100" fill="url(#peakGrad)" />
-              <polyline points="0,80 60,30 120,60 180,70 240,50 300,80" fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <polygon points={`0,100 0,${100 - 20 * (productivityScore / 100)} 60,${100 - 70 * (productivityScore / 100)} 120,${100 - 40 * (productivityScore / 100)} 180,${100 - 30 * (productivityScore / 100)} 240,${100 - 50 * (productivityScore / 100)} 300,${100 - 20 * (productivityScore / 100)} 300,100`} fill="url(#peakGrad)" />
+              <polyline points={`0,${100 - 20 * (productivityScore / 100)} 60,${100 - 70 * (productivityScore / 100)} 120,${100 - 40 * (productivityScore / 100)} 180,${100 - 30 * (productivityScore / 100)} 240,${100 - 50 * (productivityScore / 100)} 300,${100 - 20 * (productivityScore / 100)}`} fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
@@ -148,53 +148,7 @@ export default function Productivity() {
           </div>
         </div>
 
-        {/* Time Distribution Card */}
-        <div className="white-card" style={{ padding: '24px' }}>
-          <div style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937', marginBottom: '20px' }}>Time Distribution</div>
-          
-          <DistributionItem label="Work/Study" time="4h 15m" progress={0.65} color="#3B82F6" />
-          <DistributionItem label="Breaks" time="1h 30m" progress={0.23} color="#10B981" />
-          <DistributionItem label="Distractions" time="45m" progress={0.12} color="#EF4444" />
 
-          <div style={{ backgroundColor: '#F0FDF4', borderRadius: '16px', padding: '16px', marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>TOTAL ACTIVE TIME</div>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: '#14532D' }}>{activeHours} hours</div>
-            </div>
-            <TimerIcon style={{ color: '#16A34A', fontSize: '24px' }} />
-          </div>
-        </div>
-
-        {/* Optimization Suggestions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937' }}>Optimization Suggestions</div>
-            <div style={{ marginLeft: '8px', fontSize: '16px' }}>✨</div>
-          </div>
-          <SuggestionCard 
-            title="Increase Break Frequency" 
-            sub="Your focus drops significantly after 90 minutes. Try the Pomodoro technique (25m work, 5m break)." 
-            tag="HIGH IMPACT" tagColor="#EF4444" tagBg="#FEE2E2" 
-          />
-          <SuggestionCard 
-            title="Morning Peak alignment" 
-            sub="You are most productive between 10AM - 11AM. Schedule your hardest tasks for this window." 
-            tag="MEDIUM IMPACT" tagColor="#F59E0B" tagBg="#FEF3C7" 
-          />
-        </div>
-
-        {/* Footer Button */}
-        <button 
-          onClick={() => navigate('/burnout-risk')}
-          style={{ 
-            width: '100%', height: '60px', borderRadius: '16px', border: 'none', cursor: 'pointer',
-            background: 'linear-gradient(to right, #6366F1, #A855F7)',
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            marginBottom: '40px'
-          }}
-        >
-          <span style={{ color: 'white', fontWeight: 700, fontSize: '16px' }}>View Burnout</span>
-        </button>
 
       </div>
       
@@ -225,19 +179,7 @@ function InsightMiniCard({ icon, value, label, sub }) {
   );
 }
 
-function DistributionItem({ label, time, progress, color }) {
-  return (
-    <div style={{ marginBottom: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <div style={{ fontSize: '13px', color: '#6B7280' }}>{label}</div>
-        <div style={{ fontSize: '13px', fontWeight: 700, color: '#1F2937' }}>{time}</div>
-      </div>
-      <div style={{ width: '100%', height: '8px', backgroundColor: '#F3F4F6', borderRadius: '4px', overflow: 'hidden' }}>
-        <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: color, borderRadius: '4px' }}></div>
-      </div>
-    </div>
-  );
-}
+
 
 function ProductivityLegendItem({ color, text }) {
   return (
@@ -248,14 +190,3 @@ function ProductivityLegendItem({ color, text }) {
   );
 }
 
-function SuggestionCard({ title, sub, tag, tagColor, tagBg }) {
-  return (
-    <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1F2937', flex: 1 }}>{title}</div>
-        <div style={{ backgroundColor: tagBg, borderRadius: '4px', padding: '2px 6px', fontSize: '8px', fontWeight: 800, color: tagColor }}>{tag}</div>
-      </div>
-      <div style={{ fontSize: '12px', color: 'gray', lineHeight: '1.5' }}>{sub}</div>
-    </div>
-  );
-}

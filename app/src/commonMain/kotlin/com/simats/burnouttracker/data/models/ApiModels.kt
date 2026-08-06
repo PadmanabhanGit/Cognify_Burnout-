@@ -45,7 +45,11 @@ data class ProfileData(
     val firstName: String? = null,
     val lastName: String? = null,
     val age: String? = null,
-    val location: String? = null
+    val location: String? = null,
+    val linkedAccounts: List<String>? = null,
+    val syncHealth: Boolean? = null,
+    val anonymousAnalytics: Boolean? = null,
+    val personalizedInsights: Boolean? = null
 )
 
 // ─── Study Sessions ────────────────────────────────────────────────────────────

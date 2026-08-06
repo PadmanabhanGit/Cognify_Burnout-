@@ -1,6 +1,12 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import android.content.Context
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -32,6 +39,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
 import com.simats.burnouttracker.utils.rememberAuthService
+import com.simats.burnouttracker.utils.AppData
+import com.simats.burnouttracker.utils.NotificationHelper
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -39,25 +48,51 @@ fun SettingsScreen(navController: NavController) {
     val authService = rememberAuthService()
     val prefs = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
 
-    // State variables
-    var isDarkMode by remember { mutableStateOf(prefs.getBoolean("isDarkMode", false)) }
-    var allowAllNotif by remember { mutableStateOf(prefs.getBoolean("allowAllNotif", true)) }
-    var burnoutAlerts by remember { mutableStateOf(prefs.getBoolean("burnoutAlerts", true)) }
-    var dailyReminders by remember { mutableStateOf(prefs.getBoolean("dailyReminders", true)) }
-    var weeklyReports by remember { mutableStateOf(prefs.getBoolean("weeklyReports", false)) }
-    var studyPrompts by remember { mutableStateOf(prefs.getBoolean("studyPrompts", true)) }
-    var syncHealth by remember { mutableStateOf(prefs.getBoolean("syncHealth", false)) }
+    // Initialize AppData from prefs if not already loaded (simple one-time sync)
+    LaunchedEffect(Unit) {
+        if (!prefs.contains("syncHealth")) {
+            // First time or just a simple way to bind them initially
+        } else {
+            AppData.isDarkMode = prefs.getBoolean("isDarkMode", false)
+            AppData.allowAllNotif = prefs.getBoolean("allowAllNotif", true)
+            AppData.burnoutAlerts = prefs.getBoolean("burnoutAlerts", true)
+            AppData.dailyReminders = prefs.getBoolean("dailyReminders", true)
+            AppData.weeklyReports = prefs.getBoolean("weeklyReports", false)
+            AppData.studyPrompts = prefs.getBoolean("studyPrompts", true)
+            AppData.syncHealth = prefs.getBoolean("syncHealth", false)
+        }
+    }
+    
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var currentLanguage by remember { mutableStateOf(prefs.getString("language", "English (US)") ?: "English (US)") }
+    
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            AppData.allowAllNotif = true
+            prefs.edit().putBoolean("allowAllNotif", true).apply()
+            NotificationHelper.updateWorkers(context)
+        } else {
+            AppData.allowAllNotif = false
+            prefs.edit().putBoolean("allowAllNotif", false).apply()
+            NotificationHelper.updateWorkers(context)
+        }
+    }
+
+    val userEmail = authService.getCurrentUserEmail()
+    val linkedAccountProvider = if (userEmail?.endsWith("@gmail.com") == true) "Google" else if (userEmail.isNullOrBlank()) "None" else "Email"
 
     val primaryPurple = Color(0xFF9333EA)
     val headerGradient = Brush.linearGradient(
         colors = listOf(Color(0xFF4F46E5), Color(0xFF9333EA))
     )
 
-    val backgroundColor = Color(0xFFF9FAFB)
-    val cardColor = Color.White
-    val textColor = Color(0xFF1F2937)
-    val secondaryTextColor = Color(0xFF6B7280)
-    val sectionTitleColor = Color(0xFF94A3B8)
+    val backgroundColor = if (AppData.isDarkMode) Color(0xFF121212) else ThemeColors.background
+    val cardColor = if (AppData.isDarkMode) Color(0xFF1E1E1E) else Color.White
+    val textColor = if (AppData.isDarkMode) ThemeColors.border else ThemeColors.textPrimary
+    val secondaryTextColor = if (AppData.isDarkMode) ThemeColors.textTertiary else ThemeColors.textSecondary
+    val sectionTitleColor = if (AppData.isDarkMode) ThemeColors.textSecondary else ThemeColors.textTertiary
 
     Scaffold(
         bottomBar = { AppBottomNavigation(navController, "settings") },
@@ -148,7 +183,7 @@ fun SettingsScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Text(
-                            text = authService.getCurrentUserEmail()?.split("@")?.firstOrNull()?.replaceFirstChar { it.uppercase() } ?: "User",
+                            text = AppData.userFullName ?: (userEmail?.split("@")?.firstOrNull()?.replaceFirstChar { it.uppercase() } ?: "User"),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor
@@ -191,7 +226,7 @@ fun SettingsScreen(navController: NavController) {
                     SettingsItem(
                         icon = Icons.Outlined.Link,
                         title = "Linked Accounts",
-                        trailingText = "Google",
+                        trailingText = linkedAccountProvider,
                         textColor = textColor,
                         iconColor = Color(0xFFC084FC)
                     ) { navController.navigate("linked_accounts") }
@@ -211,8 +246,16 @@ fun SettingsScreen(navController: NavController) {
                     SettingsToggleItem(
                         icon = Icons.Outlined.NotificationsActive,
                         title = "Allow All Notifications",
-                        checked = allowAllNotif,
-                        onCheckedChange = { allowAllNotif = it },
+                        checked = AppData.allowAllNotif,
+                        onCheckedChange = { isChecked -> 
+                            if (isChecked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                AppData.allowAllNotif = isChecked
+                                prefs.edit().putBoolean("allowAllNotif", isChecked).apply()
+                                NotificationHelper.updateWorkers(context)
+                            }
+                        },
                         textColor = textColor,
                         primaryColor = primaryPurple
                     )
@@ -220,46 +263,62 @@ fun SettingsScreen(navController: NavController) {
                     SettingsToggleItem(
                         title = "Burnout Alerts",
                         subtitle = "AI predictions based on stress",
-                        checked = burnoutAlerts,
-                        onCheckedChange = { burnoutAlerts = it },
+                        checked = AppData.burnoutAlerts,
+                        onCheckedChange = { 
+                            AppData.burnoutAlerts = it
+                            prefs.edit().putBoolean("burnoutAlerts", it).apply()
+                            NotificationHelper.updateWorkers(context)
+                        },
                         textColor = textColor,
                         primaryColor = primaryPurple
                     )
                     
                     SettingsToggleItem(
                         title = "Daily Reminders",
-                        checked = dailyReminders,
-                        onCheckedChange = { dailyReminders = it },
+                        checked = AppData.dailyReminders,
+                        onCheckedChange = { 
+                            AppData.dailyReminders = it
+                            prefs.edit().putBoolean("dailyReminders", it).apply()
+                            NotificationHelper.updateWorkers(context)
+                        },
                         textColor = textColor,
                         primaryColor = primaryPurple
                     )
                     
                     SettingsToggleItem(
                         title = "Weekly Reports",
-                        checked = weeklyReports,
-                        onCheckedChange = { weeklyReports = it },
+                        checked = AppData.weeklyReports,
+                        onCheckedChange = { 
+                            AppData.weeklyReports = it
+                            prefs.edit().putBoolean("weeklyReports", it).apply()
+                            NotificationHelper.updateWorkers(context)
+                        },
                         textColor = textColor,
                         primaryColor = primaryPurple
                     )
                     
                     SettingsToggleItem(
                         title = "Study Session Prompts",
-                        checked = studyPrompts,
-                        onCheckedChange = { studyPrompts = it },
+                        checked = AppData.studyPrompts,
+                        onCheckedChange = { 
+                            AppData.studyPrompts = it
+                            prefs.edit().putBoolean("studyPrompts", it).apply()
+                            NotificationHelper.updateWorkers(context)
+                        },
                         textColor = textColor,
                         primaryColor = primaryPurple
                     )
                 }
-
+                
                 Spacer(modifier = Modifier.height(24.dp))
-
+                
                 // WELLNESS
                 SettingsGroup(title = "WELLNESS", cardColor = cardColor, titleColor = sectionTitleColor) {
                     SettingsToggleItem(
                         icon = Icons.Outlined.HealthAndSafety,
                         title = "Sync with Health Apps",
-                        checked = syncHealth,
-                        onCheckedChange = { syncHealth = it },
+                        checked = AppData.syncHealth,
+                        onCheckedChange = { AppData.syncHealth = it; prefs.edit().putBoolean("syncHealth", it).apply() },
                         textColor = textColor,
                         primaryColor = Color(0xFF22C55E)
                     )
@@ -279,22 +338,24 @@ fun SettingsScreen(navController: NavController) {
                     SettingsToggleItem(
                         icon = Icons.Outlined.DarkMode,
                         title = "Dark Mode",
-                        checked = isDarkMode,
-                        onCheckedChange = { isDarkMode = it },
+                        checked = AppData.isDarkMode,
+                        onCheckedChange = { AppData.isDarkMode = it; prefs.edit().putBoolean("isDarkMode", it).apply() },
                         textColor = textColor,
-                        primaryColor = Color(0xFF1F2937)
+                        primaryColor = ThemeColors.textPrimary
                     )
                     
                     SettingsItem(
                         icon = Icons.Outlined.Public,
                         title = "Language",
-                        trailingText = "English (US)",
+                        trailingText = currentLanguage,
                         textColor = textColor,
                         iconColor = Color(0xFF64748B)
-                    ) { /* Navigate */ }
+                    ) { showLanguageDialog = true }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+
+                val uriHandler = LocalUriHandler.current
 
                 // SUPPORT
                 SettingsGroup(title = "SUPPORT", cardColor = cardColor, titleColor = sectionTitleColor) {
@@ -302,7 +363,7 @@ fun SettingsScreen(navController: NavController) {
                         title = "Help Center",
                         trailingIcon = Icons.AutoMirrored.Filled.OpenInNew,
                         textColor = textColor
-                    ) { /* Navigate */ }
+                    ) { uriHandler.openUri("https://github.com/PadmanabhanGit/Cognify_Burnout-") }
                     
                     SettingsItem(
                         title = "Terms of Service",
@@ -358,6 +419,45 @@ fun SettingsScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+        
+        if (showLanguageDialog) {
+            AlertDialog(
+                onDismissRequest = { showLanguageDialog = false },
+                title = { Text(text = "Select Language", fontWeight = FontWeight.Bold, color = textColor) },
+                containerColor = cardColor,
+                text = {
+                    Column {
+                        val languages = listOf("English (US)", "English (UK)", "Spanish", "French", "German", "Tamil")
+                        languages.forEach { lang ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        currentLanguage = lang
+                                        prefs.edit().putString("language", lang).apply()
+                                        showLanguageDialog = false
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = (lang == currentLanguage),
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = primaryPurple)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(text = lang, color = textColor, fontSize = 16.sp)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLanguageDialog = false }) {
+                        Text("Close", color = primaryPurple)
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -396,7 +496,7 @@ fun SettingsItem(
     subtitle: String? = null,
     trailingText: String? = null,
     trailingIcon: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-    textColor: Color = Color(0xFF1F2937),
+    textColor: Color = ThemeColors.textPrimary,
     iconColor: Color = Color(0xFF8B5CF6),
     onClick: () -> Unit
 ) {
@@ -441,7 +541,7 @@ fun SettingsToggleItem(
     subtitle: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    textColor: Color = Color(0xFF1F2937),
+    textColor: Color = ThemeColors.textPrimary,
     primaryColor: Color = Color(0xFF8B5CF6)
 ) {
     Row(

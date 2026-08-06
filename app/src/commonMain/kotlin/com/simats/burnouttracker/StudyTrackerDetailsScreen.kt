@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,7 +33,7 @@ import com.simats.burnouttracker.utils.AppData
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudyTrackerDetailsScreen(navController: NavController) {
-    val screenBgColor = Color(0xFFF9FAFB)
+    val screenBgColor = ThemeColors.background
 
     Scaffold(
         containerColor = screenBgColor,
@@ -43,7 +45,7 @@ fun StudyTrackerDetailsScreen(navController: NavController) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = ThemeColors.card)
             )
         }
     ) { paddingValues ->
@@ -59,14 +61,14 @@ fun StudyTrackerDetailsScreen(navController: NavController) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Timeline, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Monthly Trend", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1F2937))
+                        Text(text = "Monthly Trend", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = ThemeColors.textPrimary)
                     }
                     Spacer(modifier = Modifier.height(24.dp))
                     
@@ -79,7 +81,7 @@ fun StudyTrackerDetailsScreen(navController: NavController) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -91,7 +93,7 @@ fun StudyTrackerDetailsScreen(navController: NavController) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Color(0xFF3B82F6), modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Study Breakdown", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color(0xFF1F2937))
+                            Text(text = "Study Breakdown", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = ThemeColors.textPrimary)
                         }
                         Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(24.dp))
                     }
@@ -128,7 +130,7 @@ fun StudyTrackerDetailsScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Total Study Time", fontWeight = FontWeight.Medium, color = Color(0xFF4B5563))
+                            Text(text = "Total Study Time", fontWeight = FontWeight.Medium, color = ThemeColors.textSecondary)
                             Text(text = "${(AppData.studyWeekHours * 10).toInt() / 10f}h", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF7C3AED))
                         }
                     }
@@ -181,15 +183,15 @@ fun MonthlyTrendChart() {
 fun SubjectProgressItem(label: String, hours: String, progress: Float, color: Color) {
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF4B5563))
-            Text(text = hours, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+            Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = ThemeColors.textSecondary)
+            Text(text = hours, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
         }
         Spacer(modifier = Modifier.height(8.dp))
         LinearProgressIndicator(
             progress = { progress.coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth().height(10.dp),
             color = color,
-            trackColor = Color(0xFFF3F4F6),
+            trackColor = ThemeColors.background,
             strokeCap = StrokeCap.Round
         )
     }

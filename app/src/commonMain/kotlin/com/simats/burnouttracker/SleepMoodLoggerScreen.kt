@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,7 +37,7 @@ fun SleepMoodLoggerScreen(navController: NavController) {
     )
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = ThemeColors.background
     ) { paddingValues ->
         Column(
             modifier = Modifier

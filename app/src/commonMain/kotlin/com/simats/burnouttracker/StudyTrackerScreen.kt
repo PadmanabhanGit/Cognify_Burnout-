@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -41,6 +43,36 @@ fun StudyTrackerScreen(navController: NavController) {
     
     val timerHelper = rememberTimerHelper()
 
+    LaunchedEffect(Unit) {
+        try {
+            val response = ApiClient.getStudyWeeklyStats()
+            if (response.success && response.stats != null) {
+                val stats = response.stats
+                AppData.studyWeekHours = stats.totalHours.toFloat()
+                
+                // For today, let's grab it from dailyTotals if possible
+                val todayStr = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date.toString()
+                val todayMins = stats.dailyTotals[todayStr] ?: 0
+                AppData.studyTodayHours = (todayMins / 60f)
+                
+                // Update graph data simply mapping daily breakdown 
+                val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") // rough mock mapping
+                // Assuming we want to reflect history:
+                AppData.weeklyStudyData.clear()
+                for (i in 0..6) AppData.weeklyStudyData.add(0f) 
+                
+                // If it has breakdown, update subject breakdown
+                stats.subjectBreakdown?.let { breakdown ->
+                    breakdown.forEach { (subject, mins) ->
+                        AppData.studyBreakdown[subject] = (mins / 60f)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     LaunchedEffect(isTimerRunning, AppData.sessionStartTime) {
         while (isTimerRunning) {
             val start = AppData.sessionStartTime
@@ -78,7 +110,10 @@ fun StudyTrackerScreen(navController: NavController) {
                         // Start session on backend
                         scope.launch {
                             try {
-                                ApiClient.startStudySession(StartSessionRequest(subject = name))
+                                val response = ApiClient.startStudySession(StartSessionRequest(subject = name))
+                                if (response.success && response.session != null) {
+                                    AppData.activeSessionId = response.session.id
+                                }
                             } catch (e: Exception) {}
                         }
                     }
@@ -99,7 +134,7 @@ fun StudyTrackerScreen(navController: NavController) {
     )
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB),
+        containerColor = ThemeColors.background,
         bottomBar = { AppBottomNavigation(navController, "tracker") }
     ) { paddingValues ->
         Column(
@@ -145,7 +180,7 @@ fun StudyTrackerScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -157,7 +192,7 @@ fun StudyTrackerScreen(navController: NavController) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Timer, contentDescription = null, tint = Color(0xFF4F46E5), modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Current Session", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1F2937))
+                                Text(text = "Current Session", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
                             }
                             Surface(
                                 color = if (isTimerRunning) Color(0xFFFEF08A) else Color(0xFFDCFCE7),
@@ -193,12 +228,29 @@ fun StudyTrackerScreen(navController: NavController) {
                                     val hours = elapsedTimeSeconds / 3600f
                                     val sessionName = AppData.activeSessionName ?: "Unknown"
                                     
-                                    // Stop session on backend (we use today for simplicity if session ID isn't tracked)
+                                    // Stop session on backend 
                                     scope.launch {
                                         try {
-                                            // The backend uses sessions, but for quick sync we can just let it know
-                                            // In a full implementation, we'd use the sessionId from the start call
-                                            ApiClient.getStudyWeeklyStats() // Trigger a refresh
+                                            val sessionId = AppData.activeSessionId
+                                            if (sessionId != null) {
+                                                ApiClient.stopStudySession(sessionId)
+                                            }
+                                            
+                                            // Refetch latest stats to sync perfectly
+                                            val response = ApiClient.getStudyWeeklyStats()
+                                            if (response.success && response.stats != null) {
+                                                val stats = response.stats
+                                                AppData.studyWeekHours = stats.totalHours.toFloat()
+                                                val todayStr = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date.toString()
+                                                val todayMins = stats.dailyTotals[todayStr] ?: 0
+                                                AppData.studyTodayHours = (todayMins / 60f)
+                                                
+                                                stats.subjectBreakdown?.let { breakdown ->
+                                                    breakdown.forEach { (subj, mins) ->
+                                                        AppData.studyBreakdown[subj] = (mins / 60f)
+                                                    }
+                                                }
+                                            }
                                         } catch (e: Exception) {}
                                     }
 
@@ -223,6 +275,7 @@ fun StudyTrackerScreen(navController: NavController) {
                                     AppData.monthlyStudyTrend[currentWeekIndex] = newTrendValue
                                     
                                     AppData.activeSessionName = null
+                                    AppData.activeSessionId = null
                                     AppData.sessionStartTime = null
                                     elapsedTimeSeconds = 0
                                     sessionNameInput = ""
@@ -254,7 +307,7 @@ fun StudyTrackerScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -262,7 +315,7 @@ fun StudyTrackerScreen(navController: NavController) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color(0xFF4F46E5), modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Weekly Overview", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1F2937))
+                                Text(text = "Weekly Overview", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
                             }
                             Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = Color.Gray)
                         }
@@ -286,8 +339,8 @@ fun StudyTrackerScreen(navController: NavController) {
                             onClick = { navController.navigate("study_tracker_details") },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF9333EA)),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF3F4F6))
+                            colors = ButtonDefaults.buttonColors(containerColor = ThemeColors.card, contentColor = Color(0xFF9333EA)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ThemeColors.background)
                         ) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Text(text = "View Detailed Trends", fontWeight = FontWeight.Bold, fontSize = 14.sp)

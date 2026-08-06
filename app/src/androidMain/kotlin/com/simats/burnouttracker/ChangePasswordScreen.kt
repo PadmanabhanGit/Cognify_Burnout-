@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,9 +28,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.simats.burnouttracker.utils.rememberAuthService
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun ChangePasswordScreen(navController: NavController) {
+    val authService = rememberAuthService()
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -36,6 +47,8 @@ fun ChangePasswordScreen(navController: NavController) {
     var currentVisible by remember { mutableStateOf(false) }
     var newVisible by remember { mutableStateOf(false) }
     var confirmVisible by remember { mutableStateOf(false) }
+    
+    var isLoading by remember { mutableStateOf(false) }
 
     val headerGradient = Brush.linearGradient(
         colors = listOf(Color(0xFF9333EA), Color(0xFF2563EB))
@@ -46,7 +59,7 @@ fun ChangePasswordScreen(navController: NavController) {
     )
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = ThemeColors.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -114,7 +127,7 @@ fun ChangePasswordScreen(navController: NavController) {
                             text = "Security Details",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
+                            color = ThemeColors.textPrimary
                         )
                         
                         Spacer(modifier = Modifier.height(24.dp))
@@ -160,9 +173,32 @@ fun ChangePasswordScreen(navController: NavController) {
                 // Action Button
                 Button(
                     onClick = { 
-                        // Handle password update logic here
-                        navController.popBackStack() 
+                        if (currentPassword.isBlank() || newPassword.isBlank() || confirmPassword.isBlank()) {
+                            Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        if (newPassword != confirmPassword) {
+                            Toast.makeText(context, "New passwords do not match", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        if (newPassword.length < 6) {
+                            Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        
+                        isLoading = true
+                        coroutineScope.launch {
+                            val result = authService.changePassword(currentPassword, newPassword)
+                            isLoading = false
+                            if (result.success) {
+                                Toast.makeText(context, "Password updated successfully", Toast.LENGTH_SHORT).show()
+                                navController.popBackStack()
+                            } else {
+                                Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                            }
+                        }
                     },
+                    enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -176,12 +212,16 @@ fun ChangePasswordScreen(navController: NavController) {
                             .background(buttonGradient),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Update Password",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text(
+                                text = "Update Password",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
                     }
                 }
                 
@@ -205,20 +245,20 @@ fun PasswordFormField(
             text = label,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF4B5563),
+            color = ThemeColors.textSecondary,
             modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
         )
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(text = placeholder, color = Color(0xFF9CA3AF), fontSize = 14.sp) },
+            placeholder = { Text(text = placeholder, color = ThemeColors.textTertiary, fontSize = 14.sp) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             leadingIcon = { 
                 Icon(
                     Icons.Default.Lock, 
                     contentDescription = null, 
-                    tint = Color(0xFF9CA3AF), 
+                    tint = ThemeColors.textTertiary, 
                     modifier = Modifier.size(20.dp)
                 ) 
             },
@@ -227,7 +267,7 @@ fun PasswordFormField(
                     Icon(
                         imageVector = if (isVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                         contentDescription = null,
-                        tint = Color(0xFF9CA3AF),
+                        tint = ThemeColors.textTertiary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -236,9 +276,9 @@ fun PasswordFormField(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.Black,
                 unfocusedTextColor = Color.Black,
-                unfocusedContainerColor = Color(0xFFF9FAFB),
+                unfocusedContainerColor = ThemeColors.background,
                 focusedContainerColor = Color.White,
-                unfocusedBorderColor = Color(0xFFE5E7EB),
+                unfocusedBorderColor = ThemeColors.border,
                 focusedBorderColor = Color(0xFF9333EA)
             ),
             singleLine = true

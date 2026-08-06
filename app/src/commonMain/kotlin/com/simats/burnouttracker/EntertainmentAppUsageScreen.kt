@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,7 +42,7 @@ import kotlin.math.sin
 
 @Composable
 fun EntertainmentAppUsageScreen(navController: NavController) {
-    val screenBgColor = Color(0xFFF9FAFB)
+    val screenBgColor = ThemeColors.background
     val headerGradient = Brush.horizontalGradient(
         colors = listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6))
     )
@@ -109,13 +111,10 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Back", tint = Color.White)
                     }
-                    IconButton(onClick = { /* Settings */ }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
-                    }
                 }
                 Column(modifier = Modifier.padding(top = 60.dp)) {
                     Text(
-                        text = "Entertainment & App\nUsage",
+                        text = "App Usage",
                         color = Color.White,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
@@ -164,7 +163,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -173,15 +172,15 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Daily Entertainment Usage", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                            Text(text = "Daily Usage", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
                             Column(horizontalAlignment = Alignment.End) {
-                                Surface(color = Color(0xFFF3F4F6), shape = RoundedCornerShape(8.dp)) {
+                                Surface(color = ThemeColors.background, shape = RoundedCornerShape(8.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                                         if (AppData.isSyncing) {
-                                            CircularProgressIndicator(modifier = Modifier.size(10.dp), strokeWidth = 1.dp, color = Color(0xFF6B7280))
+                                            CircularProgressIndicator(modifier = Modifier.size(10.dp), strokeWidth = 1.dp, color = ThemeColors.textSecondary)
                                             Spacer(modifier = Modifier.width(4.dp))
                                         }
-                                        Text(text = "Today", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                        Text(text = "Today", fontSize = 12.sp, color = ThemeColors.textSecondary)
                                     }
                                 }
                                 if (AppData.lastUpdatedTime.isNotEmpty()) {
@@ -228,7 +227,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
-                        HorizontalDivider(color = Color(0xFFF3F4F6))
+                        HorizontalDivider(color = ThemeColors.background)
                         Spacer(modifier = Modifier.height(20.dp))
 
                         Row(
@@ -236,7 +235,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Total App Usage", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4B5563))
+                            Text(text = "Total App Usage", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textSecondary)
                             Text(text = formatHours(features.totalScreenTime), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF111827))
                         }
                     }
@@ -247,11 +246,11 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
-                            Text(text = "Top Used Apps Today", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                            Text(text = "Top Used Apps Today", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
                             Spacer(modifier = Modifier.height(16.dp))
                             
                             features.topApps.forEach { app ->
@@ -280,12 +279,12 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text(text = "Burnout Risk Visualization", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                        Text(text = "Correlation between app type and burnout score", fontSize = 12.sp, color = Color(0xFF6B7280))
+                        Text(text = "Burnout Risk Visualization", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
+                        Text(text = "Correlation between app type and burnout score", fontSize = 12.sp, color = ThemeColors.textSecondary)
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
@@ -361,7 +360,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     val wellbeing = WellbeingGenerator.generate(riskScore, InsightGenerator.generate(features, riskScore))
@@ -369,7 +368,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                         modifier = Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = "Focus & Concentration Analysis", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937), modifier = Modifier.align(Alignment.Start))
+                        Text(text = "Focus & Concentration Analysis", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary, modifier = Modifier.align(Alignment.Start))
                         Spacer(modifier = Modifier.height(24.dp))
                         
                         RadarChart(
@@ -388,50 +387,10 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                         )
 
                         Spacer(modifier = Modifier.height(24.dp))
-                        Surface(color = Color(0xFFF9FAFB), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                            Text(text = "High entertainment usage correlates with lower focus scores.", fontSize = 12.sp, color = Color(0xFF6B7280), modifier = Modifier.padding(12.dp), textAlign = TextAlign.Center)
+                        Surface(color = ThemeColors.background, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            Text(text = "High entertainment usage correlates with lower focus scores.", fontSize = 12.sp, color = ThemeColors.textSecondary, modifier = Modifier.padding(12.dp), textAlign = TextAlign.Center)
                         }
                     }
-                }
-
-                // 4. AI Recommendations (Blue style from Image 1)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Brush.verticalGradient(listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6))), RoundedCornerShape(24.dp))
-                        .padding(20.dp)
-                ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = "AI Recommendations", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        val recommendations = RecommendationEngine.generate(riskScore)
-                        recommendations.forEach { rec ->
-                            RecommendationItem(
-                                title = rec.title,
-                                subtitle = rec.subtitle,
-                                icon = rec.icon
-                            )
-                        }
-                    }
-                }
-
-                // Save Button
-                Button(
-                    onClick = { /* Save */ },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9333EA))
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Save App Usage Plan", fontWeight = FontWeight.Bold)
                 }
                 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -453,7 +412,7 @@ fun UsageItem(label: String, duration: String, progress: Float, color: Color, ic
                 Text(text = duration, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF111827))
             }
             Spacer(modifier = Modifier.height(6.dp))
-            LinearProgressIndicator(progress = { progress.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(6.dp), color = color, trackColor = Color(0xFFF3F4F6), strokeCap = StrokeCap.Round)
+            LinearProgressIndicator(progress = { progress.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(6.dp), color = color, trackColor = ThemeColors.background, strokeCap = StrokeCap.Round)
         }
     }
 }

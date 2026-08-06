@@ -1,5 +1,7 @@
 package com.simats.burnouttracker.utils
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
@@ -88,7 +90,7 @@ actual class UsageStatsHelper(private val context: Context) {
                     "Gaming" -> { gaming += time; Color(0xFFF59E0B) }
                     "Streaming" -> { streaming += time; Color(0xFF3B82F6) }
                     "Productivity" -> { productivity += time; Color(0xFF10B981) }
-                    else -> Color(0xFF9CA3AF)
+                    else -> ThemeColors.textTertiary
                 }
                 total += time
                 

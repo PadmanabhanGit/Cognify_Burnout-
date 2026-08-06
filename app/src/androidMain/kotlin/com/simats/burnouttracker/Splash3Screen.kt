@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -137,7 +139,7 @@ fun Splash3Screen(onNextClick: () -> Unit = {}) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeColors.card),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -194,7 +196,7 @@ fun BenefitCard(icon: ImageVector, label: String, modifier: Modifier = Modifier)
                 textAlign = TextAlign.Center,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2937),
+                color = ThemeColors.textPrimary,
                 lineHeight = 18.sp
             )
         }

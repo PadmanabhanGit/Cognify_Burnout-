@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -112,7 +114,7 @@ fun SplashScreen(onGetStartedClick: () -> Unit = {}) {
                         .testTag("getStartedButton")
                         .semantics { contentDescription = "getStartedButton" },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
+                        containerColor = ThemeColors.card,
                         contentColor = Splash1ButtonText
                     ),
                     shape = RoundedCornerShape(16.dp),

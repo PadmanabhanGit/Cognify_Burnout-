@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -62,18 +64,18 @@ fun CalendarScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9FAFB))
+                .background(ThemeColors.background)
                 .padding(padding)
                 .padding(24.dp)
         ) {
-            Text(text = "Burnout Calendar", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+            Text(text = "Burnout Calendar", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
             Text(text = "Track your mental wellness over time", fontSize = 14.sp, color = Color.Gray)
             
             Spacer(modifier = Modifier.height(32.dp))
 
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color(0xFF1F2937),
+                color = ThemeColors.textPrimary,
                 shadowElevation = 8.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {

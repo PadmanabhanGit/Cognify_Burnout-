@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,7 +33,7 @@ import com.simats.burnouttracker.utils.*
 
 @Composable
 fun BurnoutRiskScreen(navController: NavController) {
-    val screenBgColor = Color(0xFFF9FAFB)
+    val screenBgColor = ThemeColors.background
     val orangeGradient = Brush.verticalGradient(
         colors = listOf(Color(0xFFFF7E3D), Color(0xFFF97316))
     )
@@ -158,22 +160,22 @@ fun RiskGaugeCard(score: Int, level: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "Current Risk Level", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1F2937))
+                    Text(text = "Current Risk Level", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFF97316), modifier = Modifier.size(18.dp))
                 }
-                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Info, contentDescription = null, tint = ThemeColors.textTertiary, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.height(30.dp))
             Box(contentAlignment = Alignment.Center) {
                 Canvas(modifier = Modifier.size(150.dp)) {
-                    drawArc(color = Color(0xFFF3F4F6), startAngle = 140f, sweepAngle = 260f, useCenter = false, style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round))
+                    drawArc(color = ThemeColors.background, startAngle = 140f, sweepAngle = 260f, useCenter = false, style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round))
                     drawArc(color = Color(0xFFF97316), startAngle = 140f, sweepAngle = 260f * (score / 100f), useCenter = false, style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -231,21 +233,21 @@ fun WarningItem(text: String) {
 
 @Composable
 fun ContributingFactorsCard(factors: List<FactorItem>) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = ThemeColors.card), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(text = "Contributing Factors", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1F2937))
+            Text(text = "Contributing Factors", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
             Spacer(modifier = Modifier.height(20.dp))
             factors.forEach { factor ->
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(factor.icon, contentDescription = null, tint = Color(0xFF6B7280), modifier = Modifier.size(18.dp))
+                    Icon(factor.icon, contentDescription = null, tint = ThemeColors.textSecondary, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = factor.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF4B5563))
+                            Text(text = factor.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = ThemeColors.textSecondary)
                             Text(text = "${factor.value}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = factor.color)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(progress = { factor.value / 100f }, modifier = Modifier.fillMaxWidth().height(6.dp), color = factor.color, trackColor = Color(0xFFF3F4F6), strokeCap = StrokeCap.Round)
+                        LinearProgressIndicator(progress = { factor.value / 100f }, modifier = Modifier.fillMaxWidth().height(6.dp), color = factor.color, trackColor = ThemeColors.background, strokeCap = StrokeCap.Round)
                     }
                 }
             }
@@ -255,9 +257,9 @@ fun ContributingFactorsCard(factors: List<FactorItem>) {
 
 @Composable
 fun WellbeingAnalysisCard(wellbeing: WellbeingMetrics) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = ThemeColors.card), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(text = "Wellbeing Analysis", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1F2937))
+            Text(text = "Wellbeing Analysis", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
             Spacer(modifier = Modifier.height(20.dp))
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 RadarChart(
@@ -274,10 +276,10 @@ fun WellbeingAnalysisCard(wellbeing: WellbeingMetrics) {
 
 @Composable
 fun RiskRecommendationsCard(recommendations: List<Recommendation>, riskScore: Float) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = ThemeColors.card), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "AI Recommendations", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1F2937))
+                Text(text = "AI Recommendations", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
                 Surface(color = Color(0xFFF3E8FF), shape = RoundedCornerShape(8.dp)) {
                     Text(text = "AI Generated", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 10.sp, color = Color(0xFF9333EA), fontWeight = FontWeight.Bold)
                 }
@@ -294,7 +296,7 @@ fun RiskRecommendationsCard(recommendations: List<Recommendation>, riskScore: Fl
                     Column(modifier = Modifier.weight(1f)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column {
-                                Text(text = rec.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                                Text(text = rec.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
                                 Text(text = rec.subtitle, fontSize = 11.sp, color = Color.Gray)
                             }
                             Surface(color = bg, shape = RoundedCornerShape(6.dp)) {

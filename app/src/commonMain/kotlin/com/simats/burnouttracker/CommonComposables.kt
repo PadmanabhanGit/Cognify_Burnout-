@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -39,7 +41,7 @@ data class BarLineDataPoint(val label: String, val barValue: Float, val lineValu
 @Composable
 fun BarLineChart(data: List<BarLineDataPoint>) {
     val textMeasurer = rememberTextMeasurer()
-    val textStyle = androidx.compose.ui.text.TextStyle(color = Color(0xFF9CA3AF), fontSize = 11.sp)
+    val textStyle = androidx.compose.ui.text.TextStyle(color = ThemeColors.textTertiary, fontSize = 11.sp)
     Canvas(modifier = Modifier.fillMaxWidth().height(180.dp).padding(horizontal = 10.dp)) {
         val width = size.width
         val height = size.height - 40.dp.toPx()
@@ -84,7 +86,7 @@ fun RadarChart(
 ) {
     val textMeasurer = rememberTextMeasurer()
     val textStyle = androidx.compose.ui.text.TextStyle(
-        color = Color(0xFF6B7280),
+        color = ThemeColors.textSecondary,
         fontSize = 10.sp,
         fontWeight = FontWeight.Medium
     )
@@ -107,14 +109,14 @@ fun RadarChart(
                 if (j == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
             path.close()
-            drawPath(path, Color(0xFFE5E7EB), style = Stroke(width = 1.dp.toPx()))
+            drawPath(path, ThemeColors.border, style = Stroke(width = 1.dp.toPx()))
         }
 
         for (i in 0 until numPoints) {
             val angle = i * angleStep - (PI / 2).toFloat()
             val x = centerX + radius * cos(angle)
             val y = centerY + radius * sin(angle)
-            drawLine(Color(0xFFE5E7EB), Offset(centerX, centerY), Offset(x, y))
+            drawLine(ThemeColors.border, Offset(centerX, centerY), Offset(x, y))
             
             // Draw Labels
             val labelRadius = radius * 1.25f
@@ -191,7 +193,7 @@ fun BottomNavItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val color = if (isSelected) selectedColor else Color(0xFF9CA3AF)
+    val color = if (isSelected) selectedColor else ThemeColors.textTertiary
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -294,7 +296,7 @@ fun SleepStatCard(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Text(text = value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+            Text(text = value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
             Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.Medium, color = Color.Gray)
         }
     }

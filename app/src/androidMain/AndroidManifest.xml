@@ -37,11 +37,13 @@
 
         <receiver android:name=".receivers.ActionPlanReceiver" android:exported="false" />
 
-        <receiver android:name=".widget.CalendarWidgetProvider" android:exported="true">
+        <receiver android:name=".widget.UnifiedWidgetProvider" android:exported="true" android:label="Cognify Dashboard">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="WIDGET_NEXT" />
+                <action android:name="WIDGET_PREV" />
             </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/calendar_widget_info" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/unified_widget_info" />
         </receiver>
 
         <service

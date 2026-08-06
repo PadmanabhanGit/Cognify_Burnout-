@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,17 +80,17 @@ fun PrivacyPolicyScreen(navController: NavController, isFirstTime: Boolean = fal
                                     }
                                 },
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isAccepted) Color.Transparent else Color(0xFFE5E7EB)
+                            color = if (isAccepted) Color.Transparent else ThemeColors.border
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .background(if (isAccepted) primaryGradient else Brush.linearGradient(listOf(Color(0xFFE5E7EB), Color(0xFFE5E7EB))))
+                                    .background(if (isAccepted) primaryGradient else Brush.linearGradient(listOf(ThemeColors.border, ThemeColors.border)))
                                     .fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "Continue",
-                                    color = if (isAccepted) Color.White else Color(0xFF9CA3AF),
+                                    color = if (isAccepted) Color.White else ThemeColors.textTertiary,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -102,7 +104,7 @@ fun PrivacyPolicyScreen(navController: NavController, isFirstTime: Boolean = fal
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9FAFB))
+                .background(ThemeColors.background)
                 .padding(paddingValues)
         ) {
             // Header
@@ -206,7 +208,7 @@ fun PrivacySection(icon: ImageVector, title: String, content: Any) {
                 text = title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1F2937)
+                color = ThemeColors.textPrimary
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -214,14 +216,14 @@ fun PrivacySection(icon: ImageVector, title: String, content: Any) {
             Text(
                 text = content,
                 fontSize = 15.sp,
-                color = Color(0xFF4B5563),
+                color = ThemeColors.textSecondary,
                 lineHeight = 24.sp
             )
         } else if (content is androidx.compose.ui.text.AnnotatedString) {
             Text(
                 text = content,
                 fontSize = 15.sp,
-                color = Color(0xFF4B5563),
+                color = ThemeColors.textSecondary,
                 lineHeight = 24.sp
             )
         }

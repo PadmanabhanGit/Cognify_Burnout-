@@ -118,6 +118,16 @@ object ApiClient {
         }
     }
 
+    suspend fun stopStudySession(sessionId: String): StudySessionResponse {
+        return try {
+            client.patch("api/study/stop/$sessionId") {
+                authHeader()?.let { header(HttpHeaders.Authorization, it) }
+            }.body()
+        } catch (e: Exception) {
+            StudySessionResponse(success = false, message = e.message)
+        }
+    }
+
     suspend fun getStudyWeeklyStats(): StudyWeeklyResponse {
         return try {
             client.get("api/study/stats/weekly") {

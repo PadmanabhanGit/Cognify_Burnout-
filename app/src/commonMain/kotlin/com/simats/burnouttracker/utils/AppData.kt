@@ -20,8 +20,22 @@ object AppData {
     var lastSleepLogged by mutableStateOf(0f)
     var lastMoodLogged by mutableStateOf("Neutral")
     
+    // User Profile
+    var userFullName by mutableStateOf<String?>(null)
+    
+    // Preferences
+    var isDarkMode by mutableStateOf(false)
+    var allowAllNotif by mutableStateOf(true)
+    var burnoutAlerts by mutableStateOf(true)
+    var dailyReminders by mutableStateOf(true)
+    var weeklyReports by mutableStateOf(false)
+    var studyPrompts by mutableStateOf(true)
+    var syncHealth by mutableStateOf(false)
+    var anonymousAnalytics by mutableStateOf(false)
+    var personalizedInsights by mutableStateOf(true)
+    
     // Productivity Data
-    var productivityScore by mutableStateOf(78)
+    var productivityScore by mutableStateOf(0)
     var peakFocusHours by mutableStateOf(4.2f)
     var goalHitRate by mutableStateOf(92)
     var averageStartTime by mutableStateOf("09:00")
@@ -36,6 +50,7 @@ object AppData {
     val monthlyStudyTrend = mutableStateListOf(0.4f, 0.7f, 0.55f, 0.85f) // Normalized 0-1
 
     var activeSessionName by mutableStateOf<String?>(null)
+    var activeSessionId by mutableStateOf<String?>(null)
     var sessionStartTime by mutableStateOf<Long?>(null)
 
     val sleepLogs = mutableStateListOf<SleepLog>()

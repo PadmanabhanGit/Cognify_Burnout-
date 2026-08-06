@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,7 +38,7 @@ fun SleepMoodScreen(navController: NavController) {
     val moodNames = listOf("Happy", "Calm", "Neutral", "Tired", "Sad")
     val moodEmojis = listOf("😊", "😌", "😐", "😴", "😢")
     val moodStatus = listOf("Excellent", "Good", "Neutral", "Tired", "Poor")
-    val statusColors = listOf(Color(0xFF22C55E), Color(0xFF3B82F6), Color(0xFF6B7280), Color(0xFFF59E0B), Color(0xFFEF4444))
+    val statusColors = listOf(Color(0xFF22C55E), Color(0xFF3B82F6), ThemeColors.textSecondary, Color(0xFFF59E0B), Color(0xFFEF4444))
 
     val saveLog = {
         scope.launch {
@@ -75,7 +77,7 @@ fun SleepMoodScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9FAFB))
+                .background(ThemeColors.background)
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -163,7 +165,7 @@ fun SleepMoodScreen(navController: NavController) {
                                 text = "Log Sleep Hours",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1F2937)
+                                color = ThemeColors.textPrimary
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Auto-detected", fontSize = 12.sp, color = Color(0xFF10B981), fontWeight = FontWeight.Medium)
@@ -204,7 +206,7 @@ fun SleepMoodScreen(navController: NavController) {
                             colors = SliderDefaults.colors(
                                 thumbColor = Color(0xFF4F46E5),
                                 activeTrackColor = Color(0xFF4F46E5),
-                                inactiveTrackColor = Color(0xFFE5E7EB)
+                                inactiveTrackColor = ThemeColors.border
                             )
                         )
                         
@@ -250,7 +252,7 @@ fun SleepMoodScreen(navController: NavController) {
                                 text = "How Are You Feeling?",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1F2937)
+                                color = ThemeColors.textPrimary
                             )
                             Icon(Icons.Default.SentimentSatisfiedAlt, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(20.dp))
                         }

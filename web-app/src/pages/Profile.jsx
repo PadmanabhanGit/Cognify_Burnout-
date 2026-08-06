@@ -65,7 +65,7 @@ export default function Profile() {
   };
 
   return (
-    <div style={{ paddingBottom: '90px', minHeight: '100vh', backgroundColor: '#F9FAFB' }}>
+    <div style={{ paddingBottom: '90px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', padding: '60px 24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '80px', height: '80px', borderRadius: '40px', backgroundColor: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '16px' }}>
@@ -79,7 +79,7 @@ export default function Profile() {
       </div>
 
       <div className="desktop-padding" style={{ padding: '24px', marginTop: '20px' }}>
-        <div style={{ fontSize: '20px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>Personal Information</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Personal Information</div>
         
         {loading ? (
           <div style={{ textAlign: 'center', padding: '20px' }}>Loading profile...</div>
@@ -88,46 +88,46 @@ export default function Profile() {
             
             <div style={{ display: 'flex', gap: '16px' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px', display: 'block' }}>First Name</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>First Name</label>
                 <input 
                   type="text" 
                   name="firstName"
                   value={profile.firstName || ''}
                   onChange={handleChange}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }} 
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px', display: 'block' }}>Last Name</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Last Name</label>
                 <input 
                   type="text" 
                   name="lastName"
                   value={profile.lastName || ''}
                   onChange={handleChange}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }} 
                 />
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '16px' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px', display: 'block' }}>Age</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Age</label>
                 <input 
                   type="text" 
                   name="age"
                   value={profile.age || ''}
                   onChange={handleChange}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }} 
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px', display: 'block' }}>Location</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Location</label>
                 <input 
                   type="text" 
                   name="location"
                   value={profile.location || ''}
                   onChange={handleChange}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E5E7EB', outline: 'none' }} 
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }} 
                 />
               </div>
             </div>
@@ -149,12 +149,12 @@ export default function Profile() {
           </div>
         )}
 
-        <div style={{ fontSize: '20px', fontWeight: 700, color: '#1F2937', marginBottom: '16px', marginTop: '32px' }}>Settings</div>
+        <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px', marginTop: '32px' }}>Settings</div>
         <div className="white-card" style={{ padding: '0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '16px', borderBottom: '1px solid #F3F4F6' }}>
-            <EmailIcon style={{ color: '#6B7280', marginRight: '16px' }} />
-            <div style={{ flex: 1, fontSize: '16px', color: '#374151', fontWeight: 500 }}>Email Address</div>
-            <div style={{ fontSize: '14px', color: '#9CA3AF' }}>{user?.email}</div>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px', borderBottom: '1px solid var(--border-color)' }}>
+            <EmailIcon style={{ color: 'var(--text-secondary)', marginRight: '16px' }} />
+            <div style={{ flex: 1, fontSize: '16px', color: 'var(--text-primary)', fontWeight: 500 }}>Email Address</div>
+            <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{user?.email}</div>
           </div>
           
           <div onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', padding: '16px', cursor: 'pointer' }}>

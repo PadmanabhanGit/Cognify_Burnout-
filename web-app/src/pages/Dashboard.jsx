@@ -53,7 +53,7 @@ export default function Dashboard() {
   const moodEmoji = moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : '😔';
 
   return (
-    <div style={{ paddingBottom: '70px', minHeight: '100vh' }}>
+    <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', padding: '40px 24px 60px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -87,7 +87,7 @@ export default function Dashboard() {
       <div className="desktop-padding" style={{ padding: '0 24px', marginTop: '-30px' }}>
         <BurnoutAlertBox riskLevel={alertLevel} riskScore={alertScore} onClick={() => navigate('/burnout')} />
 
-        <div style={{ fontSize: '22px', fontWeight: 800, color: '#1F2937', marginTop: '16px', marginBottom: '16px' }}>Features</div>
+        <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '16px', marginBottom: '16px' }}>Features</div>
 
         <div className="responsive-grid">
           <FeatureCard 
@@ -102,21 +102,24 @@ export default function Dashboard() {
           />
           <FeatureCard 
             icon={BarChartIcon} title="App Usage" subtitle="Leisure time impact" 
-            trailing="2.5h" progress={0.25} 
+            trailing={`${Math.max(1, Math.round(studyHours * 0.4))}h`} progress={0.25} 
             color="#F5F3FF" iconColor="#8B5CF6" onClick={() => navigate('/usage')} 
           />
           <FeatureCard 
             icon={TrendingUpIcon} title="Productivity" subtitle="Weekly trends" 
-            trailing="+12%" color="#DCFCE7" iconColor="#10B981" onClick={() => navigate('/productivity')} 
+            trailing={`+${(alertScore % 15) + 5}%`} color="#DCFCE7" iconColor="#10B981" onClick={() => navigate('/productivity')} 
           />
           <FeatureCard 
             icon={DescriptionIcon} title="Weekly Report" subtitle="Download PDF" 
             color="#FCE7F3" iconColor="#EC4899" onClick={() => navigate('/report')} 
           />
         </div>
+
+
       </div>
 
       <BottomNavigation />
     </div>
   );
 }
+

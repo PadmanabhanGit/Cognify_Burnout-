@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -187,7 +189,7 @@ fun AppUsagePermissionScreen(navController: NavController) {
                     text = "Why we need this",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2937)
+                    color = ThemeColors.textPrimary
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -215,13 +217,13 @@ fun AppUsagePermissionScreen(navController: NavController) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFF9FAFB)
+                    color = ThemeColors.background
                 ) {
                     Text(
                         text = "To provide accurate insights, Cognify needs permission to access your app usage and send you notifications. This data is processed securely locally.",
                         modifier = Modifier.padding(16.dp),
                         fontSize = 13.sp,
-                        color = Color(0xFF6B7280),
+                        color = ThemeColors.textSecondary,
                         textAlign = TextAlign.Center,
                         lineHeight = 18.sp
                     )
@@ -283,7 +285,7 @@ fun ReasonItem(icon: ImageVector, text: String, iconTint: Color) {
             text = text,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF4B5563)
+            color = ThemeColors.textSecondary
         )
     }
 }

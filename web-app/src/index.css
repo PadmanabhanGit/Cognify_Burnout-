@@ -1,5 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+:root {
+  --bg-primary: #F9FAFB;
+  --bg-secondary: #FFFFFF;
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --border-color: #E5E7EB;
+  --input-bg: #FFFFFF;
+  --glass-bg: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-icon-bg: rgba(255, 255, 255, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0F172A;
+    --bg-secondary: #1E293B;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --border-color: #334155;
+    --input-bg: #0F172A;
+    --glass-bg: rgba(30, 41, 59, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-icon-bg: rgba(255, 255, 255, 0.1);
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -8,15 +34,15 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #F9FAFB;
-  color: #1F2937;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
 .app-container {
   width: 100%;
   min-height: 100vh;
-  background-color: #F9FAFB;
+  background-color: var(--bg-primary);
   position: relative;
   overflow-x: hidden;
 }
@@ -39,8 +65,8 @@ body {
   bottom: 0;
   left: 0;
   width: 100%;
-  background-color: white;
-  border-top: 1px solid #E5E7EB;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: space-around;
   padding: 12px 0;
@@ -72,24 +98,24 @@ body {
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
 }
 
 .glass-icon {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--glass-icon-bg);
   border-radius: 24px;
 }
 
 .white-card {
-  background: #FFFFFF;
+  background: var(--bg-secondary);
   border-radius: 20px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .white-card-lg {
-  background: #FFFFFF;
+  background: var(--bg-secondary);
   border-radius: 48px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }

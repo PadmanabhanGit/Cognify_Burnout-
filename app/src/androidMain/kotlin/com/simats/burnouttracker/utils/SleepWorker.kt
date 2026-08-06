@@ -7,6 +7,10 @@ import java.util.Date
 
 class SleepWorker(context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
     override suspend fun doWork(): Result {
+        if (!AppData.allowAllNotif || !AppData.studyPrompts) {
+            return Result.success()
+        }
+        
         return try {
             val engine = SleepMonitoringEngine(applicationContext)
             engine.analyzeNight(Date())

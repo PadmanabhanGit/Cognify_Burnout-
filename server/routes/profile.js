@@ -1,51 +1,62 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database');
-const { verifyToken } = require('../middleware/authMiddleware');
+const { db } = require('../firebase');
+const authMiddleware = require('../middleware/auth'); // ensure correct auth middleware import
 
 // Get User Profile
-router.get('/', verifyToken, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   const userId = req.user.uid;
   
-  db.get(`SELECT * FROM user_profiles WHERE userId = ?`, [userId], (err, row) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Database error' });
-    }
-    if (!row) {
+  try {
+    const doc = await db.collection('users').doc(userId).get();
+    if (!doc.exists) {
       return res.json({
         firstName: '',
         lastName: '',
         age: '',
-        location: ''
+        location: '',
+        linkedAccounts: [],
+        syncHealth: false,
+        anonymousAnalytics: false,
+        personalizedInsights: true
       });
     }
-    res.json(row);
-  });
+    res.json(doc.data());
+  } catch (err) {
+    console.error('Error fetching profile from Firestore:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // Update User Profile
-router.post('/', verifyToken, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   const userId = req.user.uid;
-  const { firstName, lastName, age, location } = req.body;
+  
+  // Extract all fields that could be in ProfileData
+  const { 
+    firstName, lastName, age, location, 
+    linkedAccounts, syncHealth, 
+    anonymousAnalytics, personalizedInsights 
+  } = req.body;
 
-  const query = `
-    INSERT INTO user_profiles (userId, firstName, lastName, age, location)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(userId) DO UPDATE SET
-      firstName = excluded.firstName,
-      lastName = excluded.lastName,
-      age = excluded.age,
-      location = excluded.location
-  `;
+  try {
+    await db.collection('users').doc(userId).set({
+      firstName: firstName || '',
+      lastName: lastName || '',
+      age: age || '',
+      location: location || '',
+      linkedAccounts: linkedAccounts || [],
+      syncHealth: syncHealth ?? false,
+      anonymousAnalytics: anonymousAnalytics ?? false,
+      personalizedInsights: personalizedInsights ?? true,
+      updatedAt: new Date().toISOString()
+    }, { merge: true }); // Use merge: true to avoid overwriting email/fullName from auth/register
 
-  db.run(query, [userId, firstName, lastName, age, location], function(err) {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Database error' });
-    }
-    res.json({ success: true, message: 'Profile updated successfully' });
-  });
+    res.json({ success: true, message: 'Profile updated successfully in Firestore' });
+  } catch (err) {
+    console.error('Error updating profile in Firestore:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 module.exports = router;

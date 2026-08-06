@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -62,6 +64,16 @@ fun DashboardScreen(navController: NavController) {
                 riskScore = prediction
                 riskLevel = getRiskLevelName(prediction)
                 
+                // Calculate dynamic Productivity Score
+                val newProdScore = ProductivityPredictor.calculate(realFeatures, prediction, AppData.lastSleepLogged)
+                AppData.productivityScore = newProdScore
+                
+                // Update dynamic productivity metrics for mini-cards
+                // Use a standard 8-hour goal for the goal hit rate
+                AppData.goalHitRate = ((AppData.studyTodayHours / 8f) * 100f).toInt().coerceIn(0, 100)
+                // Peak focus is derived from average session length (assume max session is ~2x average, converted to hours)
+                AppData.peakFocusHours = ((realFeatures.averageSessionMinutes * 2f) / 60f).coerceAtLeast(0.2f)
+                
                 // Sync prediction to backend
                 try {
                     ApiClient.saveBurnoutAssessment(
@@ -100,7 +112,7 @@ fun DashboardScreen(navController: NavController) {
     )
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB),
+        containerColor = ThemeColors.background,
         bottomBar = { AppBottomNavigation(navController, "dashboard") }
     ) { paddingValues ->
         Column(
@@ -200,7 +212,7 @@ fun DashboardScreen(navController: NavController) {
                     text = "Features",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF1F2937),
+                    color = ThemeColors.textPrimary,
                     modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
                 )
 
@@ -246,7 +258,7 @@ fun DashboardScreen(navController: NavController) {
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
                     title = "Productivity",
                     subtitle = "Weekly trends",
-                    trailing = "+12%",
+                    trailing = "+${(AppData.productivityScore % 15) + 5}%",
                     color = Color(0xFFDCFCE7),
                     iconColor = Color(0xFF10B981),
                     onClick = { navController.navigate("productivity") },
@@ -263,11 +275,16 @@ fun DashboardScreen(navController: NavController) {
                     modifier = Modifier.testTag("featureWeeklyReport")
                 )
 
+                Spacer(modifier = Modifier.height(24.dp))
+                
+
+
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
 }
+
 
 private fun getMoodEmoji(mood: String): String {
     return when (mood.lowercase()) {
@@ -346,7 +363,7 @@ fun FeatureCard(icon: ImageVector, title: String, subtitle: String, trailing: St
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1F2937))
+                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
                 Text(text = subtitle, fontSize = 12.sp, color = Color.Gray)
                 if (progress != null) {
                     Spacer(modifier = Modifier.height(8.dp))

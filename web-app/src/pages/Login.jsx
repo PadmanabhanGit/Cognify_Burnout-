@@ -45,39 +45,39 @@ export default function Login() {
       <div style={{ marginTop: '16px', color: 'white', fontSize: '36px', fontWeight: 700 }}>Cognify</div>
       <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Mental Health & Burnout Detection</div>
       
-      <div className="white-card-lg" style={{ marginTop: '32px', width: '90%', maxWidth: '500px', padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ fontSize: '32px', fontWeight: 700, color: '#1E293B' }}>Welcome</div>
+      <div className="white-card-lg" style={{ marginTop: '32px', width: '90%', maxWidth: '500px', padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: 'var(--bg-secondary)' }}>
+        <div style={{ fontSize: '32px', fontWeight: 700, color: 'var(--text-primary)' }}>Welcome</div>
         
         {error && <div className="error-message" style={{ color: 'red', fontSize: '14px', marginTop: '8px' }}>{error}</div>}
         
         <form onSubmit={handleSignIn} style={{ width: '100%', marginTop: '32px' }}>
           <div style={{ width: '100%' }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>Email Address</div>
-            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px' }}>
-              <MailRoundedIcon style={{ color: '#94A3B8', fontSize: '20px', marginRight: '8px' }} />
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Email Address</div>
+            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '12px', backgroundColor: 'var(--input-bg)' }}>
+              <MailRoundedIcon style={{ color: 'var(--text-secondary)', fontSize: '20px', marginRight: '8px' }} />
               <input 
                 type="email" 
                 value={email} 
                 onChange={e => setEmail(e.target.value)} 
                 placeholder="student@example.com"
-                style={{ border: 'none', outline: 'none', width: '100%', fontSize: '16px', color: '#1E293B' }}
+                style={{ border: 'none', outline: 'none', width: '100%', fontSize: '16px', color: 'var(--text-primary)', backgroundColor: 'transparent' }}
               />
             </div>
           </div>
           
           <div style={{ width: '100%', marginTop: '24px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>Password</div>
-            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px' }}>
-              <LockRoundedIcon style={{ color: '#94A3B8', fontSize: '20px', marginRight: '8px' }} />
+            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Password</div>
+            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '12px', backgroundColor: 'var(--input-bg)' }}>
+              <LockRoundedIcon style={{ color: 'var(--text-secondary)', fontSize: '20px', marginRight: '8px' }} />
               <input 
                 type={passwordVisible ? "text" : "password"} 
                 value={password} 
                 onChange={e => setPassword(e.target.value)} 
                 placeholder="********"
-                style={{ border: 'none', outline: 'none', width: '100%', fontSize: '16px', color: '#1E293B' }}
+                style={{ border: 'none', outline: 'none', width: '100%', fontSize: '16px', color: 'var(--text-primary)', backgroundColor: 'transparent' }}
               />
               <div onClick={() => setPasswordVisible(!passwordVisible)} style={{ cursor: 'pointer', display: 'flex' }}>
-                {passwordVisible ? <VisibilityIcon style={{ color: '#94A3B8', fontSize: '20px' }} /> : <VisibilityOffIcon style={{ color: '#94A3B8', fontSize: '20px' }} />}
+                {passwordVisible ? <VisibilityIcon style={{ color: 'var(--text-secondary)', fontSize: '20px' }} /> : <VisibilityOffIcon style={{ color: 'var(--text-secondary)', fontSize: '20px' }} />}
               </div>
             </div>
           </div>
@@ -97,9 +97,9 @@ export default function Login() {
         </form>
         
         <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginTop: '32px' }}>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#E2E8F0' }}></div>
-          <div style={{ margin: '0 16px', color: '#94A3B8', fontSize: '12px', fontWeight: 700 }}>OR CONTINUE WITH</div>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#E2E8F0' }}></div>
+          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
+          <div style={{ margin: '0 16px', color: 'var(--text-secondary)', fontSize: '12px', fontWeight: 700 }}>OR CONTINUE WITH</div>
+          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>
         </div>
         
         <div style={{ display: 'flex', width: '100%', gap: '16px', marginTop: '24px' }}>
@@ -116,7 +116,7 @@ export default function Login() {
                 setError(err.message);
               }
             }}
-            style={{ flex: 1, height: '56px', border: '1px solid #E2E8F0', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 700, color: '#1F2937' }}
+            style={{ flex: 1, height: '56px', border: '1px solid var(--border-color)', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 700, color: 'var(--text-primary)', backgroundColor: 'transparent' }}
           >
             Google
           </button>

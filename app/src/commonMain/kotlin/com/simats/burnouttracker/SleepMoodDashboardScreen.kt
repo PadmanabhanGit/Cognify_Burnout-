@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -60,7 +62,7 @@ fun SleepMoodDashboardScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9FAFB))
+                .background(ThemeColors.background)
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -115,14 +117,14 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                                 modifier = Modifier.fillMaxSize(),
                                 color = getQualityColor(displayQuality),
                                 strokeWidth = 10.dp,
-                                trackColor = Color(0xFFF3F4F6)
+                                trackColor = ThemeColors.background
                             )
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = "$displayQuality%",
                                     fontSize = 32.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF1F2937)
+                                    color = ThemeColors.textPrimary
                                 )
                                 Text(
                                     text = getQualityLevel(displayQuality),
@@ -170,7 +172,7 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                 ) {
                     Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                         TimeInfo(label = "Sleep Start", time = formatTimestamp(latestSession?.sleepStart ?: 0), icon = Icons.Default.Nightlight)
-                        VerticalDivider(modifier = Modifier.height(40.dp), thickness = 1.dp, color = Color(0xFFF3F4F6))
+                        VerticalDivider(modifier = Modifier.height(40.dp), thickness = 1.dp, color = ThemeColors.background)
                         TimeInfo(label = "Wake Up", time = formatTimestamp(latestSession?.sleepEnd ?: 0), icon = Icons.Default.WbSunny)
                     }
                 }
@@ -180,7 +182,7 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                     text = "Sleep Timeline",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2937),
+                    color = ThemeColors.textPrimary,
                     modifier = Modifier.padding(top = 8.dp)
                 )
 
@@ -256,7 +258,7 @@ fun TimeInfo(label: String, time: String, icon: ImageVector) {
             Spacer(modifier = Modifier.width(4.dp))
             Text(text = label, fontSize = 12.sp, color = Color.Gray)
         }
-        Text(text = time, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+        Text(text = time, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
     }
 }
 

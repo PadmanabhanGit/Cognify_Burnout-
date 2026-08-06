@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,12 +39,12 @@ fun MoodItem(label: String, emoji: String, isSelected: Boolean, onClick: () -> U
             modifier = Modifier
                 .size(52.dp)
                 .background(
-                    if (isSelected) Color(0xFFEEF2FF) else Color(0xFFF9FAFB),
+                    if (isSelected) Color(0xFFEEF2FF) else ThemeColors.background,
                     CircleShape
                 )
                 .border(
                     width = if (isSelected) 2.dp else 1.dp,
-                    color = if (isSelected) Color(0xFF6366F1) else Color(0xFFE5E7EB),
+                    color = if (isSelected) Color(0xFF6366F1) else ThemeColors.border,
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -79,7 +81,7 @@ fun RecentSleepLogsCard(navController: NavController? = null) {
                     text = "Recent Logs",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2937)
+                    color = ThemeColors.textPrimary
                 )
                 Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
             }
@@ -134,10 +136,10 @@ fun SleepMoodTrendCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = title, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Text(text = title, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
                 }
                 Surface(
-                    color = Color(0xFFF3F4F6),
+                    color = ThemeColors.background,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
@@ -154,7 +156,7 @@ fun SleepMoodTrendCard(
             Box(modifier = Modifier.height(140.dp).fillMaxWidth()) {
                 Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
                     repeat(4) {
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = ThemeColors.background, thickness = 1.dp)
                     }
                 }
                 
@@ -241,7 +243,7 @@ fun SleepLogItem(date: String, time: String, status: String, emoji: String, stat
     Surface(
         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFF9FAFB)
+        color = ThemeColors.background
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -259,7 +261,7 @@ fun SleepLogItem(date: String, time: String, status: String, emoji: String, stat
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = date, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                Text(text = date, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = time, fontSize = 13.sp, color = Color.Gray)
                     Text(text = " • ", color = Color.Gray)
@@ -288,13 +290,13 @@ fun TimelineItem(time: String, title: String, subtitle: String? = null, icon: Im
                 Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(6.dp))
             }
             if (!isLast) {
-                Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(Color(0xFFE5E7EB)))
+                Box(modifier = Modifier.width(2.dp).fillMaxHeight().background(ThemeColors.border))
             }
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
             Text(text = time, fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-            Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+            Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
             if (subtitle != null) {
                 Text(text = subtitle, fontSize = 13.sp, color = Color.Gray)
             }
@@ -307,12 +309,12 @@ fun MetricCard(label: String, value: String, icon: ImageVector, color: Color, mo
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFFF9FAFB)
+        color = ThemeColors.background
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF1F2937))
+            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = ThemeColors.textPrimary)
             Text(text = label, fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
         }
     }

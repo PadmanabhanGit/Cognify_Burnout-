@@ -3,6 +3,7 @@ package com.simats.burnouttracker.utils
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -87,6 +88,31 @@ class AndroidAuthService : AuthService {
             AuthResult(true)
         } catch (e: Exception) {
             AuthResult(false, e.message ?: "Google Sign-In failed")
+        }
+    }
+
+    override suspend fun changePassword(currentPassword: String, newPassword: String): AuthResult {
+        val user = auth.currentUser ?: return AuthResult(false, "User not logged in")
+        val email = user.email ?: return AuthResult(false, "No email associated with this account (possibly Google Auth)")
+
+        return try {
+            // Re-authenticate first
+            val credential = EmailAuthProvider.getCredential(email, currentPassword)
+            user.reauthenticate(credential).await()
+            // Then update password
+            user.updatePassword(newPassword).await()
+            AuthResult(true)
+        } catch (e: Exception) {
+            AuthResult(false, e.message ?: "Failed to update password")
+        }
+    }
+
+    override suspend fun resetPassword(email: String): AuthResult {
+        return try {
+            auth.sendPasswordResetEmail(email).await()
+            AuthResult(true)
+        } catch (e: Exception) {
+            AuthResult(false, e.message ?: "Failed to send reset email")
         }
     }
 }

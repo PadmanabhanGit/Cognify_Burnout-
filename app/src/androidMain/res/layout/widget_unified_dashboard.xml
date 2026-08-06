@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_rounded"
+    android:padding="8dp">
+
+    <ViewFlipper
+        android:id="@+id/widget_flipper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        
+        <!-- Time Distribution -->
+        <include layout="@layout/widget_time_distribution" />
+        
+        <!-- Goals (New) -->
+        <include layout="@layout/widget_goals" />
+
+    </ViewFlipper>
+</FrameLayout>

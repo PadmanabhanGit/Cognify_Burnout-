@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.simats.burnouttracker.utils.SleepWorker
+import com.simats.burnouttracker.utils.RecommendationWorker
 import com.simats.burnouttracker.utils.initAppContext
 
 class MainActivity : ComponentActivity() {
@@ -12,10 +13,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         System.setProperty("compose.testing.tag.as.resource.id", "true")
         initAppContext(applicationContext)
-        SleepWorker.enqueue(this)
+        com.simats.burnouttracker.utils.NotificationHelper.updateWorkers(this)
         enableEdgeToEdge()
+        val initialRoute = intent.getStringExtra("NAVIGATE_TO")
         setContent {
-            AppNavigation()
+            AppNavigation(initialRoute = initialRoute)
         }
     }
 }

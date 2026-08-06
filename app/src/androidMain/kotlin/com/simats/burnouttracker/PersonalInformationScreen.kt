@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,6 +28,7 @@ import com.simats.burnouttracker.data.api.RetrofitClient
 import com.simats.burnouttracker.data.models.ProfileData
 import kotlinx.coroutines.launch
 import com.simats.burnouttracker.utils.rememberAuthService
+import com.simats.burnouttracker.utils.AppData
 
 @Composable
 fun PersonalInformationScreen(navController: NavController) {
@@ -49,6 +52,7 @@ fun PersonalInformationScreen(navController: NavController) {
                     firstName = data.firstName ?: ""
                     lastName = data.lastName ?: ""
                     fullName = "${firstName} ${lastName}".trim()
+                    AppData.userFullName = fullName
                     age = data.age ?: ""
                     location = data.location ?: ""
                 }
@@ -69,7 +73,7 @@ fun PersonalInformationScreen(navController: NavController) {
     )
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = ThemeColors.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -145,7 +149,7 @@ fun PersonalInformationScreen(navController: NavController) {
                                 text = "Your Details",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1F2937)
+                                color = ThemeColors.textPrimary
                             )
                         }
 
@@ -221,6 +225,7 @@ fun PersonalInformationScreen(navController: NavController) {
                                     location = location
                                 )
                                 RetrofitClient.getApiService().updateProfileInfo(req)
+                                AppData.userFullName = "$firstName $lastName".trim()
                                 navController.popBackStack()
                             } catch (e: Exception) {
                                 e.printStackTrace()
@@ -272,7 +277,7 @@ fun FormLabel(text: String) {
         text = text,
         fontSize = 14.sp,
         fontWeight = FontWeight.Medium,
-        color = Color(0xFF4B5563),
+        color = ThemeColors.textSecondary,
         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
     )
 }
@@ -287,16 +292,16 @@ fun FormField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(text = placeholder, color = Color(0xFF9CA3AF), fontSize = 14.sp) },
+        placeholder = { Text(text = placeholder, color = ThemeColors.textTertiary, fontSize = 14.sp) },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         leadingIcon = if (leadingIcon != null) {
-            { Icon(leadingIcon, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp)) }
+            { Icon(leadingIcon, contentDescription = null, tint = ThemeColors.textTertiary, modifier = Modifier.size(20.dp)) }
         } else null,
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.Black,
             unfocusedTextColor = Color.Black,
-            unfocusedContainerColor = Color(0xFFF9FAFB),
+            unfocusedContainerColor = ThemeColors.background,
             focusedContainerColor = Color.White,
             unfocusedBorderColor = Color(0xFFE5E8F0),
             focusedBorderColor = Color(0xFF9333EA)

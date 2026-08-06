@@ -1,5 +1,7 @@
 package com.simats.burnouttracker
 
+import com.simats.burnouttracker.ui.theme.ThemeColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -57,7 +59,7 @@ fun TermsOfServiceScreen(navController: NavController) {
                         Text(
                             text = "I have read and agree to the Terms of Service.",
                             fontSize = 14.sp,
-                            color = Color(0xFF4B5563)
+                            color = ThemeColors.textSecondary
                         )
                     }
                     
@@ -97,7 +99,7 @@ fun TermsOfServiceScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF9FAFB))
+                .background(ThemeColors.background)
                 .padding(paddingValues)
         ) {
             // Header Section
@@ -203,14 +205,14 @@ fun TermsSection(title: String, content: String) {
             text = title,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1F2937)
+            color = ThemeColors.textPrimary
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = content,
             fontSize = 14.sp,
             lineHeight = 22.sp,
-            color = Color(0xFF4B5563)
+            color = ThemeColors.textSecondary
         )
     }
 }

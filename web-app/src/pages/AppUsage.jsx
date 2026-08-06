@@ -79,7 +79,7 @@ export default function AppUsage() {
           <IconButton onClick={() => navigate('/dashboard')} icon={<ArrowBackIcon style={{ color: 'white' }}/>} />
         </div>
         <div style={{ marginTop: '24px' }}>
-          <div style={{ color: 'white', fontSize: '28px', fontWeight: 700, lineHeight: 1.2 }}>Entertainment &<br/>App Usage</div>
+          <div style={{ color: 'white', fontSize: '28px', fontWeight: 700, lineHeight: 1.2 }}>App Usage</div>
           <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '8px' }}>Track your leisure time and its impact</div>
         </div>
       </div>
@@ -160,21 +160,7 @@ export default function AppUsage() {
           )}
         </div>
 
-        {/* AI Recommendations */}
-        <div style={{ background: 'linear-gradient(to bottom, #8B5CF6, #3B82F6)', borderRadius: '24px', padding: '20px', marginBottom: '40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-            <AutoAwesomeIcon style={{ color: 'white', fontSize: '20px', marginRight: '12px' }} />
-            <div style={{ fontWeight: 700, fontSize: '16px', color: 'white' }}>AI Recommendations</div>
-          </div>
-          
-          <div style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: '16px', padding: '16px', display: 'flex', alignItems: 'center' }}>
-            <TvIcon style={{ color: 'white', fontSize: '18px', marginRight: '16px' }} />
-            <div>
-              <div style={{ color: 'white', fontWeight: 700, fontSize: '14px' }}>Digital Detox</div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px', marginTop: '2px' }}>Try to stay off screens 30 mins before bed for better sleep quality.</div>
-            </div>
-          </div>
-        </div>
+
 
       </div>
       
