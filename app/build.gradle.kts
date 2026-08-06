@@ -36,6 +36,7 @@ kotlin {
                 implementation("org.jetbrains.androidx.navigation:navigation-compose:2.7.0-alpha07")
                 
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
                 
                 // Ktor
                 implementation(libs.ktor.client.core)
