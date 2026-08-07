@@ -40,6 +40,8 @@ export default function StudyTracking() {
           setStats({
             weeklyHours: res.data.stats.totalHours,
             sessionCount: res.data.stats.sessionCount,
+            todayMinutes: res.data.stats.todayMinutes,
+            totalMinutes: res.data.stats.totalMinutes,
           });
           // Handle both dailyTotals and dailyBreakdown correctly as an array of 7 values
           const breakdown = res.data.stats.dailyTotals || res.data.stats.dailyBreakdown;
@@ -88,6 +90,8 @@ export default function StudyTracking() {
         setStats({
           weeklyHours: res.data.stats.totalHours,
           sessionCount: res.data.stats.sessionCount,
+          todayMinutes: res.data.stats.todayMinutes,
+          totalMinutes: res.data.stats.totalMinutes,
         });
         const breakdown = res.data.stats.dailyTotals || res.data.stats.dailyBreakdown;
         if (breakdown) {
@@ -111,7 +115,17 @@ export default function StudyTracking() {
     return `${m}:${s}`;
   };
 
-  const todaysHours = (elapsed / 3600).toFixed(1);
+  const getFormattedDuration = (baseMins, addedSecs) => {
+    const totalSecs = (baseMins || 0) * 60 + addedSecs;
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    return `${m}m ${s}s`;
+  };
+
+  const todaysDisplay = getFormattedDuration(stats.todayMinutes, elapsed);
+  const weeklyDisplay = getFormattedDuration(stats.totalMinutes, elapsed);
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
@@ -120,18 +134,19 @@ export default function StudyTracking() {
         background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)', 
         borderBottomLeftRadius: '32px', 
         borderBottomRightRadius: '32px',
-        padding: '50px 24px 60px 24px',
-        height: '200px',
+        width: '100%',
         position: 'relative',
         overflow: 'hidden'
       }}>
         <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '200px', height: '200px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%', filter: 'blur(30px)' }}></div>
-        <div style={{ cursor: 'pointer', display: 'inline-flex', padding: '8px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', backdropFilter: 'blur(10px)' }} onClick={() => navigate('/dashboard')}>
-          <ArrowBackIcon style={{ color: 'white' }} />
-        </div>
-        <div style={{ marginTop: '24px', position: 'relative', zIndex: 1 }}>
-          <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, letterSpacing: '-0.5px' }}>Study Tracking</div>
-          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '15px', fontWeight: 500, marginTop: '4px' }}>Monitor your focus and analytics</div>
+        <div className="desktop-padding" style={{ padding: '50px 24px 60px 24px', height: '200px', position: 'relative', zIndex: 1 }}>
+          <div style={{ cursor: 'pointer', display: 'inline-flex', padding: '8px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', backdropFilter: 'blur(10px)' }} onClick={() => navigate('/dashboard')}>
+            <ArrowBackIcon style={{ color: 'white' }} />
+          </div>
+          <div style={{ marginTop: '24px' }}>
+            <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, letterSpacing: '-0.5px' }}>Study Tracking</div>
+            <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '15px', fontWeight: 500, marginTop: '4px' }}>Monitor your focus and analytics</div>
+          </div>
         </div>
       </div>
 
@@ -183,11 +198,11 @@ export default function StudyTracking() {
           <div style={{ display: 'flex', width: '100%', gap: '16px', marginTop: '32px' }}>
             <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 4px 15px var(--accent-glow)' }}>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Today's Total</div>
-              <div style={{ fontSize: '28px', fontWeight: 800, color: '#3B82F6', marginTop: '8px' }}>{todaysHours}<span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>h</span></div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#3B82F6', marginTop: '8px' }}>{todaysDisplay}</div>
             </div>
             <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 4px 15px var(--accent-glow)' }}>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>This Week</div>
-              <div style={{ fontSize: '28px', fontWeight: 800, color: '#8B5CF6', marginTop: '8px' }}>{stats.weeklyHours}<span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>h</span></div>
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#8B5CF6', marginTop: '8px' }}>{weeklyDisplay}</div>
             </div>
           </div>
         </div>

@@ -22,7 +22,11 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
       StudySession.find({ userId: req.userId, startTime: { $gte: sevenDaysAgo }, isActive: false }),
     ]);
 
-    const weeklyStudyHours = +(weekStudy.reduce((s, l) => s + l.duration, 0) / 60).toFixed(1);
+    const weeklyStudyMinutes = weekStudy.reduce((s, l) => s + l.duration, 0);
+    const weeklyStudyHours = +(weeklyStudyMinutes / 60).toFixed(1);
+    const todayStudyMinutes = weekStudy
+      .filter(s => s.startTime >= today)
+      .reduce((sum, s) => sum + s.duration, 0);
 
     res.status(200).json({
       success: true,
@@ -34,6 +38,8 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
           lastMoodScore: latestSleep?.moodScore ?? null,
           lastProductivityScore: latestProductivity?.productivityScore ?? null,
           weeklyStudyHours,
+          weeklyStudyMinutes,
+          todayStudyMinutes,
         },
         burnoutAlert: {
           riskScore: latestBurnout?.riskScore ?? null,

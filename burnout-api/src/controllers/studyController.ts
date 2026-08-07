@@ -109,11 +109,18 @@ export const getWeeklyStats = async (req: AuthRequest, res: Response): Promise<v
     });
 
     const totalMinutes = sessions.reduce((sum, s) => sum + s.duration, 0);
+    
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayMinutes = sessions
+      .filter(s => s.startTime >= todayStart)
+      .reduce((sum, s) => sum + s.duration, 0);
 
     res.status(200).json({
       success: true,
       stats: {
         totalMinutes,
+        todayMinutes,
         totalHours: Math.round((totalMinutes / 60) * 10) / 10,
         sessionsCount: sessions.length,
         dailyTotals,

@@ -47,39 +47,50 @@ export default function Dashboard() {
   const alertScore = dashboardData?.burnoutAlert?.riskScore ?? 0;
   const alertLevel = dashboardData?.burnoutAlert?.riskLevel ?? 'Low';
   
-  const studyHours = dashboardData?.quickStats?.weeklyStudyHours ?? 0;
+  const formatHM = (mins) => {
+    if (!mins) return '0m';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const todayStudyDisplay = formatHM(dashboardData?.quickStats?.todayStudyMinutes);
+  const weeklyStudyDisplay = formatHM(dashboardData?.quickStats?.weeklyStudyMinutes);
   const sleepHours = dashboardData?.quickStats?.lastSleepHours ?? 0;
   const moodScore = dashboardData?.quickStats?.lastMoodScore ?? 5;
   const moodEmoji = moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : '😔';
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-      <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', padding: '40px 24px 60px 24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>Hello, {firstName}!</div>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>{currentDate}</div>
+      <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', width: '100%' }}>
+        <div className="desktop-padding" style={{ padding: '40px 24px 60px 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>Hello, {firstName}!</div>
+              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>{currentDate}</div>
+            </div>
+            <div onClick={() => navigate('/profile')} style={{ width: '48px', height: '48px', borderRadius: '24px', backgroundColor: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
+              <PsychologyIcon style={{ color: '#6B21A8', fontSize: '28px' }} />
+            </div>
           </div>
-          <div onClick={() => navigate('/profile')} style={{ width: '48px', height: '48px', borderRadius: '24px', backgroundColor: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
-            <PsychologyIcon style={{ color: '#6B21A8', fontSize: '28px' }} />
-          </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-          <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
-            <AccessTimeIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
-            <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{studyHours}h</div>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Study Today</div>
-          </div>
-          <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
-            <BedtimeIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
-            <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{sleepHours}h</div>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Sleep</div>
-          </div>
-          <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
-            <SentimentSatisfiedAltIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
-            <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{moodEmoji}</div>
-            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Mood</div>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
+            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
+              <AccessTimeIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
+              <div style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>{todayStudyDisplay}</div>
+              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Study Today</div>
+            </div>
+            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
+              <BedtimeIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
+              <div style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>{sleepHours}h</div>
+              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Sleep</div>
+            </div>
+            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
+              <SentimentSatisfiedAltIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
+              <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{moodEmoji}</div>
+              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Mood</div>
+            </div>
           </div>
         </div>
       </div>
@@ -92,7 +103,7 @@ export default function Dashboard() {
         <div className="responsive-grid">
           <FeatureCard 
             icon={MenuBookIcon} title="Study Tracking" subtitle="Daily goal progress" 
-            trailing={`${studyHours}h`} progress={Math.min(studyHours / 8, 1)} 
+            trailing={todayStudyDisplay} progress={Math.min((dashboardData?.quickStats?.todayStudyMinutes || 0) / (8 * 60), 1)} 
             color="#E0F2FE" iconColor="#0284C7" onClick={() => navigate('/study')} 
           />
           <FeatureCard 
@@ -102,7 +113,7 @@ export default function Dashboard() {
           />
           <FeatureCard 
             icon={BarChartIcon} title="App Usage" subtitle="Leisure time impact" 
-            trailing={`${Math.max(1, Math.round(studyHours * 0.4))}h`} progress={0.25} 
+            trailing={`Today`} progress={0.25} 
             color="#F5F3FF" iconColor="#8B5CF6" onClick={() => navigate('/usage')} 
           />
           <FeatureCard 
