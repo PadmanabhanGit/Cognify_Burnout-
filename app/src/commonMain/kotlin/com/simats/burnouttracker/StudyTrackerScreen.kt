@@ -48,24 +48,35 @@ fun StudyTrackerScreen(navController: NavController) {
     val timerHelper = rememberTimerHelper()
 
     LaunchedEffect(Unit) {
+        // 1. Immediately load local cache to prevent empty states on redeploys
+        AppData.studyTodayHours = settings.getString("studyTodayHours", "0.0")?.toFloatOrNull() ?: 0f
+        AppData.studyWeekHours = settings.getString("studyWeekHours", "0.0")?.toFloatOrNull() ?: 0f
+        
+        // 2. Fetch from backend to sync across platforms
         try {
             val response = ApiClient.getStudyWeeklyStats()
             if (response.success && response.stats != null) {
                 val stats = response.stats
-                AppData.studyWeekHours = stats.totalHours.toFloat()
                 
-                // For today, let's grab it from dailyTotals if possible
+                // Only overwrite if backend has more or equal data (prevents overwriting local unsynced data)
+                val backendWeek = stats.totalHours.toFloat()
+                if (backendWeek >= AppData.studyWeekHours) {
+                    AppData.studyWeekHours = backendWeek
+                    settings.putString("studyWeekHours", backendWeek.toString())
+                }
+                
                 val todayStr = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date.toString()
                 val todayMins = stats.dailyTotals[todayStr] ?: 0
-                AppData.studyTodayHours = (todayMins / 60f)
+                val backendToday = (todayMins / 60f)
                 
-                // Update graph data simply mapping daily breakdown 
-                val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun") // rough mock mapping
-                // Assuming we want to reflect history:
+                if (backendToday >= AppData.studyTodayHours) {
+                    AppData.studyTodayHours = backendToday
+                    settings.putString("studyTodayHours", backendToday.toString())
+                }
+                
                 AppData.weeklyStudyData.clear()
                 for (i in 0..6) AppData.weeklyStudyData.add(0f) 
                 
-                // If it has breakdown, update subject breakdown
                 stats.subjectBreakdown?.let { breakdown ->
                     breakdown.forEach { (subject, mins) ->
                         AppData.studyBreakdown[subject] = (mins / 60f)
@@ -239,29 +250,12 @@ fun StudyTrackerScreen(navController: NavController) {
                                     com.simats.burnouttracker.utils.cancelStudyTimer()
                                     val hours = elapsedTimeSeconds / 3600f
                                     val sessionName = AppData.activeSessionName ?: "Unknown"
-                                    
                                     // Stop session on backend 
                                     scope.launch {
                                         try {
                                             val sessionId = AppData.activeSessionId
                                             if (sessionId != null) {
                                                 ApiClient.stopStudySession(sessionId)
-                                            }
-                                            
-                                            // Refetch latest stats to sync perfectly
-                                            val response = ApiClient.getStudyWeeklyStats()
-                                            if (response.success && response.stats != null) {
-                                                val stats = response.stats
-                                                AppData.studyWeekHours = stats.totalHours.toFloat()
-                                                val todayStr = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date.toString()
-                                                val todayMins = stats.dailyTotals[todayStr] ?: 0
-                                                AppData.studyTodayHours = (todayMins / 60f)
-                                                
-                                                stats.subjectBreakdown?.let { breakdown ->
-                                                    breakdown.forEach { (subj, mins) ->
-                                                        AppData.studyBreakdown[subj] = (mins / 60f)
-                                                    }
-                                                }
                                             }
                                         } catch (e: Exception) {}
                                     }
@@ -270,6 +264,10 @@ fun StudyTrackerScreen(navController: NavController) {
                                     AppData.studyWeekHours += hours
                                     AppData.studyMonthHours += hours
                                     AppData.studyBreakdown[sessionName] = (AppData.studyBreakdown[sessionName] ?: 0f) + hours
+                                    
+                                    // Save robustly to local cache
+                                    settings.putString("studyTodayHours", AppData.studyTodayHours.toString())
+                                    settings.putString("studyWeekHours", AppData.studyWeekHours.toString())
                                     
                                     // Update BurnoutFeatures for prediction
                                     AppData.currentFeatures = AppData.currentFeatures.copy(

@@ -35,6 +35,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun DashboardScreen(navController: NavController) {
     val settings = rememberPlatformSettings()
+    val studySettings = rememberPlatformSettings("study_tracker")
     val firstName = AppData.userFullName?.split(" ")?.firstOrNull() ?: settings.getString("firstName", "Student") ?: "Student"
     
     val predictor = rememberBurnoutPredictor()
@@ -54,6 +55,11 @@ fun DashboardScreen(navController: NavController) {
     }
     
     LaunchedEffect(Unit) {
+        // Load initial state from cache so it's not empty on app restart
+        if (AppData.studyTodayHours == 0f) {
+            AppData.studyTodayHours = studySettings.getString("studyTodayHours", "0.0")?.toFloatOrNull() ?: 0f
+        }
+        
         while(true) {
             currentDate = formatDashboardDate()
             if (usageHelper.hasUsageStatsPermission()) {
