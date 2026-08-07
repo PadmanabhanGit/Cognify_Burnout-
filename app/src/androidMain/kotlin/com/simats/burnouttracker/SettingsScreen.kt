@@ -61,6 +61,13 @@ fun SettingsScreen(navController: NavController) {
             AppData.studyPrompts = prefs.getBoolean("studyPrompts", true)
             AppData.syncHealth = prefs.getBoolean("syncHealth", false)
         }
+        
+        // Sync full name with Firebase Auth natively
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val user = auth.currentUser
+        if (AppData.userFullName.isNullOrEmpty() && user?.displayName != null) {
+            AppData.userFullName = user.displayName
+        }
     }
     
     var showLanguageDialog by remember { mutableStateOf(false) }

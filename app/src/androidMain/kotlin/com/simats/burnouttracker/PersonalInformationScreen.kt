@@ -34,6 +34,7 @@ import com.simats.burnouttracker.utils.AppData
 fun PersonalInformationScreen(navController: NavController) {
     val authService = rememberAuthService()
     val coroutineScope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
@@ -225,7 +226,23 @@ fun PersonalInformationScreen(navController: NavController) {
                                     location = location
                                 )
                                 RetrofitClient.getApiService().updateProfileInfo(req)
-                                AppData.userFullName = "$firstName $lastName".trim()
+                                
+                                val fullNameStr = "$firstName $lastName".trim()
+                                AppData.userFullName = fullNameStr
+                                
+                                // Sync with Firebase Auth Profile natively
+                                val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                                auth.currentUser?.let { user ->
+                                    val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                                        .setDisplayName(fullNameStr)
+                                        .build()
+                                    user.updateProfile(profileUpdates)
+                                }
+                                
+                                // Sync locally for immediate Dashboard update
+                                val prefs = context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+                                prefs.edit().putString("firstName", firstName).apply()
+                                
                                 navController.popBackStack()
                             } catch (e: Exception) {
                                 e.printStackTrace()

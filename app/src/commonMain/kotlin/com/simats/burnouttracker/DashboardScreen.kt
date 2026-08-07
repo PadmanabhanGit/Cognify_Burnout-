@@ -35,7 +35,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun DashboardScreen(navController: NavController) {
     val settings = rememberPlatformSettings()
-    val firstName = remember(settings) { settings.getString("firstName", "Student") ?: "Student" }
+    val firstName = AppData.userFullName?.split(" ")?.firstOrNull() ?: settings.getString("firstName", "Student") ?: "Student"
     
     val predictor = rememberBurnoutPredictor()
     val usageHelper = rememberUsageStatsHelper()
