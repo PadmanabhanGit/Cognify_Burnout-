@@ -34,7 +34,7 @@ function App() {
 
   return (
     <div className="app-container">
-      <BrowserRouter basename="/Cognify_Burnout-/">
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Login />} />
           <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
