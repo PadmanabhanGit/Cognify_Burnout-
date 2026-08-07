@@ -13,20 +13,6 @@
   --accent-glow: rgba(99, 102, 241, 0.15);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: #121212;
-    --bg-secondary: #1E1E1E;
-    --text-primary: #F3F4F6;
-    --text-secondary: #9CA3AF;
-    --border-color: #333333;
-    --input-bg: #1E1E1E;
-    --glass-bg: rgba(30, 30, 30, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-icon-bg: rgba(255, 255, 255, 0.1);
-    --accent-glow: rgba(139, 92, 246, 0.1);
-  }
-}
 
 * {
   box-sizing: border-box;
