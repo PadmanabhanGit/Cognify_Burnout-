@@ -13,9 +13,7 @@ export default function SleepMoodAnalytics() {
     const fetchTrends = async () => {
       try {
         const res = await api.get('/api/sleep-mood/trends/sleep?days=30');
-        if (res.data.success) {
-          setTrends(res.data.trends);
-        }
+          setTrends(res.data.trends || []);
       } catch (err) {
         console.error("Failed to load trends", err);
       } finally {
