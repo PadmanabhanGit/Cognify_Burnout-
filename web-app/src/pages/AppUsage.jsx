@@ -49,19 +49,27 @@ export default function AppUsage() {
     return 'Others';
   };
 
-  // Aggregate minutes per normalized bucket
+  // Aggregate seconds per normalized bucket
   const buckets = { 'Social Media': 0, 'Gaming': 0, 'Streaming': 0, 'Productivity': 0 };
   usage.forEach(u => {
     const norm = normalizeCategory(u.category);
     if (norm in buckets) {
-      const m = String(u.time || '').match(/(\d+)h\s*(\d+)m/);
-      buckets[norm] += m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 0;
+      buckets[norm] += u.duration || 0;
     }
   });
 
-  const totalMinutes = Object.values(buckets).reduce((a, b) => a + b, 0);
-  const totalHoursStr = `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
-  const fmtMins = (mins) => `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m`;
+  const totalSeconds = Object.values(buckets).reduce((a, b) => a + b, 0);
+  
+  const formatSecs = (totalSecs) => {
+    if (!totalSecs) return '0m 0s';
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = Math.floor(totalSecs % 60);
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    return `${m}m ${s}s`;
+  };
+  
+  const totalHoursStr = formatSecs(totalSeconds);
 
 
   return (
@@ -89,8 +97,8 @@ export default function AppUsage() {
         {/* Daily Entertainment Usage Card */}
         <div className="white-card" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937' }}>Daily Usage</div>
-            <div style={{ backgroundColor: '#F3F4F6', padding: '4px 8px', borderRadius: '8px', fontSize: '12px', color: '#6B7280' }}>Today</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>Daily Usage</div>
+            <div style={{ backgroundColor: 'var(--bg-primary)', padding: '4px 8px', borderRadius: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>Today</div>
           </div>
 
           {loading ? (
@@ -98,9 +106,10 @@ export default function AppUsage() {
           ) : (
             <>
               {['Social Media', 'Gaming', 'Streaming', 'Productivity'].map((cat, index) => {
-                const mins = buckets[cat] || 0;
-                const durationStr = fmtMins(mins);
-                const progress = Math.min(mins / 480, 1.0);
+                const secs = buckets[cat] || 0;
+                const durationStr = formatSecs(secs);
+                // Assume 8 hours (28800 secs) as max for full bar
+                const progress = Math.min(secs / 28800, 1.0);
                 const colors = { 'Social Media': '#F43F5E', 'Gaming': '#F59E0B', 'Streaming': '#3B82F6', 'Productivity': '#10B981' };
                 return (
                   <UsageItem key={index} label={cat} duration={durationStr} progress={progress}
@@ -110,16 +119,16 @@ export default function AppUsage() {
             </>
           )}
 
-          <div style={{ height: '1px', backgroundColor: '#F3F4F6', margin: '20px 0' }}></div>
+          <div style={{ height: '1px', backgroundColor: 'var(--border-color, #F3F4F6)', margin: '20px 0' }}></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#4B5563' }}>Total App Usage</div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#111827' }}>{totalHoursStr}</div>
+            <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-secondary)' }}>Total App Usage</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{totalHoursStr}</div>
           </div>
         </div>
 
         {/* Top Used Apps Today */}
         <div className="white-card" style={{ padding: '24px' }}>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>Top Used Apps Today</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Top Used Apps Today</div>
           {loading ? (
             <div>Syncing...</div>
           ) : topApps.length === 0 ? (
@@ -131,11 +140,11 @@ export default function AppUsage() {
                   <div style={{ width: '100%', maxWidth: '300px', display: 'flex', alignItems: 'center' }}>
                     <div style={{ width: '10px', height: '10px', borderRadius: '5px', backgroundColor: item.color || '#6B7280', marginRight: '12px' }}></div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#374151', textTransform: 'capitalize' }}>{item.name}</div>
-                      <div style={{ fontSize: '11px', color: 'gray' }}>{item.category}</div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'capitalize' }}>{item.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.category}</div>
                     </div>
                   </div>
-                  <div style={{ flex: 1, textAlign: 'right', fontSize: '14px', fontWeight: 800, color: '#111827' }}>{item.time}</div>
+                  <div style={{ flex: 1, textAlign: 'right', fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{formatSecs(item.duration)}</div>
                 </div>
               );
             })
@@ -144,10 +153,10 @@ export default function AppUsage() {
 
         {/* Burnout Risk Visualization Insight */}
         <div className="white-card" style={{ padding: '24px' }}>
-          <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '4px' }}>Burnout Risk Impact</div>
-          <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '16px' }}>Correlation between app type and burnout score</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Burnout Risk Impact</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Correlation between app type and burnout score</div>
           
-          {totalMinutes > 240 ? (
+          {totalSeconds > 14400 ? (
             <div style={{ backgroundColor: '#FFF1F2', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center' }}>
               <WarningIcon style={{ color: '#E11D48', fontSize: '16px', marginRight: '12px' }} />
               <div style={{ fontSize: '11px', color: '#9F1239' }}>Your entertainment usage is high. This can reduce focus by <span style={{ fontWeight: 700, color: '#E11D48' }}>12%</span>.</div>
@@ -185,10 +194,10 @@ function UsageItem({ label, duration, progress, color, icon }) {
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <div style={{ fontWeight: 600, fontSize: '14px', color: '#374151' }}>{label}</div>
-          <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827' }}>{duration}</div>
+          <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{label}</div>
+          <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>{duration}</div>
         </div>
-        <div style={{ width: '100%', height: '6px', backgroundColor: '#F3F4F6', borderRadius: '3px', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--bg-primary, #F3F4F6)', borderRadius: '3px', overflow: 'hidden' }}>
           <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: color, borderRadius: '3px' }}></div>
         </div>
       </div>

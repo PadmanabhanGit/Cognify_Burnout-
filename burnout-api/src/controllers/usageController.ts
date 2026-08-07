@@ -118,22 +118,29 @@ export const getTodayUsage = async (req: AuthRequest, res: Response) => {
       
       return {
         category,
-        time: formatDuration(duration),
+        duration,
         progress: progress,
         color,
       };
     });
 
     // Sort by duration descending
-    usageResponse.sort((a, b) => {
-      const durationA = categoryTotals[a.category].duration;
-      const durationB = categoryTotals[b.category].duration;
-      return durationB - durationA;
-    });
+    usageResponse.sort((a, b) => b.duration - a.duration);
+    
+    const topApps = usageLog.usageData.map(item => {
+      const { category, color } = categorizeApp(item.packageName);
+      return {
+        name: item.packageName,
+        category,
+        color,
+        duration: item.duration,
+      };
+    }).sort((a, b) => b.duration - a.duration).slice(0, 5);
 
     res.status(200).json({
       success: true,
       usage: usageResponse,
+      topApps,
     });
   } catch (error) {
     console.error('Error fetching today usage:', error);

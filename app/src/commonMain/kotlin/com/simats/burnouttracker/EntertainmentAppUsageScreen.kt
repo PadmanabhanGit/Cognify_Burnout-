@@ -66,7 +66,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                         UsageItemRequest(
                             packageName = appUsage.packageName,
                             category = appUsage.category,
-                            duration = (appUsage.hours * 60).toLong()
+                            duration = (appUsage.hours * 3600).toLong()
                         )
                     }
                     val response = ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems))
