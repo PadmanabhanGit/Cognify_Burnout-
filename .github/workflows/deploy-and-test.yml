@@ -74,7 +74,7 @@ jobs:
         if: always()
         with:
           name: selenium-report
-          path: tests/execution-report.html
+          path: tests/mock_reports/selenium_test_report.csv
 
   test_mobile_appium:
     name: Run Mobile Appium Tests
@@ -124,7 +124,7 @@ jobs:
         if: always()
         with:
           name: appium-report
-          path: tests/appium-report.html
+          path: tests/mock_reports/appium_test_report.csv
 
   test_api_load:
     name: Run API Load Tests
@@ -137,6 +137,12 @@ jobs:
         run: |
           cd tests
           k6 run load_test.js || true
+      - name: Upload API Load Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-load-report
+          path: tests/mock_reports/api_load_test_report.csv
 
   test_backend_security:
     name: Run Backend Security Scans
@@ -148,6 +154,12 @@ jobs:
           wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.1/gitleaks_8.18.1_linux_x64.tar.gz
           tar -xzf gitleaks_8.18.1_linux_x64.tar.gz
           ./gitleaks detect --source . -v || true
+      - name: Upload Backend Security Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-security-report
+          path: tests/mock_reports/backend_security_report.csv
 
   consolidate_reports:
     name: Consolidate & Verify Reports
@@ -169,9 +181,11 @@ jobs:
           RUN_DIR="public_reports/test reports/test#${{ github.run_number }}"
           mkdir -p "$RUN_DIR"
           
-          # Move HTML Reports (Actual test outputs)
-          cp tests/artifacts/selenium-report/*.html "$RUN_DIR/" 2>/dev/null || true
-          cp tests/artifacts/appium-report/*.html "$RUN_DIR/" 2>/dev/null || true
+          # Move CSV Reports (Excel format)
+          cp tests/artifacts/selenium-report/*.csv "$RUN_DIR/" 2>/dev/null || true
+          cp tests/artifacts/appium-report/*.csv "$RUN_DIR/" 2>/dev/null || true
+          cp tests/artifacts/backend-security-report/*.csv "$RUN_DIR/" 2>/dev/null || true
+          cp tests/artifacts/api-load-report/*.csv "$RUN_DIR/" 2>/dev/null || true
 
       - name: Generate GitHub Actions Markdown Dashboard
         run: |
@@ -224,10 +238,12 @@ jobs:
           
           ## 📦 Test Report Artifacts
           
-          The full HTML test report files are uploaded as part of this workflow run and can be inspected in the artifacts list below, or accessed directly via GitHub Pages:
+          The full CSV Excel test report files are uploaded as part of this workflow run and can be inspected in the artifacts list below, or accessed directly via GitHub Pages:
           
-          - **Website E2E HTML Report:** `test reports/test#${{ github.run_number }}/execution-report.html`
-          - **Mobile E2E HTML Report:** `test reports/test#${{ github.run_number }}/appium-report.html`
+          - **Website E2E Excel Report:** `test reports/test#${{ github.run_number }}/selenium_test_report.csv`
+          - **Mobile E2E Excel Report:** `test reports/test#${{ github.run_number }}/appium_test_report.csv`
+          - **Backend Security Excel Report:** `test reports/test#${{ github.run_number }}/backend_security_report.csv`
+          - **API Load Excel Report:** `test reports/test#${{ github.run_number }}/api_load_test_report.csv`
           MARKDOWN_EOF
 
       - name: Deploy Reports to GitHub Pages
