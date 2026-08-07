@@ -41,9 +41,16 @@ export default function StudyTracking() {
             weeklyHours: res.data.stats.totalHours,
             sessionCount: res.data.stats.sessionCount,
           });
-          // Assuming backend might send an array of 7 days, else fallback
-          if (res.data.stats.dailyBreakdown) {
-            setWeeklyData(res.data.stats.dailyBreakdown);
+          // Handle both dailyTotals and dailyBreakdown correctly as an array of 7 values
+          const breakdown = res.data.stats.dailyTotals || res.data.stats.dailyBreakdown;
+          if (breakdown) {
+            if (Array.isArray(breakdown)) {
+              setWeeklyData(breakdown);
+            } else if (typeof breakdown === 'object') {
+              const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+              const arr = days.map(d => breakdown[d] || 0);
+              setWeeklyData(arr);
+            }
           }
         }
       } catch (err) {
@@ -82,8 +89,15 @@ export default function StudyTracking() {
           weeklyHours: res.data.stats.totalHours,
           sessionCount: res.data.stats.sessionCount,
         });
-        if (res.data.stats.dailyBreakdown) {
-          setWeeklyData(res.data.stats.dailyBreakdown);
+        const breakdown = res.data.stats.dailyTotals || res.data.stats.dailyBreakdown;
+        if (breakdown) {
+          if (Array.isArray(breakdown)) {
+            setWeeklyData(breakdown);
+          } else if (typeof breakdown === 'object') {
+            const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+            const arr = days.map(d => breakdown[d] || 0);
+            setWeeklyData(arr);
+          }
         }
       }
     } catch (err) {

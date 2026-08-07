@@ -23,7 +23,7 @@ export default function AppUsage() {
       try {
         const res = await api.get('/api/usage/today');
         if (res.data.success) {
-          setUsage(res.data.usage);
+          setUsage(res.data.usage || []);
           setTopApps(res.data.topApps || []);
         }
       } catch (err) {
