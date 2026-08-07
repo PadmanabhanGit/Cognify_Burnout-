@@ -436,7 +436,16 @@ fun RecommendationItem(title: String, subtitle: String, icon: ImageVector) {
 }
 
 private fun formatHours(hours: Float): String {
-    val h = hours.toInt()
-    val m = ((hours - h) * 60).toInt()
-    return "${h}h ${m.toString().padStart(2, '0')}m"
+    val totalSecs = (hours * 3600).toLong()
+    if (totalSecs <= 0) return "0s"
+    val h = totalSecs / 3600
+    val m = (totalSecs % 3600) / 60
+    val s = totalSecs % 60
+    
+    val parts = mutableListOf<String>()
+    if (h > 0) parts.add("${h}h")
+    if (m > 0) parts.add("${m}m")
+    if (s > 0) parts.add("${s}s")
+    
+    return if (parts.isNotEmpty()) parts.joinToString(" ") else "0s"
 }

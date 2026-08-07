@@ -48,11 +48,17 @@ export default function Dashboard() {
   const alertLevel = dashboardData?.burnoutAlert?.riskLevel ?? 'Low';
   
   const formatHM = (mins) => {
-    if (!mins) return '0m';
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    if (!mins) return '0s';
+    const totalSecs = Math.floor(mins * 60);
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    
+    let parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}m`);
+    if (s > 0) parts.push(`${s}s`);
+    return parts.length > 0 ? parts.join(' ') : '0s';
   };
 
   const todayStudyDisplay = formatHM(dashboardData?.quickStats?.todayStudyMinutes);

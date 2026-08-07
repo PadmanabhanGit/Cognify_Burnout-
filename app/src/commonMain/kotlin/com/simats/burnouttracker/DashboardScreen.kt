@@ -414,8 +414,15 @@ private fun getRiskLevelName(score: Float): String = when {
 
 private fun getFormattedExactDuration(hoursDecimal: Float, addedSeconds: Long): String {
     val totalSecs = (hoursDecimal * 3600).toLong() + addedSeconds
+    if (totalSecs <= 0) return "0s"
     val h = totalSecs / 3600
     val m = (totalSecs % 3600) / 60
     val s = totalSecs % 60
-    return if (h > 0) "${h}h ${m}m ${s}s" else "${m}m ${s}s"
+    
+    val parts = mutableListOf<String>()
+    if (h > 0) parts.add("${h}h")
+    if (m > 0) parts.add("${m}m")
+    if (s > 0) parts.add("${s}s")
+    
+    return if (parts.isNotEmpty()) parts.joinToString(" ") else "0s"
 }

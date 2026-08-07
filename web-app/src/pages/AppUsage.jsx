@@ -61,12 +61,16 @@ export default function AppUsage() {
   const totalSeconds = Object.values(buckets).reduce((a, b) => a + b, 0);
   
   const formatSecs = (totalSecs) => {
-    if (!totalSecs) return '0m 0s';
+    if (!totalSecs) return '0s';
     const h = Math.floor(totalSecs / 3600);
     const m = Math.floor((totalSecs % 3600) / 60);
     const s = Math.floor(totalSecs % 60);
-    if (h > 0) return `${h}h ${m}m ${s}s`;
-    return `${m}m ${s}s`;
+    
+    let parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}m`);
+    if (s > 0) parts.push(`${s}s`);
+    return parts.length > 0 ? parts.join(' ') : '0s';
   };
   
   const totalHoursStr = formatSecs(totalSeconds);
