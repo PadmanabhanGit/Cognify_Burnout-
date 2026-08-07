@@ -36,12 +36,22 @@ class AndroidBurnoutPredictor(private val context: Context) : BurnoutPredictor {
     override fun predict(features: BurnoutFeatures): Float {
         if (interpreter == null) return 50f 
         
+        // Convert mood string to score
+        val moodScore = when (AppData.lastMoodLogged.lowercase()) {
+            "happy", "great", "excellent" -> 8f
+            "good" -> 7f
+            "neutral", "okay" -> 5f
+            "sad", "bad" -> 3f
+            "terrible", "awful" -> 1f
+            else -> 6f // Default average
+        }
+        
         // Prepare the 1x5 input array matching your model inputs: 
         // [study_hrs, sleep_hrs, mood_score, gaming_hrs, prod_hrs]
         val input = floatArrayOf(
-            features.studyHours,
-            features.sleepHours,
-            features.moodScore,
+            AppData.studyTodayHours,
+            if (AppData.lastSleepLogged > 0f) AppData.lastSleepLogged else 7f,
+            moodScore,
             features.gamingHours,
             features.productivityHours
         )
