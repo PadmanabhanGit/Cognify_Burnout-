@@ -38,6 +38,7 @@ import kotlinx.datetime.toLocalDateTime
 @Composable
 fun StudyTrackerScreen(navController: NavController) {
     val settings = rememberPlatformSettings("study_tracker")
+    val actionPlanSettings = rememberPlatformSettings("action_plan")
     var isTimerRunning by remember { mutableStateOf(AppData.activeSessionName != null) }
     var elapsedTimeSeconds by remember { mutableLongStateOf(0L) }
     var showSessionPrompt by remember { mutableStateOf(false) }
@@ -118,6 +119,13 @@ fun StudyTrackerScreen(navController: NavController) {
                                     AppData.activeSessionId = response.session.id
                                 }
                             } catch (e: Exception) {}
+                        }
+
+                        // Schedule local alarm if reminders are enabled
+                        if (actionPlanSettings.getBoolean("study_reminders", true)) {
+                            val durationStr = actionPlanSettings.getString("study_duration", "45 min") ?: "45 min"
+                            val mins = durationStr.replace(" min", "").trim().toIntOrNull() ?: 45
+                            com.simats.burnouttracker.utils.scheduleStudyTimer(mins)
                         }
                     }
                 ) {
@@ -228,6 +236,7 @@ fun StudyTrackerScreen(navController: NavController) {
                                 if (isTimerRunning) {
                                     timerHelper.stopTimer()
                                     isTimerRunning = false
+                                    com.simats.burnouttracker.utils.cancelStudyTimer()
                                     val hours = elapsedTimeSeconds / 3600f
                                     val sessionName = AppData.activeSessionName ?: "Unknown"
                                     

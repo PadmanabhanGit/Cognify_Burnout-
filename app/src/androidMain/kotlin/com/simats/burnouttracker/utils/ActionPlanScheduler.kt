@@ -37,6 +37,38 @@ object ActionPlanScheduler {
         } else {
             cancelAlarm(context, alarmManager, 103)
         }
+        // Entertainment Limits Monitor (Check every hour)
+        if (prefs.getBoolean("limit_social", false) || prefs.getBoolean("limit_streaming", false)) {
+            scheduleRepeatingAlarm(context, alarmManager, 104, 1, "Entertainment Check", "LIMIT_CHECK")
+        } else {
+            cancelAlarm(context, alarmManager, 104)
+        }
+    }
+
+    fun scheduleStudyTimer(context: Context, durationMins: Int) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, ActionPlanReceiver::class.java).apply {
+            putExtra("EXTRA_ID", 105)
+            putExtra("EXTRA_TITLE", "Focus Session Complete!")
+            putExtra("EXTRA_MESSAGE", "Great job! It's time to take your scheduled break.")
+        }
+        val pendingIntent = PendingIntent.getBroadcast(context, 105, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        val triggerAt = System.currentTimeMillis() + (durationMins * 60 * 1000L)
+        try {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAt,
+                pendingIntent
+            )
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+        }
+    }
+
+    fun cancelStudyTimer(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        cancelAlarm(context, alarmManager, 105)
     }
 
     private fun scheduleDailyAlarm(context: Context, alarmManager: AlarmManager, id: Int, hour: Int, minute: Int, title: String, msg: String) {

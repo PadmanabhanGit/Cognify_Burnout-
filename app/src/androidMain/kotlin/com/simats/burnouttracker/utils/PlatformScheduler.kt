@@ -15,3 +15,15 @@ actual fun triggerActionPlanSync() {
         ActionPlanScheduler.scheduleAlarms(it)
     }
 }
+
+actual fun scheduleStudyTimer(durationMins: Int) {
+    appContext?.let {
+        ActionPlanScheduler.scheduleStudyTimer(it, durationMins)
+    }
+}
+
+actual fun cancelStudyTimer() {
+    appContext?.let {
+        ActionPlanScheduler.cancelStudyTimer(it)
+    }
+}
