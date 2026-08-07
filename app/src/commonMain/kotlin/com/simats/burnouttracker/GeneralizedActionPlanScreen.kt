@@ -23,18 +23,32 @@ import androidx.navigation.NavController
 import com.simats.burnouttracker.ui.theme.ThemeColors
 import com.simats.burnouttracker.utils.rememberPlatformSettings
 import com.simats.burnouttracker.utils.triggerActionPlanSync
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GeneralizedActionPlanScreen(navController: NavController) {
-    // IMPORTANT: ActionPlanScheduler uses "action_plan" (not "action_plan_settings")
+    // IMPORTANT: ActionPlanScheduler uses "action_plan" 
     val settings = rememberPlatformSettings("action_plan")
     
     val emeraldGradient = Brush.verticalGradient(
         colors = listOf(Color(0xFF10B981), Color(0xFF059669))
     )
 
-    // State management for Wellness Reminders
+    // State management for all settings
+    var studyRemindersEnabled by remember { mutableStateOf(settings.getBoolean("study_reminders", true)) }
+    var studyDuration by remember { mutableStateOf(settings.getString("study_duration", "45 min") ?: "45 min") }
+    
+    var breakAlertsEnabled by remember { mutableStateOf(settings.getBoolean("break_alerts", true)) }
+    var breakDuration by remember { mutableStateOf(settings.getString("break_duration", "10 min") ?: "10 min") }
+
+    var limitSocialEnabled by remember { mutableStateOf(settings.getBoolean("limit_social", false)) }
+    var socialLimitMins by remember { mutableStateOf(settings.getInt("social_limit", 60).toFloat()) }
+
+    var limitStreamingEnabled by remember { mutableStateOf(settings.getBoolean("limit_streaming", false)) }
+    var streamingLimitMins by remember { mutableStateOf(settings.getInt("streaming_limit", 120).toFloat()) }
+
+    // Wellness States
     var sleepReminderEnabled by remember { mutableStateOf(settings.getBoolean("sleepReminderEnabled", true)) }
     var sleepHour by remember { mutableStateOf(settings.getInt("sleepHour", 22)) }
     var sleepMinute by remember { mutableStateOf(settings.getInt("sleepMinute", 0)) }
@@ -45,6 +59,39 @@ fun GeneralizedActionPlanScreen(navController: NavController) {
 
     var hydrationEnabled by remember { mutableStateOf(settings.getBoolean("hydrationEnabled", true)) }
     var hydrationInterval by remember { mutableStateOf(settings.getInt("hydrationInterval", 2)) }
+
+    // Auto-Save Effect (Debounced to prevent spamming SharedPreferences/Alarms during slider drag)
+    LaunchedEffect(
+        studyRemindersEnabled, studyDuration, breakAlertsEnabled, breakDuration,
+        limitSocialEnabled, socialLimitMins, limitStreamingEnabled, streamingLimitMins,
+        sleepReminderEnabled, sleepHour, sleepMinute,
+        mindfulnessEnabled, mindfulnessHour, mindfulnessMinute,
+        hydrationEnabled, hydrationInterval
+    ) {
+        delay(300) // 300ms debounce
+        
+        settings.putBoolean("study_reminders", studyRemindersEnabled)
+        settings.putString("study_duration", studyDuration)
+        settings.putBoolean("break_alerts", breakAlertsEnabled)
+        settings.putString("break_duration", breakDuration)
+        settings.putBoolean("limit_social", limitSocialEnabled)
+        settings.putInt("social_limit", socialLimitMins.toInt())
+        settings.putBoolean("limit_streaming", limitStreamingEnabled)
+        settings.putInt("streaming_limit", streamingLimitMins.toInt())
+        
+        settings.putBoolean("sleepReminderEnabled", sleepReminderEnabled)
+        settings.putInt("sleepHour", sleepHour)
+        settings.putInt("sleepMinute", sleepMinute)
+        
+        settings.putBoolean("mindfulnessEnabled", mindfulnessEnabled)
+        settings.putInt("mindfulnessHour", mindfulnessHour)
+        settings.putInt("mindfulnessMinute", mindfulnessMinute)
+        
+        settings.putBoolean("hydrationEnabled", hydrationEnabled)
+        settings.putInt("hydrationInterval", hydrationInterval)
+        
+        triggerActionPlanSync()
+    }
 
     // Helper to format time
     fun formatTime(h: Int, m: Int): String {
@@ -96,7 +143,7 @@ fun GeneralizedActionPlanScreen(navController: NavController) {
                         lineHeight = 32.sp
                     )
                     Text(
-                        text = "Set wellness reminders to stay balanced",
+                        text = "Set reminders and limits to stay balanced",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 14.sp
                     )
@@ -109,14 +156,75 @@ fun GeneralizedActionPlanScreen(navController: NavController) {
                     .offset(y = (-20).dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                
-                // Wellness Reminder Card
+                // 1. Study & Break Notifications
+                ActionCard(
+                    title = "Study & Break Notifications",
+                    icon = Icons.Default.Timer,
+                    iconColor = Color(0xFF6366F1)
+                ) {
+                    SettingToggleRow(
+                        label = "Enable Study Session Reminders",
+                        checked = studyRemindersEnabled,
+                        onCheckedChange = { studyRemindersEnabled = it }
+                    )
+                    
+                    if (studyRemindersEnabled) {
+                        DurationPicker("STUDY DURATION", studyDuration, listOf("25 min", "45 min", "60 min", "90 min")) { studyDuration = it }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SettingToggleRow(
+                        label = "Enable Break Alerts",
+                        checked = breakAlertsEnabled,
+                        onCheckedChange = { breakAlertsEnabled = it }
+                    )
+                    
+                    if (breakAlertsEnabled) {
+                        DurationPicker("BREAK DURATION", breakDuration, listOf("5 min", "10 min", "15 min", "20 min")) { breakDuration = it }
+                    }
+                }
+
+                // 2. Entertainment Limits
+                ActionCard(
+                    title = "Entertainment Limits",
+                    icon = Icons.Default.Block,
+                    iconColor = Color(0xFFEF4444)
+                ) {
+                    Text(
+                        text = "Set daily boundaries for apps to maintain focus.",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    LimitSlider(
+                        label = "Limit Social Media Apps",
+                        enabled = limitSocialEnabled,
+                        onToggle = { limitSocialEnabled = it },
+                        value = socialLimitMins,
+                        onValueChange = { socialLimitMins = it },
+                        max = 120f
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    LimitSlider(
+                        label = "Limit Streaming Apps",
+                        enabled = limitStreamingEnabled,
+                        onToggle = { limitStreamingEnabled = it },
+                        value = streamingLimitMins,
+                        onValueChange = { streamingLimitMins = it },
+                        max = 180f
+                    )
+                }
+
+                // 3. Wellness Reminder
                 ActionCard(
                     title = "Wellness Reminder",
                     icon = Icons.Default.Spa,
                     iconColor = Color(0xFF10B981)
                 ) {
-                    // SLEEP REMINDER
                     WellnessItemWithDropdown(
                         label = "Sleep Reminder",
                         currentSelection = formatTime(sleepHour, sleepMinute),
@@ -131,7 +239,6 @@ fun GeneralizedActionPlanScreen(navController: NavController) {
                         }
                     )
                     
-                    // MINDFULNESS REMINDER
                     WellnessItemWithDropdown(
                         label = "Mindfulness",
                         currentSelection = formatTime(mindfulnessHour, mindfulnessMinute),
@@ -146,7 +253,6 @@ fun GeneralizedActionPlanScreen(navController: NavController) {
                         }
                     )
                     
-                    // HYDRATION REMINDER
                     WellnessItemWithDropdown(
                         label = "Hydration",
                         currentSelection = "Every $hydrationInterval hour" + if(hydrationInterval > 1) "s" else "",
@@ -159,50 +265,6 @@ fun GeneralizedActionPlanScreen(navController: NavController) {
                             hydrationInterval = hours
                         }
                     )
-                }
-
-                // Save Button
-                Button(
-                    onClick = {
-                        // Persist correct keys exactly as ActionPlanScheduler expects them
-                        settings.putBoolean("sleepReminderEnabled", sleepReminderEnabled)
-                        settings.putInt("sleepHour", sleepHour)
-                        settings.putInt("sleepMinute", sleepMinute)
-                        
-                        settings.putBoolean("mindfulnessEnabled", mindfulnessEnabled)
-                        settings.putInt("mindfulnessHour", mindfulnessHour)
-                        settings.putInt("mindfulnessMinute", mindfulnessMinute)
-                        
-                        settings.putBoolean("hydrationEnabled", hydrationEnabled)
-                        settings.putInt("hydrationInterval", hydrationInterval)
-                        
-                        // Actually trigger the background alarms with the new times!
-                        triggerActionPlanSync()
-
-                        navController.popBackStack()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                    contentPadding = PaddingValues()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.horizontalGradient(listOf(Color(0xFF10B981), Color(0xFF3B82F6))),
-                                RoundedCornerShape(16.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = "Save Action Plan", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        }
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))
@@ -252,6 +314,100 @@ fun ActionCard(title: String, icon: ImageVector, iconColor: Color, content: @Com
             }
             Spacer(modifier = Modifier.height(20.dp))
             content()
+        }
+    }
+}
+
+@Composable
+fun SettingToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFF10B981)
+            )
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DurationPicker(label: String, current: String, options: List<String>, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Column(modifier = Modifier.padding(top = 12.dp)) {
+        Surface(
+            color = ThemeColors.background,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true }
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = current, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+            }
+        }
+        
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun LimitSlider(label: String, enabled: Boolean, onToggle: (Boolean) -> Unit, value: Float, onValueChange: (Float) -> Unit, max: Float) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+            Switch(
+                checked = enabled,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(checkedTrackColor = Color(0xFFEF4444))
+            )
+        }
+        
+        if (enabled) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "Daily Limit", fontSize = 11.sp, color = Color.Gray)
+                Text(text = "${value.toInt()} min", fontSize = 11.sp, color = Color(0xFF6366F1), fontWeight = FontWeight.Bold)
+            }
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = 0f..max,
+                colors = SliderDefaults.colors(thumbColor = Color(0xFF6366F1), activeTrackColor = Color(0xFF6366F1))
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("0m", fontSize = 10.sp, color = Color.Gray)
+                Text("${max.toInt()}m", fontSize = 10.sp, color = Color.Gray)
+            }
         }
     }
 }
