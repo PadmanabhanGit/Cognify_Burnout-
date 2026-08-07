@@ -359,10 +359,14 @@ fun StudyTrackerScreen(navController: NavController) {
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
+                        
+                        val currentAddedSeconds = if (isTimerRunning) elapsedTimeSeconds else 0L
+                        val todaysDisplay = getFormattedExactDuration(AppData.studyTodayHours, currentAddedSeconds)
+                        val weeklyDisplay = getFormattedExactDuration(AppData.studyWeekHours, currentAddedSeconds)
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SessionStatItem(label = "Today's Total", value = "${(AppData.studyTodayHours * 10).toInt() / 10f}h", color = Color(0xFFEFF6FF), textColor = Color(0xFF2563EB), modifier = Modifier.weight(1f))
-                            SessionStatItem(label = "This Week", value = "${(AppData.studyWeekHours * 10).toInt() / 10f}h", color = Color(0xFFFAF5FF), textColor = Color(0xFF9333EA), modifier = Modifier.weight(1f))
+                            SessionStatItem(label = "Today's Total", value = todaysDisplay, color = Color(0xFFEFF6FF), textColor = Color(0xFF2563EB), modifier = Modifier.weight(1f))
+                            SessionStatItem(label = "This Week", value = weeklyDisplay, color = Color(0xFFFAF5FF), textColor = Color(0xFF9333EA), modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -434,4 +438,12 @@ private fun formatElapsedTime(seconds: Long): String {
     val mins = (seconds % 3600) / 60
     val secs = seconds % 60
     return "${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}"
+}
+
+private fun getFormattedExactDuration(hoursDecimal: Float, addedSeconds: Long): String {
+    val totalSecs = (hoursDecimal * 3600).toLong() + addedSeconds
+    val h = totalSecs / 3600
+    val m = (totalSecs % 3600) / 60
+    val s = totalSecs % 60
+    return if (h > 0) "${h}h ${m}m ${s}s" else "${m}m ${s}s"
 }

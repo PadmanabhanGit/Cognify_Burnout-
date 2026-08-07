@@ -47,6 +47,18 @@ fun DashboardScreen(navController: NavController) {
     var riskScore by remember { mutableStateOf(AppData.predictedScore) }
     var riskLevel by remember { mutableStateOf(getRiskLevelName(riskScore)) }
     var currentDate by remember { mutableStateOf(formatDashboardDate()) }
+    var activeTimerSeconds by remember { mutableLongStateOf(0L) }
+    
+    LaunchedEffect(AppData.activeSessionName, AppData.sessionStartTime) {
+        while(AppData.activeSessionName != null) {
+            val start = AppData.sessionStartTime
+            if (start != null) {
+                activeTimerSeconds = (getCurrentTimeMillis() - start) / 1000
+            }
+            delay(1000)
+        }
+        activeTimerSeconds = 0L
+    }
     
     LaunchedEffect(latestSleepSession) {
         latestSleepSession?.let {
@@ -173,14 +185,14 @@ fun DashboardScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(32.dp))
 
                     // Summary Row
-                    val totalStudyHours = AppData.studyTodayHours
+                    val todayStudyDisplay = getFormattedExactDuration(AppData.studyTodayHours, activeTimerSeconds)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         SummaryCard(
                             icon = Icons.Default.AccessTime,
-                            value = formatHours(totalStudyHours),
+                            value = todayStudyDisplay,
                             label = "Study Today",
                             modifier = Modifier.weight(1f)
                         )
@@ -223,12 +235,13 @@ fun DashboardScreen(navController: NavController) {
                 )
 
                 // Feature List
-                val totalStudyHours = AppData.studyTodayHours
+                val totalStudyHours = AppData.studyTodayHours + (activeTimerSeconds / 3600f)
+                val todayStudyDisplay = getFormattedExactDuration(AppData.studyTodayHours, activeTimerSeconds)
                 FeatureCard(
                     icon = Icons.AutoMirrored.Filled.MenuBook,
                     title = "Study Tracking",
                     subtitle = "Daily goal progress",
-                    trailing = formatHours(totalStudyHours),
+                    trailing = todayStudyDisplay,
                     progress = (totalStudyHours / 8f).coerceIn(0f, 1f), // Goal is 8h
                     color = Color(0xFFE0F2FE),
                     iconColor = Color(0xFF0284C7),
@@ -397,4 +410,12 @@ private fun getRiskLevelName(score: Float): String = when {
     score > 75 -> "High"
     score > 40 -> "Moderate"
     else -> "Low"
+}
+
+private fun getFormattedExactDuration(hoursDecimal: Float, addedSeconds: Long): String {
+    val totalSecs = (hoursDecimal * 3600).toLong() + addedSeconds
+    val h = totalSecs / 3600
+    val m = (totalSecs % 3600) / 60
+    val s = totalSecs % 60
+    return if (h > 0) "${h}h ${m}m ${s}s" else "${m}m ${s}s"
 }
