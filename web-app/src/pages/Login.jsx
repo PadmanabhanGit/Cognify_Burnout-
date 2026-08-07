@@ -109,7 +109,7 @@ export default function Login() {
               try {
                 const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth');
                 const provider = new GoogleAuthProvider();
-                provider.setCustomParameters({ prompt: 'select_account' });
+                provider.setCustomParameters({ prompt: 'consent select_account' });
                 await signInWithPopup(auth, provider);
                 navigate('/dashboard');
               } catch (err) {
