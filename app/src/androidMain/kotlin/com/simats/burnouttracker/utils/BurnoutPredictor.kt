@@ -9,63 +9,68 @@ import java.io.FileInputStream
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 
-@Composable
-actual fun rememberBurnoutPredictor(): BurnoutPredictor {
-    val context = LocalContext.current
-    return remember { AndroidBurnoutPredictor(context) }
-}
-
 class AndroidBurnoutPredictor(private val context: Context) : BurnoutPredictor {
     private var interpreter: Interpreter? = null
 
     init {
         try {
-            interpreter = Interpreter(loadModelFile("ml/burnout_predictor.tflite"))
+            val model = loadModelFile(context, "burnout_engine.tflite")
+            val options = Interpreter.Options().apply {
+                numThreads = 2
+            }
+            interpreter = Interpreter(model, options)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun loadModelFile(modelPath: String): MappedByteBuffer {
-        val fileDescriptor = context.assets.openFd(modelPath)
-        val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
-        val fileChannel = inputStream.channel
-        return fileChannel.map(
-            FileChannel.MapMode.READ_ONLY,
-            fileDescriptor.startOffset,
-            fileDescriptor.declaredLength
-        )
+    private fun loadModelFile(context: Context, modelName: String): MappedByteBuffer {
+        val assetFileDescriptor = context.assets.openFd(modelName)
+        val fileInputStream = FileInputStream(assetFileDescriptor.fileDescriptor)
+        val fileChannel = fileInputStream.channel
+        val startOffset = assetFileDescriptor.startOffset
+        val declaredLength = assetFileDescriptor.declaredLength
+        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
     }
 
     override fun predict(features: BurnoutFeatures): Float {
-        if (interpreter == null) return 62f
-
-        val input = arrayOf(
-            floatArrayOf(
-                normalize(features.socialHours, 0f, 12f),
-                normalize(features.gamingHours, 0f, 10f),
-                normalize(features.streamingHours, 0f, 10f),
-                normalize(features.productivityHours, 0f, 12f),
-                normalize(features.totalScreenTime, 0f, 18f),
-                normalize(features.nightUsageHours, 0f, 8f),
-                normalize(features.appSwitchCount.toFloat(), 0f, 300f),
-                normalize(features.averageSessionMinutes, 0f, 120f)
-            )
+        if (interpreter == null) return 50f 
+        
+        // Prepare the 1x5 input array matching your model inputs: 
+        // [study_hrs, sleep_hrs, mood_score, gaming_hrs, prod_hrs]
+        val input = floatArrayOf(
+            features.studyHours,
+            features.sleepHours,
+            features.moodScore,
+            features.gamingHours,
+            features.productivityHours
         )
-
-        val output = Array(1) { FloatArray(1) }
-
-        return try {
-            interpreter?.run(input, output)
-            output[0][0] * 100f
+        val inputArray = arrayOf(input)
+        
+        // Prepare the 1x1 output array
+        val outputArray = Array(1) { FloatArray(1) }
+        
+        try {
+            interpreter?.run(inputArray, outputArray)
+            var score = outputArray[0][0]
+            
+            // Constrain score between 0 and 100
+            if (score < 0f) score = 0f
+            if (score > 100f) score = 100f
+            return score
         } catch (e: Exception) {
             e.printStackTrace()
-            62f
+            return 50f
         }
     }
-
-    private fun normalize(value: Float, min: Float, max: Float): Float {
-        if (max == min) return 0f
-        return ((value - min) / (max - min)).coerceIn(0f, 1f)
+    
+    fun close() {
+        interpreter?.close()
     }
+}
+
+@Composable
+actual fun rememberBurnoutPredictor(): BurnoutPredictor {
+    val context = LocalContext.current
+    return remember { AndroidBurnoutPredictor(context) }
 }

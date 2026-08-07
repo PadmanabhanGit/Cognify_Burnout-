@@ -1,4 +1,4 @@
-﻿*.iml
+*.iml
 .gradle
 /local.properties
 /.idea/
@@ -15,3 +15,11 @@ node_modules/
 .kotlin/
 
 New Server updated parallely for web app(with tested code)/
+
+# ML Training Data and Scripts
+*.csv
+*.pkl
+*.tflite
+!app/src/androidMain/assets/**/*.tflite
+generate_burnout_dataset.py
+train_burnout_model.py
