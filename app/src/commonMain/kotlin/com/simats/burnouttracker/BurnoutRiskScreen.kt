@@ -122,10 +122,7 @@ fun BurnoutRiskScreen(navController: NavController) {
                 // 4. Wellbeing Analysis Card
                 WellbeingAnalysisCard(wellbeing)
 
-                // 5. AI Recommendations Card
-                RiskRecommendationsCard(recommendations, riskScore)
-
-                // 6. Action Plan Button
+                // 5. Action Plan Button
                 Button(
                     onClick = { navController.navigate("generalized_action_plan") },
                     modifier = Modifier
@@ -157,6 +154,24 @@ fun BurnoutRiskScreen(navController: NavController) {
 
 @Composable
 fun RiskGaugeCard(score: Int, level: String) {
+    val dynamicColor = when {
+        score > 75 -> Color(0xFFEF4444)
+        score > 40 -> Color(0xFFF97316)
+        else -> Color(0xFF10B981)
+    }
+    
+    val bgDynamicColor = when {
+        score > 75 -> Color(0xFFFEE2E2)
+        score > 40 -> Color(0xFFFFF7ED)
+        else -> Color(0xFFD1FAE5)
+    }
+
+    val assessmentText = when {
+        score > 75 -> "Your burnout risk is high. Immediate action and rest are recommended to prevent escalation."
+        score > 40 -> "Your burnout risk is moderate. Pay attention to your stress levels and ensure you're taking enough breaks."
+        else -> "Your burnout risk is low. You're maintaining a great balance! Keep up your healthy routines."
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -168,7 +183,7 @@ fun RiskGaugeCard(score: Int, level: String) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "Current Risk Level", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ThemeColors.textPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFF97316), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = dynamicColor, modifier = Modifier.size(18.dp))
                 }
                 Icon(Icons.Default.Info, contentDescription = null, tint = ThemeColors.textTertiary, modifier = Modifier.size(20.dp))
             }
@@ -176,21 +191,21 @@ fun RiskGaugeCard(score: Int, level: String) {
             Box(contentAlignment = Alignment.Center) {
                 Canvas(modifier = Modifier.size(150.dp)) {
                     drawArc(color = ThemeColors.background, startAngle = 140f, sweepAngle = 260f, useCenter = false, style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round))
-                    drawArc(color = Color(0xFFF97316), startAngle = 140f, sweepAngle = 260f * (score / 100f), useCenter = false, style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round))
+                    drawArc(color = dynamicColor, startAngle = 140f, sweepAngle = 260f * (score / 100f), useCenter = false, style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "$score%", fontSize = 36.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF111827))
-                    Text(text = level, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF97316))
+                    Text(text = level, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = dynamicColor)
                 }
             }
             Spacer(modifier = Modifier.height(30.dp))
-            Surface(color = Color(0xFFFFF7ED), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Surface(color = bgDynamicColor, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(16.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = null, tint = Color(0xFF9A3412), modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = null, tint = dynamicColor, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(text = "Assessment", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF9A3412))
-                        Text(text = "Your burnout risk is ${level.lowercase()}. Immediate action is recommended to prevent escalation.", fontSize = 12.sp, color = Color(0xFF9A3412).copy(alpha = 0.8f))
+                        Text(text = "Assessment", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = dynamicColor)
+                        Text(text = assessmentText, fontSize = 12.sp, color = dynamicColor.copy(alpha = 0.9f))
                     }
                 }
             }

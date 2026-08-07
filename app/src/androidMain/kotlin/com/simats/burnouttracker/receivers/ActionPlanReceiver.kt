@@ -60,14 +60,14 @@ class ActionPlanReceiver : BroadcastReceiver() {
         if (limitSocial) {
             val socialMins = (stats.socialHours * 60).toInt()
             if (socialMins > socialLimitMins) {
-                sendNotification(context, 1001, "Social Limit Exceeded", "You've spent $socialMins minutes on social media. Time to disconnect!")
+                sendNotification(context, 1001, "Time for a digital break 🌱", "You've enjoyed $socialMins mins of social media today. Consider taking some time to disconnect and recharge.")
             }
         }
 
         if (limitStreaming) {
             val streamingMins = (stats.streamingHours * 60).toInt()
             if (streamingMins > streamingLimitMins) {
-                sendNotification(context, 1002, "Streaming Limit Exceeded", "You've spent $streamingMins minutes streaming. Rest your eyes!")
+                sendNotification(context, 1002, "Give your eyes a rest 🌿", "You've been streaming for $streamingMins mins. A quick break will do wonders for your focus!")
             }
         }
     }
