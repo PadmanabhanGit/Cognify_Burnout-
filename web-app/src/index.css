@@ -15,16 +15,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-primary: #020617;
-    --bg-secondary: #0F172A;
-    --text-primary: #F8FAFC;
-    --text-secondary: #94A3B8;
-    --border-color: #1E293B;
-    --input-bg: #0F172A;
-    --glass-bg: rgba(15, 23, 42, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.05);
+    --bg-primary: #121212;
+    --bg-secondary: #1E1E1E;
+    --text-primary: #F3F4F6;
+    --text-secondary: #9CA3AF;
+    --border-color: #333333;
+    --input-bg: #1E1E1E;
+    --glass-bg: rgba(30, 30, 30, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.08);
     --glass-icon-bg: rgba(255, 255, 255, 0.1);
-    --accent-glow: rgba(99, 102, 241, 0.05);
+    --accent-glow: rgba(139, 92, 246, 0.1);
   }
 }
 
