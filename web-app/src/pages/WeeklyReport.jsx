@@ -19,7 +19,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { Radar, Bar, Line } from 'react-chartjs-2';
+import { Bar, Line } from 'react-chartjs-2';
 import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BarChartIcon from '@mui/icons-material/BarChart';
