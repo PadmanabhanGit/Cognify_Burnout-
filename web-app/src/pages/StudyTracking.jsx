@@ -114,94 +114,113 @@ export default function StudyTracking() {
   const todaysHours = (elapsed / 3600).toFixed(1);
 
   return (
-    <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: '#F9FAFB' }}>
+    <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       {/* Header Section */}
       <div style={{ 
-        background: 'linear-gradient(to bottom, #6366F1, #8B5CF6)', 
+        background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)', 
         borderBottomLeftRadius: '32px', 
         borderBottomRightRadius: '32px',
-        padding: '40px 24px 60px 24px',
-        height: '180px'
+        padding: '50px 24px 60px 24px',
+        height: '200px',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <div style={{ cursor: 'pointer' }} onClick={() => navigate('/dashboard')}>
+        <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '200px', height: '200px', background: 'rgba(255,255,255,0.1)', borderRadius: '50%', filter: 'blur(30px)' }}></div>
+        <div style={{ cursor: 'pointer', display: 'inline-flex', padding: '8px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', backdropFilter: 'blur(10px)' }} onClick={() => navigate('/dashboard')}>
           <ArrowBackIcon style={{ color: 'white' }} />
         </div>
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>Study Time Tracking</div>
-          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Monitor your study sessions and analytics</div>
+        <div style={{ marginTop: '24px', position: 'relative', zIndex: 1 }}>
+          <div style={{ color: 'white', fontSize: '32px', fontWeight: 800, letterSpacing: '-0.5px' }}>Study Tracking</div>
+          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '15px', fontWeight: 500, marginTop: '4px' }}>Monitor your focus and analytics</div>
         </div>
       </div>
 
-      <div className="desktop-padding" style={{ padding: '0 24px', marginTop: '-30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="desktop-padding" style={{ padding: '0 24px', marginTop: '-35px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         
         {/* Current Session Card */}
-        <div className="white-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 8px 16px rgba(0,0,0,0.05)' }}>
+        <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <TimerIcon style={{ color: '#4F46E5', fontSize: '20px', marginRight: '8px' }} />
-              <div style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937' }}>Current Session</div>
+              <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '8px', borderRadius: '12px', display: 'flex', marginRight: '12px' }}>
+                 <TimerIcon style={{ color: '#6366F1', fontSize: '20px' }} />
+              </div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Current Session</div>
             </div>
             <div style={{ 
-              backgroundColor: isActive ? '#FEF08A' : '#DCFCE7', 
-              padding: '4px 8px', 
-              borderRadius: '8px', 
-              fontSize: '10px', 
-              fontWeight: 700, 
-              color: isActive ? '#A16207' : '#16A34A' 
+              backgroundColor: isActive ? 'rgba(234, 179, 8, 0.15)' : 'rgba(34, 197, 94, 0.15)', 
+              padding: '6px 12px', 
+              borderRadius: '20px', 
+              fontSize: '11px', 
+              fontWeight: 800, 
+              color: isActive ? '#EAB308' : '#22C55E',
+              letterSpacing: '0.5px'
             }}>
               {isActive ? "IN PROGRESS" : "READY"}
             </div>
           </div>
 
-          <div style={{ marginTop: '32px', marginBottom: '32px', fontSize: '64px', fontWeight: 800, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ marginTop: '36px', marginBottom: '36px', fontSize: '72px', fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', textShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
             {formatTime(elapsed)}
           </div>
 
           <button 
             onClick={isActive ? handleStop : handleStart}
             style={{ 
-              width: '100%', height: '56px', borderRadius: '12px', 
-              backgroundColor: isActive ? '#EF4444' : '#2563EB', 
-              color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', border: 'none', cursor: 'pointer' 
+              width: '80%', height: '60px', borderRadius: '30px', 
+              background: isActive ? 'linear-gradient(135deg, #EF4444, #F43F5E)' : 'linear-gradient(135deg, #4F46E5, #7C3AED)', 
+              color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', border: 'none', cursor: 'pointer',
+              boxShadow: isActive ? '0 8px 25px -5px rgba(239, 68, 68, 0.5)' : '0 8px 25px -5px rgba(99, 102, 241, 0.5)',
+              transition: 'all 0.3s ease',
+              transform: isActive ? 'scale(1.02)' : 'scale(1)'
             }}
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = isActive ? 'scale(1.02)' : 'scale(1)'}
           >
             {isActive ? <StopIcon style={{ marginRight: '8px' }} /> : <PlayArrowIcon style={{ marginRight: '8px' }} />}
-            <span style={{ fontSize: '16px', fontWeight: 700 }}>{isActive ? 'End Session' : 'Start Session'}</span>
+            <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '0.5px' }}>{isActive ? 'End Session' : 'Start Session'}</span>
           </button>
 
-          <div style={{ display: 'flex', width: '100%', gap: '12px', marginTop: '24px' }}>
-            <div style={{ flex: 1, backgroundColor: '#EFF6FF', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ fontSize: '12px', color: 'rgba(37, 99, 235, 0.7)', fontWeight: 600 }}>Today's Total</div>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: '#2563EB' }}>{todaysHours}h</div>
+          <div style={{ display: 'flex', width: '100%', gap: '16px', marginTop: '32px' }}>
+            <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 4px 15px var(--accent-glow)' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Today's Total</div>
+              <div style={{ fontSize: '28px', fontWeight: 800, color: '#3B82F6', marginTop: '8px' }}>{todaysHours}<span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>h</span></div>
             </div>
-            <div style={{ flex: 1, backgroundColor: '#FAF5FF', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ fontSize: '12px', color: 'rgba(147, 51, 234, 0.7)', fontWeight: 600 }}>This Week</div>
-              <div style={{ fontSize: '22px', fontWeight: 800, color: '#9333EA' }}>{stats.weeklyHours}h</div>
+            <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 4px 15px var(--accent-glow)' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>This Week</div>
+              <div style={{ fontSize: '28px', fontWeight: 800, color: '#8B5CF6', marginTop: '8px' }}>{stats.weeklyHours}<span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>h</span></div>
             </div>
           </div>
         </div>
 
         {/* Weekly Overview Card */}
-        <div className="white-card" style={{ padding: '20px', marginBottom: '40px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div className="glass-card" style={{ padding: '24px', marginBottom: '40px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <CalendarMonthIcon style={{ color: '#4F46E5', fontSize: '20px', marginRight: '8px' }} />
-              <div style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937' }}>Weekly Overview</div>
+              <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '8px', borderRadius: '12px', display: 'flex', marginRight: '12px' }}>
+                 <CalendarMonthIcon style={{ color: '#8B5CF6', fontSize: '20px' }} />
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>Weekly Overview</div>
             </div>
           </div>
           
           {/* Bar Chart */}
-          <div style={{ display: 'flex', height: '150px', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 4px', gap: '8px' }}>
-            {weeklyData.map((val, idx) => (
-              <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                <div style={{ width: '100%', height: `${(val / maxHours) * 120}px`, backgroundColor: '#3B82F6', borderTopLeftRadius: '6px', borderTopRightRadius: '6px' }}></div>
-                <div style={{ fontSize: '10px', color: 'gray', marginTop: '8px' }}>{days[idx]}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginTop: '24px' }}>
-            {/* Detailed trends button removed as it was static and unimplemented in Web App */}
+          <div style={{ display: 'flex', height: '180px', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 4px', gap: '12px' }}>
+            {weeklyData.map((val, idx) => {
+              const heightPercentage = Math.max((val / maxHours) * 100, 5); // min height 5%
+              return (
+                <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                  <div style={{ 
+                    width: '100%', 
+                    height: `${heightPercentage}%`, 
+                    background: 'linear-gradient(to top, #6366F1, #8B5CF6)', 
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 10px rgba(99, 102, 241, 0.3)',
+                    transition: 'height 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}></div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '12px' }}>{days[idx]}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

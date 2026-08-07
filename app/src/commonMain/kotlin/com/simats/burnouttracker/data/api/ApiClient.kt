@@ -118,6 +118,18 @@ object ApiClient {
         }
     }
 
+    suspend fun logOfflineSession(request: OfflineSessionRequest): SimpleResponse {
+        return try {
+            client.post("api/study/log-offline") {
+                contentType(ContentType.Application.Json)
+                authHeader()?.let { header(HttpHeaders.Authorization, it) }
+                setBody(request)
+            }.body()
+        } catch (e: Exception) {
+            SimpleResponse(success = false, message = e.message ?: "Network error")
+        }
+    }
+
     suspend fun stopStudySession(sessionId: String): StudySessionResponse {
         return try {
             client.patch("api/study/stop/$sessionId") {

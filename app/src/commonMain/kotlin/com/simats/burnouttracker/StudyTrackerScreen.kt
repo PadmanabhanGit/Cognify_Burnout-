@@ -34,6 +34,11 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.Instant
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import com.simats.burnouttracker.data.models.OfflineSessionRequest
 
 @Composable
 fun StudyTrackerScreen(navController: NavController) {
@@ -85,6 +90,34 @@ fun StudyTrackerScreen(navController: NavController) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+
+        // 3. Process Offline Queue
+        scope.launch {
+            try {
+                val pendingJson = settings.getString("pending_sessions", "[]") ?: "[]"
+                val pendingQueue = try {
+                    Json.decodeFromString<List<OfflineSessionRequest>>(pendingJson).toMutableList()
+                } catch (e: Exception) {
+                    mutableListOf<OfflineSessionRequest>()
+                }
+                
+                if (pendingQueue.isNotEmpty()) {
+                    val syncedIndices = mutableListOf<Int>()
+                    for ((index, request) in pendingQueue.withIndex()) {
+                        val resp = ApiClient.logOfflineSession(request)
+                        if (resp.success) {
+                            syncedIndices.add(index)
+                        }
+                    }
+                    
+                    // Remove synced and save remaining
+                    syncedIndices.sortedDescending().forEach { pendingQueue.removeAt(it) }
+                    settings.putString("pending_sessions", Json.encodeToString(pendingQueue))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -249,15 +282,36 @@ fun StudyTrackerScreen(navController: NavController) {
                                     isTimerRunning = false
                                     com.simats.burnouttracker.utils.cancelStudyTimer()
                                     val hours = elapsedTimeSeconds / 3600f
+                                    val minutes = (elapsedTimeSeconds / 60).toInt()
                                     val sessionName = AppData.activeSessionName ?: "Unknown"
-                                    // Stop session on backend 
+                                    val sessionStartIso = AppData.sessionStartTime?.let { 
+                                        Instant.fromEpochMilliseconds(it).toString() 
+                                    } ?: Clock.System.now().toString()
+
+                                    // Stop session on backend or queue for offline sync
                                     scope.launch {
+                                        var syncSuccess = false
                                         try {
                                             val sessionId = AppData.activeSessionId
                                             if (sessionId != null) {
-                                                ApiClient.stopStudySession(sessionId)
+                                                val resp = ApiClient.stopStudySession(sessionId)
+                                                syncSuccess = resp.success
                                             }
                                         } catch (e: Exception) {}
+
+                                        if (!syncSuccess) {
+                                            // Queue offline
+                                            try {
+                                                val pendingJson = settings.getString("pending_sessions", "[]") ?: "[]"
+                                                val pendingQueue = try {
+                                                    Json.decodeFromString<List<OfflineSessionRequest>>(pendingJson).toMutableList()
+                                                } catch (e: Exception) {
+                                                    mutableListOf<OfflineSessionRequest>()
+                                                }
+                                                pendingQueue.add(OfflineSessionRequest(subject = sessionName, duration = minutes, startTime = sessionStartIso))
+                                                settings.putString("pending_sessions", Json.encodeToString(pendingQueue))
+                                            } catch (e: Exception) {}
+                                        }
                                     }
 
                                     AppData.studyTodayHours += hours

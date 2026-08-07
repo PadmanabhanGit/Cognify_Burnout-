@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   startSession,
   stopSession,
+  logOfflineSession,
   getWeeklyStats,
   getMonthlyStats,
 } from '../controllers/studyController';
@@ -17,6 +18,9 @@ router.post('/start', startSession);
 
 // PATCH /api/study/stop/:sessionId   → Stop timer
 router.patch('/stop/:sessionId', stopSession);
+
+// POST /api/study/log-offline       → Log a fully completed session directly
+router.post('/log-offline', logOfflineSession);
 
 // GET  /api/study/stats/weekly       → Weekly bar chart data
 router.get('/stats/weekly', getWeeklyStats);

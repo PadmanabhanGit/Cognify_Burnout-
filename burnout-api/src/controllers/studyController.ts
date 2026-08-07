@@ -58,6 +58,32 @@ export const stopSession = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+// ─── LOG OFFLINE SESSION ──────────────────────────────────────────────────────
+export const logOfflineSession = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { subject, duration, startTime, notes } = req.body;
+
+    if (!subject || duration === undefined || !startTime) {
+      res.status(400).json({ success: false, message: 'Missing required fields for offline session' });
+      return;
+    }
+
+    const session = await StudySession.create({
+      userId: req.userId,
+      subject,
+      notes: notes || '',
+      startTime: new Date(startTime),
+      endTime: new Date(new Date(startTime).getTime() + duration * 60000),
+      duration,
+      isActive: false,
+    });
+
+    res.status(201).json({ success: true, message: 'Offline session synced', session });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error syncing offline session', error });
+  }
+};
+
 // ─── GET WEEKLY STATS ─────────────────────────────────────────────────────────
 // Returns data for the weekly bar chart and subject breakdown on StudyTrackingScreen
 export const getWeeklyStats = async (req: AuthRequest, res: Response): Promise<void> => {

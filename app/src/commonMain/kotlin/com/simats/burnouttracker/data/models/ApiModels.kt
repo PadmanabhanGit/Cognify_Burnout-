@@ -61,6 +61,14 @@ data class StartSessionRequest(
 )
 
 @Serializable
+data class OfflineSessionRequest(
+    val subject: String,
+    val duration: Int,
+    val startTime: String,
+    val notes: String? = null
+)
+
+@Serializable
 data class StudySession(
     @SerialName("_id") val id: String,
     val userId: String,
