@@ -262,7 +262,7 @@ fun SettingsScreen(navController: NavController) {
                     
                     SettingsToggleItem(
                         title = "Burnout Alerts",
-                        subtitle = "AI predictions based on stress",
+                        subtitle = "ML predictions based on stress",
                         checked = AppData.burnoutAlerts,
                         onCheckedChange = { 
                             AppData.burnoutAlerts = it

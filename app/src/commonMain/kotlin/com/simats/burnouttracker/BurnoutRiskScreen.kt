@@ -89,7 +89,7 @@ fun BurnoutRiskScreen(navController: NavController) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "AI-powered mental fatigue prediction",
+                        text = "ML-driven mental fatigue prediction",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 14.sp
                     )

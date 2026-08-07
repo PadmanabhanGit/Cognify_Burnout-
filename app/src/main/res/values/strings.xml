@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Cognify</string>
+    <string name="accessibility_service_description">This service is required by Cognify Dashboard to enforce strict app time limits and help prevent burnout.</string>
 </resources>
