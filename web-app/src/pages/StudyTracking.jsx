@@ -54,6 +54,12 @@ export default function StudyTracking() {
               setWeeklyData(arr);
             }
           }
+          if (res.data.stats.activeSession) {
+            setSession(res.data.stats.activeSession);
+            setIsActive(true);
+            const elapsedSeconds = Math.floor((new Date() - new Date(res.data.stats.activeSession.startTime)) / 1000);
+            setElapsed(elapsedSeconds);
+          }
         }
       } catch (err) {
         console.error(err);

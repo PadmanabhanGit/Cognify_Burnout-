@@ -72,20 +72,35 @@ router.get('/stats/weekly', auth, async (req, res) => {
     const totalMinutes = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
     const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
 
-    // Build daily breakdown for chart
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const dailyMap = {};
+    let todayMinutes = 0;
+    const todayStr = new Date().toISOString().split('T')[0];
+
     sessions.forEach(s => {
-      const day = s.startTime ? s.startTime.split('T')[0] : 'unknown';
-      dailyMap[day] = (dailyMap[day] || 0) + (s.duration || 0);
+      if (!s.startTime) return;
+      const sDate = new Date(s.startTime);
+      const dayName = dayNames[sDate.getDay()];
+      
+      dailyMap[dayName] = (dailyMap[dayName] || 0) + (s.duration || 0);
+      
+      if (s.startTime.split('T')[0] === todayStr) {
+        todayMinutes += (s.duration || 0);
+      }
     });
+
+    const activeSession = sessions.find(s => s.isActive === true) || null;
 
     res.json({
       success: true,
       stats: {
         totalHours,
+        totalMinutes,
+        todayMinutes,
         sessionCount: sessions.size || sessions.length,
         dailyBreakdown: dailyMap,
-        recentSessions: sessions.slice(0, 5)
+        recentSessions: sessions.slice(0, 5),
+        activeSession
       }
     });
   } catch (err) {
