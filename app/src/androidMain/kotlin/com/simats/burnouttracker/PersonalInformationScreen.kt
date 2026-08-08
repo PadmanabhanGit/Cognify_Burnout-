@@ -240,7 +240,7 @@ fun PersonalInformationScreen(navController: NavController) {
                                 }
                                 
                                 // Sync locally for immediate Dashboard update
-                                val prefs = context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+                                val prefs = context.getSharedPreferences("burnout_tracker_prefs", android.content.Context.MODE_PRIVATE)
                                 prefs.edit().putString("firstName", firstName).apply()
                                 
                                 navController.popBackStack()

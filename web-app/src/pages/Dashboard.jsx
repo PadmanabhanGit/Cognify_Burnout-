@@ -20,7 +20,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const firstName = auth.currentUser?.email?.split('@')[0] || "Student";
+  const firstName = dashboardData?.user?.firstName || auth.currentUser?.email?.split('@')[0] || "Student";
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function Dashboard() {
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', width: '100%' }}>
-        <div className="desktop-padding" style={{ padding: '40px 24px 60px 24px' }}>
+        <div className="desktop-padding" style={{ padding: '40px 24px 100px 24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>Hello, {firstName}!</div>

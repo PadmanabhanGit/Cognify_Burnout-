@@ -351,7 +351,13 @@ data class FeatureCards(
 )
 
 @Serializable
+data class DashboardUser(
+    val firstName: String? = null
+)
+
+@Serializable
 data class DashboardData(
+    val user: DashboardUser? = null,
     val quickStats: QuickStats,
     val burnoutAlert: BurnoutAlert,
     val featureCards: FeatureCards

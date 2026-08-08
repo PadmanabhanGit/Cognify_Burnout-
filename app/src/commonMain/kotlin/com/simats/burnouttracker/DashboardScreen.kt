@@ -120,7 +120,16 @@ fun DashboardScreen(navController: NavController) {
                 AppData.lastUpdatedTime = formatCurrentTime()
             }
             
-            ApiClient.getDashboard()
+            val response = ApiClient.getDashboard()
+            if (response.success && response.dashboard?.user?.firstName != null) {
+                val fName = response.dashboard.user.firstName
+                if (fName.isNotBlank() && settings.getString("firstName", "") != fName) {
+                    settings.putString("firstName", fName)
+                    if (AppData.userFullName.isNullOrBlank()) {
+                        AppData.userFullName = fName
+                    }
+                }
+            }
             delay(30000) // Refresh every 30 seconds for "real-time" feel
         }
     }

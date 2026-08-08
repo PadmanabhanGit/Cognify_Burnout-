@@ -32,6 +32,10 @@ router.get('/', auth, async (req, res) => {
     const sessionCount = studySnap.size;
     const weeklyStudyMinutes = studySnap.docs.reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
     const weeklyStudyHours = Math.round((weeklyStudyMinutes / 60) * 10) / 10;
+    
+    const todayStudyMinutes = studySnap.docs
+      .filter(doc => (doc.data().startTime || '').startsWith(today))
+      .reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
 
     const burnoutSnap = await db.collection('burnoutAssessments')
       .where('userId', '==', userId)
@@ -46,16 +50,26 @@ router.get('/', auth, async (req, res) => {
     
     if (!burnout.warnings) burnout.warnings = [];
 
+    // Fetch User Profile for FirstName
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userProfile = userDoc.exists ? userDoc.data() : {};
+    const firstName = userProfile.firstName || req.user.email.split('@')[0];
+
     res.json({
       success: true,
       dashboard: {
+        user: {
+          firstName: firstName
+        },
         quickStats: {
           lastSleepHours: lastSleep?.sleepDuration ?? null,
           lastSleepQuality: lastSleep?.sleepQuality ?? null,
           lastMood: lastSleep?.mood ?? null,
           lastMoodScore: lastSleep?.moodScore ?? null,
           lastProductivityScore: lastProd?.productivityScore ?? null,
-          weeklyStudyHours
+          weeklyStudyHours,
+          weeklyStudyMinutes,
+          todayStudyMinutes
         },
         burnoutAlert: {
           riskScore: burnout.riskScore,
