@@ -13,7 +13,7 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
 object ApiClient {
-    private const val BASE_URL = "http://192.168.1.10:5000/"
+    private const val BASE_URL = "https://cognify-burnout.onrender.com/"
 
     val client = HttpClient {
         install(ContentNegotiation) {
