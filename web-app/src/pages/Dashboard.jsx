@@ -67,26 +67,22 @@ export default function Dashboard() {
   const alertScore = dashboardData?.burnoutAlert?.riskScore ?? 0;
   const alertLevel = dashboardData?.burnoutAlert?.riskLevel ?? 'Low';
   
-  const formatHM = (mins) => {
-    if (!mins) return '0s';
-    const totalSecs = Math.floor(mins * 60);
-    const h = Math.floor(totalSecs / 3600);
-    const m = Math.floor((totalSecs % 3600) / 60);
-    const s = totalSecs % 60;
-    
-    let parts = [];
+  const formatDuration = (minutes) => {
+    if (!minutes && minutes !== 0) return '0m';
+    const h = Math.floor(minutes / 60);
+    const m = Math.round(minutes % 60);
+    const parts = [];
     if (h > 0) parts.push(`${h}h`);
-    if (m > 0) parts.push(`${m}m`);
-    if (s > 0) parts.push(`${s}s`);
-    return parts.length > 0 ? parts.join(' ') : '0s';
+    if (m > 0 || parts.length === 0) parts.push(`${m}m`);
+    return parts.join(' ');
   };
 
-  const todayStudyDisplay = formatHM(dashboardData?.quickStats?.todayStudyMinutes);
-  const weeklyStudyDisplay = formatHM(dashboardData?.quickStats?.weeklyStudyMinutes);
-  const appUsageDisplay = formatHM(dashboardData?.quickStats?.todayAppUsageMinutes);
+  const todayStudyDisplay = formatDuration(dashboardData?.quickStats?.todayStudyMinutes ?? 0);
+  const weeklyStudyDisplay = formatDuration(dashboardData?.quickStats?.weeklyStudyMinutes ?? 0);
+  const appUsageDisplay = formatDuration(dashboardData?.quickStats?.todayAppUsageMinutes ?? 0);
   const appUsageProgress = Math.min((dashboardData?.quickStats?.todayAppUsageMinutes || 0) / (8 * 60), 1);
-  const sleepHours = dashboardData?.quickStats?.lastSleepHours ?? 0;
-  const moodScore = dashboardData?.quickStats?.lastMoodScore ?? 5;
+  const sleepHours = Number(dashboardData?.quickStats?.lastSleepHours ?? 0);
+  const moodScore = Number(dashboardData?.quickStats?.lastMoodScore ?? 0);
   const moodEmoji = moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : '😔';
 
   return (

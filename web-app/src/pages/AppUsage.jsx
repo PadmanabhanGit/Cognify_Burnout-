@@ -61,17 +61,17 @@ export default function AppUsage() {
   const totalSeconds = Object.values(buckets).reduce((a, b) => a + b, 0);
   
   const formatMins = (totalMins) => {
-    if (!totalMins) return '0s';
+    if (!totalMins && totalMins !== 0) return '0m';
     const h = Math.floor(totalMins / 60);
-    const m = Math.floor(totalMins % 60);
-    
+    const m = Math.round(totalMins % 60);
+
     let parts = [];
     if (h > 0) parts.push(`${h}h`);
-    if (m > 0) parts.push(`${m}m`);
-    return parts.length > 0 ? parts.join(' ') : '0s';
+    if (m > 0 || parts.length === 0) parts.push(`${m}m`);
+    return parts.join(' ');
   };
-  
-  const totalHoursStr = formatMins(totalSeconds); // 'totalSeconds' here is actually totalMinutes, we can just leave the variable name but it's used correctly now.
+
+  const totalHoursStr = formatMins(totalSeconds);
 
 
   return (

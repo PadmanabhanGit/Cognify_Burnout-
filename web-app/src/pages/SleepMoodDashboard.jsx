@@ -41,10 +41,10 @@ export default function SleepMoodDashboard() {
   }, []);
 
   const latestSession = logs.length > 0 ? logs[0] : null;
-  const displayQuality = latestSession?.sleepQuality || 85;
-  const displayDisturbance = latestSession?.disturbanceScore || 15;
-  const sleepDuration = latestSession?.sleepDuration || 7.5;
-  const awakeningCount = latestSession?.awakeningCount || 1;
+  const displayQuality = Number(latestSession?.sleepQuality ?? 0);
+  const displayDisturbance = Number(latestSession?.disturbanceScore ?? 0);
+  const sleepDuration = Number(latestSession?.sleepDuration ?? 0);
+  const awakeningCount = Number(latestSession?.awakeningCount ?? 0);
 
   const getQualityColor = (score) => {
     if (score >= 75) return '#10B981';
