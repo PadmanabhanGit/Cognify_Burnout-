@@ -14,7 +14,7 @@ export default function SleepMoodLogger() {
     try {
       await api.post('/api/sleep-mood/log', {
         sleepDuration: sleepHours,
-        sleepQuality: sleepHours > 7 ? 'Good' : 'Fair',
+        sleepQuality: Math.max(1, Math.min(10, Math.round((sleepHours / 8) * 10))),
         mood: moodScore > 7 ? 'Happy' : 'Neutral',
         moodScore: moodScore,
         notes: 'Logged from Web App'

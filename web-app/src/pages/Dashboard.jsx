@@ -20,6 +20,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lastSyncedAt, setLastSyncedAt] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(Date.now());
   const firstName = dashboardData?.user?.firstName || auth.currentUser?.email?.split('@')[0] || "Student";
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
@@ -36,6 +38,7 @@ export default function Dashboard() {
           const response = await api.get('/api/dashboard');
           if (response.data.success) {
             setDashboardData(response.data.dashboard);
+            setLastSyncedAt(Date.now());
           }
         } catch (err) {
           console.error('Failed to load dashboard data', err);
@@ -59,6 +62,11 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const timerId = window.setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => window.clearInterval(timerId);
+  }, []);
+
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
   }
@@ -67,22 +75,37 @@ export default function Dashboard() {
   const alertScore = dashboardData?.burnoutAlert?.riskScore ?? 0;
   const alertLevel = dashboardData?.burnoutAlert?.riskLevel ?? 'Low';
   
-  const formatDuration = (minutes) => {
-    if (!minutes && minutes !== 0) return '0m';
-    const h = Math.floor(minutes / 60);
-    const m = Math.round(minutes % 60);
+  const formatDuration = (seconds) => {
+    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+    const h = Math.floor(safeSeconds / 3600);
+    const m = Math.floor((safeSeconds % 3600) / 60);
+    const s = safeSeconds % 60;
     const parts = [];
     if (h > 0) parts.push(`${h}h`);
-    if (m > 0 || parts.length === 0) parts.push(`${m}m`);
+    if (m > 0) parts.push(`${m}m`);
+    if (s > 0 || parts.length === 0) parts.push(`${s}s`);
     return parts.join(' ');
   };
 
-  const todayStudyDisplay = formatDuration(dashboardData?.quickStats?.todayStudyMinutes ?? 0);
-  const weeklyStudyDisplay = formatDuration(dashboardData?.quickStats?.weeklyStudyMinutes ?? 0);
-  const appUsageDisplay = formatDuration(dashboardData?.quickStats?.todayAppUsageMinutes ?? 0);
-  const appUsageProgress = Math.min((dashboardData?.quickStats?.todayAppUsageMinutes || 0) / (8 * 60), 1);
-  const sleepHours = Number(dashboardData?.quickStats?.lastSleepHours ?? 0);
+  const quickStats = dashboardData?.quickStats ?? {};
+  const hasActiveStudySession = quickStats.hasActiveStudySession === true || Number(quickStats.activeStudySeconds) > 0;
+  const todayStudySeconds = Number(quickStats.todayStudySeconds ?? (quickStats.todayStudyMinutes || 0) * 60)
+    + (hasActiveStudySession ? Math.floor((currentTime - lastSyncedAt) / 1000) : 0);
+  const todayStudyDisplay = formatDuration(todayStudySeconds);
+  const appUsageMinutes = Number(quickStats.todayAppUsageMinutes ?? 0);
+  const appUsageDisplay = formatDuration(appUsageMinutes * 60);
+  const appUsageProgress = Math.min(appUsageMinutes / (10 * 60), 1);
+  const sleepDurationMinutes = Math.round(Number(quickStats.lastSleepHours ?? 0) * 60);
+  const sleepDisplay = formatDuration(sleepDurationMinutes * 60);
   const moodScore = Number(dashboardData?.quickStats?.lastMoodScore ?? 0);
+  const sleepQuality = Number(quickStats.lastSleepQuality);
+  const sleepProgress = Number.isFinite(sleepQuality)
+    ? Math.min(sleepQuality > 10 ? sleepQuality / 100 : sleepQuality / 10, 1)
+    : 0;
+  const sleepStatus = sleepQuality >= 8 || moodScore >= 8 ? 'Excellent'
+    : sleepQuality >= 6 || moodScore >= 6 ? 'Good'
+    : quickStats.lastMood ? 'Needs care' : 'Log Today';
+  const productivityScore = quickStats.lastProductivityScore;
   const moodEmoji = moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : '😔';
 
   return (
@@ -107,7 +130,7 @@ export default function Dashboard() {
             </div>
             <div style={{ flex: 1, height: '110px', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
               <BedtimeIcon style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }} />
-              <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{sleepHours}h</div>
+              <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{sleepDisplay}</div>
               <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>Sleep</div>
             </div>
             <div style={{ flex: 1, height: '110px', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
@@ -127,22 +150,22 @@ export default function Dashboard() {
         <div className="responsive-grid">
           <FeatureCard 
             icon={MenuBookIcon} title="Study Tracking" subtitle="Daily goal progress" 
-            trailing={todayStudyDisplay} progress={Math.min((dashboardData?.quickStats?.todayStudyMinutes || 0) / (8 * 60), 1)} 
+            trailing={todayStudyDisplay} progress={Math.min(todayStudySeconds / (8 * 60 * 60), 1)}
             color="#E0F2FE" iconColor="#0284C7" onClick={() => navigate('/study')} 
           />
           <FeatureCard 
             icon={BedtimeIcon} title="Sleep & Mood" subtitle="Wellness analysis" 
-            trailing={dashboardData?.quickStats?.lastMood || "Log Today"} progress={(dashboardData?.quickStats?.lastSleepQuality || 0) / 100} 
+            trailing={sleepStatus} progress={sleepProgress}
             color="#EEF2FF" iconColor="#6366F1" onClick={() => navigate('/sleep')} 
           />
           <FeatureCard 
             icon={BarChartIcon} title="App Usage" subtitle="Leisure time impact" 
-            trailing={appUsageDisplay === '0s' ? 'Today' : appUsageDisplay} progress={appUsageProgress} 
+            trailing={appUsageMinutes > 0 ? appUsageDisplay : 'Today'} progress={appUsageProgress}
             color="#F5F3FF" iconColor="#8B5CF6" onClick={() => navigate('/usage')} 
           />
           <FeatureCard 
             icon={TrendingUpIcon} title="Productivity" subtitle="Weekly trends" 
-            trailing={`+${(alertScore % 15) + 5}%`} color="#DCFCE7" iconColor="#10B981" onClick={() => navigate('/productivity')} 
+            trailing={Number.isFinite(Number(productivityScore)) ? `${productivityScore}%` : 'View'} color="#DCFCE7" iconColor="#10B981" onClick={() => navigate('/productivity')}
           />
           <FeatureCard 
             icon={DescriptionIcon} title="Weekly Report" subtitle="Download PDF" 
@@ -157,4 +180,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

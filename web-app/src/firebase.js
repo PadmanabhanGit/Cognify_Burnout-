@@ -1,21 +1,18 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
-// Using dummy config since Firebase is used in emulator mode typically for dev.
-// The user should update this with real config if using production.
 const firebaseConfig = {
-  apiKey: "AIzaSyC9_G9adRw3eAuAtIShU9Pv58ffpxyh6fU",
-  authDomain: "burnouttracker-a3738a4f.firebaseapp.com",
-  projectId: "burnouttracker-a3738a4f",
-  storageBucket: "burnouttracker-a3738a4f.firebasestorage.app",
-  messagingSenderId: "966389564228",
-  appId: "1:966389564228:android:ff2fcd66186641c1fc8d11"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || ''
 };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Connect to emulator if running locally
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099');
 }

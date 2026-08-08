@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.simats.burnouttracker.data.api.ApiClient
+import com.simats.burnouttracker.data.models.SleepMoodLogRequest
 import com.simats.burnouttracker.utils.rememberPlatformSettings
 import kotlinx.coroutines.launch
 
@@ -61,6 +63,21 @@ fun SleepMoodScreen(navController: NavController) {
             // 2. Persist to Disk (Actual Working)
             settings.putString("last_mood", moodNames[selectedMood])
             settings.putString("last_sleep_hours", sleepHours.toString())
+
+            // Keep the web dashboard and the mobile app on the same Firestore-backed data.
+            // Local state remains available if this request cannot be completed offline.
+            try {
+                ApiClient.saveSleepMoodLog(
+                    SleepMoodLogRequest(
+                        sleepDuration = sleepHours.toDouble(),
+                        sleepQuality = ((sleepHours / 8f) * 10).toInt().coerceIn(1, 10),
+                        mood = moodNames[selectedMood],
+                        moodScore = (10 - (selectedMood * 2)).coerceIn(1, 10)
+                    )
+                )
+            } catch (_: Exception) {
+                // The local values above will still be retained until the user is online.
+            }
 
             navController.navigate("sleep_mood_dashboard")
             isSaving = false

@@ -48,12 +48,28 @@ router.get('/', auth, async (req, res) => {
       });
 
     const sessionCount = studyDocs.length;
-    const weeklyStudyMinutes = studyDocs.reduce((sum, doc) => sum + (doc.duration || 0), 0);
+    const weeklyStudyMinutes = studyDocs.reduce((sum, doc) => sum + Number(doc.duration || 0), 0);
     const weeklyStudyHours = Math.round((weeklyStudyMinutes / 60) * 10) / 10;
     
-    const todayStudyMinutes = studyDocs
+    const completedTodayStudyMinutes = studyDocs
       .filter(doc => normalizeDateValue(doc.startTime) === today)
-      .reduce((sum, doc) => sum + (doc.duration || 0), 0);
+      .reduce((sum, doc) => sum + Number(doc.duration || 0), 0);
+
+    // An active session has no persisted duration until it is stopped. Include its
+    // elapsed time here so the dashboard is consistent with the running mobile timer.
+    const now = Date.now();
+    const activeSession = studyDocs
+      .filter(doc => doc.isActive === true && normalizeDateValue(doc.startTime) === today)
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+      .find(doc => {
+        const startedAt = new Date(doc.startTime).getTime();
+        return Number.isFinite(startedAt) && now - startedAt < 24 * 60 * 60 * 1000;
+      }) || null;
+    const activeStudySeconds = activeSession
+      ? Math.max(0, Math.floor((now - new Date(activeSession.startTime).getTime()) / 1000))
+      : 0;
+    const todayStudySeconds = (completedTodayStudyMinutes * 60) + activeStudySeconds;
+    const todayStudyMinutes = Math.floor(todayStudySeconds / 60);
 
     const burnoutSnap = await db.collection('burnoutAssessments')
       .where('userId', '==', userId)
@@ -105,6 +121,9 @@ router.get('/', auth, async (req, res) => {
           weeklyStudyHours,
           weeklyStudyMinutes,
           todayStudyMinutes,
+          todayStudySeconds,
+          activeStudySeconds,
+          hasActiveStudySession: Boolean(activeSession),
           todayAppUsageMinutes
         },
         burnoutAlert: {
