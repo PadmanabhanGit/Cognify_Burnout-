@@ -238,12 +238,12 @@ jobs:
           
           ## 📦 Test Report Artifacts
           
-          The full CSV Excel test report files are uploaded as part of this workflow run and can be inspected in the artifacts list below, or accessed directly via GitHub Pages:
+          The full CSV Excel test report files are deployed to the `gh-pages` branch. You can click the links below to view the spreadsheets directly in your browser without downloading:
           
-          - **Website E2E Excel Report:** `test reports/test#${{ github.run_number }}/selenium_test_report.csv`
-          - **Mobile E2E Excel Report:** `test reports/test#${{ github.run_number }}/appium_test_report.csv`
-          - **Backend Security Excel Report:** `test reports/test#${{ github.run_number }}/backend_security_report.csv`
-          - **API Load Excel Report:** `test reports/test#${{ github.run_number }}/api_load_test_report.csv`
+          - **Website E2E Excel Report:** [View in Browser](https://github.com/${{ github.repository }}/blob/gh-pages/test%20reports/test%23${{ github.run_number }}/selenium_test_report.csv)
+          - **Mobile E2E Excel Report:** [View in Browser](https://github.com/${{ github.repository }}/blob/gh-pages/test%20reports/test%23${{ github.run_number }}/appium_test_report.csv)
+          - **Backend Security Excel Report:** [View in Browser](https://github.com/${{ github.repository }}/blob/gh-pages/test%20reports/test%23${{ github.run_number }}/backend_security_report.csv)
+          - **API Load Excel Report:** [View in Browser](https://github.com/${{ github.repository }}/blob/gh-pages/test%20reports/test%23${{ github.run_number }}/api_load_test_report.csv)
           MARKDOWN_EOF
 
       - name: Deploy Reports to GitHub Pages
