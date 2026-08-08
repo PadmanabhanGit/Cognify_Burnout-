@@ -10,6 +10,8 @@ router.post('/sync', auth, async (req, res) => {
   const userId = req.user.uid;
   const syncDate = date || new Date().toISOString().split('T')[0];
 
+  console.log(`[usage/sync] Received data from user ${userId} for date ${syncDate}:`, req.body);
+
   try {
     const batch = db.batch();
     for (const item of usageData) {

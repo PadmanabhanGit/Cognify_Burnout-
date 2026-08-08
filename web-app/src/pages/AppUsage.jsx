@@ -60,20 +60,18 @@ export default function AppUsage() {
 
   const totalSeconds = Object.values(buckets).reduce((a, b) => a + b, 0);
   
-  const formatSecs = (totalSecs) => {
-    if (!totalSecs) return '0s';
-    const h = Math.floor(totalSecs / 3600);
-    const m = Math.floor((totalSecs % 3600) / 60);
-    const s = Math.floor(totalSecs % 60);
+  const formatMins = (totalMins) => {
+    if (!totalMins) return '0s';
+    const h = Math.floor(totalMins / 60);
+    const m = Math.floor(totalMins % 60);
     
     let parts = [];
     if (h > 0) parts.push(`${h}h`);
     if (m > 0) parts.push(`${m}m`);
-    if (s > 0) parts.push(`${s}s`);
     return parts.length > 0 ? parts.join(' ') : '0s';
   };
   
-  const totalHoursStr = formatSecs(totalSeconds);
+  const totalHoursStr = formatMins(totalSeconds); // 'totalSeconds' here is actually totalMinutes, we can just leave the variable name but it's used correctly now.
 
 
   return (
@@ -110,10 +108,10 @@ export default function AppUsage() {
           ) : (
             <>
               {['Social Media', 'Gaming', 'Streaming', 'Productivity'].map((cat, index) => {
-                const secs = buckets[cat] || 0;
-                const durationStr = formatSecs(secs);
-                // Assume 8 hours (28800 secs) as max for full bar
-                const progress = Math.min(secs / 28800, 1.0);
+                const secs = buckets[cat] || 0; // it's actually mins
+                const durationStr = formatMins(secs);
+                // Assume 8 hours (480 mins) as max for full bar
+                const progress = Math.min(secs / 480, 1.0);
                 const colors = { 'Social Media': '#F43F5E', 'Gaming': '#F59E0B', 'Streaming': '#3B82F6', 'Productivity': '#10B981' };
                 return (
                   <UsageItem key={index} label={cat} duration={durationStr} progress={progress}
@@ -148,7 +146,7 @@ export default function AppUsage() {
                       <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.category}</div>
                     </div>
                   </div>
-                  <div style={{ flex: 1, textAlign: 'right', fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{formatSecs(item.duration)}</div>
+                  <div style={{ flex: 1, textAlign: 'right', fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{formatMins(item.duration)}</div>
                 </div>
               );
             })
@@ -160,7 +158,7 @@ export default function AppUsage() {
           <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Burnout Risk Impact</div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Correlation between app type and burnout score</div>
           
-          {totalSeconds > 14400 ? (
+          {totalSeconds > 240 ? ( // 240 mins = 4 hours
             <div style={{ backgroundColor: '#FFF1F2', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center' }}>
               <WarningIcon style={{ color: '#E11D48', fontSize: '16px', marginRight: '12px' }} />
               <div style={{ fontSize: '11px', color: '#9F1239' }}>Your entertainment usage is high. This can reduce focus by <span style={{ fontWeight: 700, color: '#E11D48' }}>12%</span>.</div>

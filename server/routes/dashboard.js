@@ -50,6 +50,20 @@ router.get('/', auth, async (req, res) => {
     
     if (!burnout.warnings) burnout.warnings = [];
 
+    const usageSnap = await db.collection('appUsage')
+      .where('userId', '==', userId)
+      .where('date', '==', today)
+      .get();
+    
+    let todayAppUsageMinutes = 0;
+    usageSnap.docs.forEach(doc => {
+      const data = doc.data();
+      const cat = data.category || '';
+      if (cat.includes('Social') || cat.includes('Gaming') || cat.includes('Stream') || cat.includes('Entertainment')) {
+        todayAppUsageMinutes += (data.totalDuration || 0);
+      }
+    });
+
     // Fetch User Profile for FirstName
     const userDoc = await db.collection('users').doc(userId).get();
     const userProfile = userDoc.exists ? userDoc.data() : {};
@@ -69,7 +83,8 @@ router.get('/', auth, async (req, res) => {
           lastProductivityScore: lastProd?.productivityScore ?? null,
           weeklyStudyHours,
           weeklyStudyMinutes,
-          todayStudyMinutes
+          todayStudyMinutes,
+          todayAppUsageMinutes
         },
         burnoutAlert: {
           riskScore: burnout.riskScore,

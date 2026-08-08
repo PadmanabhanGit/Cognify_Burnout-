@@ -63,6 +63,8 @@ export default function Dashboard() {
 
   const todayStudyDisplay = formatHM(dashboardData?.quickStats?.todayStudyMinutes);
   const weeklyStudyDisplay = formatHM(dashboardData?.quickStats?.weeklyStudyMinutes);
+  const appUsageDisplay = formatHM(dashboardData?.quickStats?.todayAppUsageMinutes);
+  const appUsageProgress = Math.min((dashboardData?.quickStats?.todayAppUsageMinutes || 0) / (8 * 60), 1);
   const sleepHours = dashboardData?.quickStats?.lastSleepHours ?? 0;
   const moodScore = dashboardData?.quickStats?.lastMoodScore ?? 5;
   const moodEmoji = moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : '😔';
@@ -119,7 +121,7 @@ export default function Dashboard() {
           />
           <FeatureCard 
             icon={BarChartIcon} title="App Usage" subtitle="Leisure time impact" 
-            trailing={`Today`} progress={0.25} 
+            trailing={appUsageDisplay === '0s' ? 'Today' : appUsageDisplay} progress={appUsageProgress} 
             color="#F5F3FF" iconColor="#8B5CF6" onClick={() => navigate('/usage')} 
           />
           <FeatureCard 
