@@ -81,7 +81,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                     AppData.isSyncing = false
                 }
             }
-            delay(10000) // Update every 10 seconds for near real-time sync
+            delay(3000) // Update every 3 seconds for near real-time sync
         }
     }
 

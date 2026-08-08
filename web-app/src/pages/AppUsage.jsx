@@ -9,6 +9,8 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import api from '../services/api';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 
 import BottomNavigation from '../components/BottomNavigation';
 
@@ -19,23 +21,72 @@ export default function AppUsage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUsage = async () => {
-      try {
-        const res = await api.get('/api/usage/today');
-        if (res.data.success) {
-          setUsage(res.data.usage || []);
-          setTopApps(res.data.topApps || []);
-        }
-      } catch (err) {
-        console.error("Failed to load usage data", err);
-      } finally {
-        setLoading(false);
-      }
+    const user = auth.currentUser;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    // Listen to App Usage Categories
+    const usageQuery = query(
+      collection(db, 'appUsage'),
+      where('userId', '==', user.uid),
+      where('date', '==', dateStr)
+    );
+
+    const unsubscribeUsage = onSnapshot(usageQuery, (snapshot) => {
+      const newUsage = snapshot.docs.map(doc => doc.data());
+      setUsage(newUsage);
+      setLoading(false);
+    });
+
+    // Listen to App Usage Details (Top Apps)
+    const detailsQuery = query(
+      collection(db, 'appUsageDetails'),
+      where('userId', '==', user.uid),
+      where('date', '==', dateStr)
+    );
+
+    const getIconColorForCategory = (cat) => {
+      const colors = {
+        'Entertainment': '#3B82F6',
+        'Streaming': '#3B82F6',
+        'Social Media': '#EC4899',
+        'Productivity': '#10B981',
+        'Gaming': '#F97316'
+      };
+      return colors[cat] || '#6B7280';
     };
-    
-    fetchUsage(); // initial fetch
-    const intervalId = setInterval(fetchUsage, 10000); // refresh every 10 seconds
-    return () => clearInterval(intervalId); // cleanup on unmount
+
+    const unsubscribeDetails = onSnapshot(detailsQuery, (snapshot) => {
+      const details = snapshot.docs.map(doc => doc.data());
+      const sorted = details
+        .sort((a, b) => {
+          const aSecs = Number(a.durationSeconds ?? (a.duration || 0) * 60);
+          const bSecs = Number(b.durationSeconds ?? (b.duration || 0) * 60);
+          return bSecs - aSecs;
+        })
+        .slice(0, 10)
+        .map(data => ({
+          name: data.appName || data.packageName || 'Unknown',
+          category: data.category,
+          durationSeconds: data.durationSeconds,
+          duration: data.duration,
+          color: getIconColorForCategory(data.category)
+        }));
+      setTopApps(sorted);
+    });
+
+    return () => {
+      unsubscribeUsage();
+      unsubscribeDetails();
+    };
   }, []);
 
   // Normalize categories from backend — classifier may return "Entertainment", "Others", etc.
