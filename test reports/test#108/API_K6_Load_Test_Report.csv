@@ -1,0 +1,2 @@
+Feature Testing Area,Tests Ran,Passed,Failed,Status,Notes
+API K6 Load Testing Report,628,628,0,Passed / Fixed,K6 load test completed successfully with 0 failures
