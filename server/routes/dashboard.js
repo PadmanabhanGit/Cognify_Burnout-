@@ -3,26 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { computeBurnoutRisk } = require('../services/burnoutService');
-
-function getLocalDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function normalizeDateValue(value) {
-  if (!value) return getLocalDateString();
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-    const parsed = new Date(trimmed);
-    if (!Number.isNaN(parsed.getTime())) return getLocalDateString(parsed);
-    return getLocalDateString();
-  }
-  if (value instanceof Date) return getLocalDateString(value);
-  return getLocalDateString();
-}
+const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
 
 router.get('/', auth, async (req, res) => {
   const userId = req.user.uid;
@@ -32,13 +13,19 @@ router.get('/', auth, async (req, res) => {
     const sleepSnap = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
       .get();
-    const sleepDocs = sleepSnap.docs.map(d => d.data()).sort((a, b) => b.date.localeCompare(a.date));
+    const sleepDocs = sleepSnap.docs
+      .map(d => d.data())
+      .filter(item => item && item.userId === userId)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const lastSleep = sleepDocs.length > 0 ? sleepDocs[0] : null;
 
     const prodSnap = await db.collection('productivityLogs')
       .where('userId', '==', userId)
       .get();
-    const prodDocs = prodSnap.docs.map(d => d.data()).sort((a, b) => b.date.localeCompare(a.date));
+    const prodDocs = prodSnap.docs
+      .map(d => d.data())
+      .filter(item => item && item.userId === userId)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const lastProd = prodDocs.length > 0 ? prodDocs[0] : null;
 
     const weekAgo = new Date();
@@ -46,21 +33,31 @@ router.get('/', auth, async (req, res) => {
 
     const studySnap = await db.collection('studySessions')
       .where('userId', '==', userId)
-      .where('startTime', '>=', weekAgo.toISOString())
       .get();
 
-    const sessionCount = studySnap.size;
-    const weeklyStudyMinutes = studySnap.docs.reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
+    const studyDocs = studySnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(doc => {
+        if (!doc.startTime) return false;
+        const startTime = new Date(doc.startTime);
+        return !Number.isNaN(startTime.getTime()) && startTime >= weekAgo;
+      });
+
+    const sessionCount = studyDocs.length;
+    const weeklyStudyMinutes = studyDocs.reduce((sum, doc) => sum + (doc.duration || 0), 0);
     const weeklyStudyHours = Math.round((weeklyStudyMinutes / 60) * 10) / 10;
     
-    const todayStudyMinutes = studySnap.docs
-      .filter(doc => normalizeDateValue(doc.data().startTime) === today)
-      .reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
+    const todayStudyMinutes = studyDocs
+      .filter(doc => normalizeDateValue(doc.startTime) === today)
+      .reduce((sum, doc) => sum + (doc.duration || 0), 0);
 
     const burnoutSnap = await db.collection('burnoutAssessments')
       .where('userId', '==', userId)
       .get();
-    const burnoutDocs = burnoutSnap.docs.map(d => d.data()).sort((a, b) => b.date.localeCompare(a.date));
+    const burnoutDocs = burnoutSnap.docs
+      .map(d => d.data())
+      .filter(item => item && item.userId === userId)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     let burnout = null;
     if (burnoutDocs.length > 0) {
       burnout = burnoutDocs[0];
