@@ -1,14 +1,17 @@
 const { db } = require('../firebase');
+const { normalizeDateValue } = require('../utils/dateUtils');
 
 async function getTodaySleep(userId, date) {
     const snapshot = await db.collection('sleepMoodLogs')
         .where('userId', '==', userId)
-        .where('date', '>=', date)
-        .where('date', '<', date + '\uf8ff')
-        .orderBy('date', 'desc')
-        .limit(1)
         .get();
-    return snapshot.empty ? null : snapshot.docs[0].data();
+
+    const matchingLogs = snapshot.docs
+        .map(doc => doc.data())
+        .filter(item => normalizeDateValue(item.date) === date)
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    return matchingLogs.length > 0 ? matchingLogs[0] : null;
 }
 
 async function getTodayActivity(userId, date) {
@@ -27,10 +30,12 @@ async function getTodayUsage(userId, date) {
 async function getTodayStudyMinutes(userId, date) {
     const snapshot = await db.collection('studySessions')
         .where('userId', '==', userId)
-        .where('startTime', '>=', date)
-        .where('startTime', '<', date + '\uf8ff')
         .get();
-    return snapshot.docs.reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
+
+    return snapshot.docs
+        .map(doc => doc.data())
+        .filter(item => normalizeDateValue(item.startTime) === date)
+        .reduce((sum, item) => sum + (item.duration || 0), 0);
 }
 
 async function computeBurnoutRisk(userId, date) {

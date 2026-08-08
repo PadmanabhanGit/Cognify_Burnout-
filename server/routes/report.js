@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
+const { normalizeDateValue } = require('../utils/dateUtils');
 
 router.get('/weekly', auth, async (req, res) => {
   const userId = req.user.uid;
@@ -10,31 +11,39 @@ router.get('/weekly', auth, async (req, res) => {
     const now = new Date();
     const weekAgo = new Date();
     weekAgo.setDate(now.getDate() - 7);
-    const fromIso = weekAgo.toISOString();
-    const toIso = now.toISOString();
 
     const sleepSnap = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
-      .where('date', '>=', fromIso)
-      .where('date', '<=', toIso)
       .get();
-    const sleepLogs = sleepSnap.docs.map(d => d.data());
+    const sleepLogs = sleepSnap.docs
+      .map(d => d.data())
+      .filter(item => {
+        const value = normalizeDateValue(item.date);
+        return value >= weekAgo.toISOString().slice(0, 10) && value <= now.toISOString().slice(0, 10);
+      });
     const avgSleep = sleepLogs.length ? sleepLogs.reduce((s, l) => s + (l.sleepDuration || 0), 0) / sleepLogs.length : 0;
     const avgMood = sleepLogs.length ? sleepLogs.reduce((s, l) => s + (l.moodScore || 0), 0) / sleepLogs.length : 0;
 
     const studySnap = await db.collection('studySessions')
       .where('userId', '==', userId)
-      .where('startTime', '>=', fromIso)
-      .where('startTime', '<=', toIso)
       .get();
-    const totalStudyHours = Math.round((studySnap.docs.reduce((s, d) => s + (d.data().duration || 0), 0) / 60) * 10) / 10;
+    const totalStudyHours = Math.round((studySnap.docs
+      .map(d => d.data())
+      .filter(item => {
+        const value = normalizeDateValue(item.startTime);
+        return value >= weekAgo.toISOString().slice(0, 10) && value <= now.toISOString().slice(0, 10);
+      })
+      .reduce((s, d) => s + (d.duration || 0), 0) / 60) * 10) / 10;
 
     const prodSnap = await db.collection('productivityLogs')
       .where('userId', '==', userId)
-      .where('date', '>=', fromIso)
-      .where('date', '<=', toIso)
       .get();
-    const prodLogs = prodSnap.docs.map(d => d.data());
+    const prodLogs = prodSnap.docs
+      .map(d => d.data())
+      .filter(item => {
+        const value = normalizeDateValue(item.date);
+        return value >= weekAgo.toISOString().slice(0, 10) && value <= now.toISOString().slice(0, 10);
+      });
     const avgProductivity = prodLogs.length ? prodLogs.reduce((s, l) => s + (l.productivityScore || 0), 0) / prodLogs.length : 0;
 
     const wellnessRadar = {

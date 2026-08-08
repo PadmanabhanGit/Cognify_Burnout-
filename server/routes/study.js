@@ -85,10 +85,15 @@ router.get('/stats/weekly', auth, async (req, res) => {
   try {
     const snapshot = await db.collection('studySessions')
       .where('userId', '==', userId)
-      .where('startTime', '>=', weekAgo.toISOString())
       .get();
 
-    const sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    const sessions = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => {
+        if (!s.startTime) return false;
+        const startTime = new Date(s.startTime);
+        return !Number.isNaN(startTime.getTime()) && startTime >= weekAgo;
+      });
     const totalMinutes = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
     const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
 
