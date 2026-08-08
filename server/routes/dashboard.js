@@ -91,15 +91,16 @@ router.get('/', auth, async (req, res) => {
       .where('userId', '==', userId)
       .get();
     
-    let todayAppUsageMinutes = 0;
+    let todayAppUsageSeconds = 0;
     usageSnap.docs.forEach(doc => {
       const data = doc.data();
       if (normalizeDateValue(data.date) !== today) return;
       const cat = data.category || '';
       if (cat.includes('Social') || cat.includes('Gaming') || cat.includes('Stream') || cat.includes('Entertainment')) {
-        todayAppUsageMinutes += (data.totalDuration || 0);
+        todayAppUsageSeconds += Number(data.totalDurationSeconds ?? (data.totalDuration || 0) * 60);
       }
     });
+    const todayAppUsageMinutes = Math.floor(todayAppUsageSeconds / 60);
 
     // Fetch User Profile for FirstName
     const userDoc = await db.collection('users').doc(userId).get();
@@ -124,7 +125,8 @@ router.get('/', auth, async (req, res) => {
           todayStudySeconds,
           activeStudySeconds,
           hasActiveStudySession: Boolean(activeSession),
-          todayAppUsageMinutes
+          todayAppUsageMinutes,
+          todayAppUsageSeconds
         },
         burnoutAlert: {
           riskScore: burnout.riskScore,

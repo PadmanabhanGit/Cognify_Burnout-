@@ -92,9 +92,9 @@ export default function Dashboard() {
   const todayStudySeconds = Number(quickStats.todayStudySeconds ?? (quickStats.todayStudyMinutes || 0) * 60)
     + (hasActiveStudySession ? Math.floor((currentTime - lastSyncedAt) / 1000) : 0);
   const todayStudyDisplay = formatDuration(todayStudySeconds);
-  const appUsageMinutes = Number(quickStats.todayAppUsageMinutes ?? 0);
-  const appUsageDisplay = formatDuration(appUsageMinutes * 60);
-  const appUsageProgress = Math.min(appUsageMinutes / (10 * 60), 1);
+  const appUsageSeconds = Number(quickStats.todayAppUsageSeconds ?? (quickStats.todayAppUsageMinutes || 0) * 60);
+  const appUsageDisplay = formatDuration(appUsageSeconds);
+  const appUsageProgress = Math.min(appUsageSeconds / (10 * 60 * 60), 1);
   const sleepDurationMinutes = Math.round(Number(quickStats.lastSleepHours ?? 0) * 60);
   const sleepDisplay = formatDuration(sleepDurationMinutes * 60);
   const moodScore = Number(dashboardData?.quickStats?.lastMoodScore ?? 0);
@@ -160,7 +160,7 @@ export default function Dashboard() {
           />
           <FeatureCard 
             icon={BarChartIcon} title="App Usage" subtitle="Leisure time impact" 
-            trailing={appUsageMinutes > 0 ? appUsageDisplay : 'Today'} progress={appUsageProgress}
+            trailing={appUsageSeconds > 0 ? appUsageDisplay : 'Today'} progress={appUsageProgress}
             color="#F5F3FF" iconColor="#8B5CF6" onClick={() => navigate('/usage')} 
           />
           <FeatureCard 

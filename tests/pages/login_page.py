@@ -3,9 +3,9 @@ from pages.base_page import BasePage
 
 class LoginPage(BasePage):
     # Locators
-    EMAIL_INPUT = (By.CSS_SELECTOR, "input[type='email']")
-    PASSWORD_INPUT = (By.CSS_SELECTOR, "input[type='password']")
-    LOGIN_BUTTON = (By.CSS_SELECTOR, "button[type='submit']")
+    EMAIL_INPUT = (By.CSS_SELECTOR, "form input[type='email']")
+    PASSWORD_INPUT = (By.CSS_SELECTOR, "form input[type='password']")
+    LOGIN_BUTTON = (By.CSS_SELECTOR, "form button[type='submit']")
     ERROR_MESSAGE = (By.CSS_SELECTOR, ".error-message")
 
     def __init__(self, driver, base_url):

@@ -66,13 +66,17 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                         UsageItemRequest(
                             packageName = appUsage.packageName,
                             category = appUsage.category,
-                            duration = (appUsage.hours * 60).toLong()
+                            duration = (appUsage.hours * 60).toLong(),
+                            durationSeconds = (appUsage.hours * 60 * 60).toLong()
                         )
                     }
-                    val response = ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems))
+                    val response = ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems, date = getLocalDateString()))
                     AppData.lastSyncFailed = !response.success
+                    AppData.lastSyncError = if (response.success) "" else "Unable to reach your secure data service. Sign in again and retry."
+                    if (response.success) AppData.lastUpdatedTime = formatCurrentTime()
                 } catch (e: Exception) {
                     AppData.lastSyncFailed = true
+                    AppData.lastSyncError = "Unable to reach your secure data service. Check your connection and retry."
                 } finally {
                     AppData.isSyncing = false
                 }
@@ -189,6 +193,15 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                                         fontSize = 10.sp, 
                                         color = if (AppData.lastSyncFailed) Color.Red else Color.Gray
                                     )
+                                    if (AppData.lastSyncFailed && AppData.lastSyncError.isNotEmpty()) {
+                                        Text(
+                                            text = AppData.lastSyncError,
+                                            fontSize = 9.sp,
+                                            color = Color.Red,
+                                            textAlign = TextAlign.End,
+                                            modifier = Modifier.widthIn(max = 160.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -436,7 +436,8 @@ data class UsageSyncRequest(
 data class UsageItemRequest(
     val packageName: String,
     val category: String,
-    val duration: Long // minutes
+    val duration: Long, // legacy whole minutes
+    val durationSeconds: Long? = null
 )
 
 @Serializable

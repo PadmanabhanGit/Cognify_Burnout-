@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const { db, FieldValue } = require('../firebase');
+const { db } = require('../firebase');
 const { resolveCategory } = require('../services/appDiscoveryService');
 const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
 
@@ -15,53 +15,66 @@ router.post('/sync', auth, async (req, res) => {
   console.log(`[usage/sync] Received data from user ${userId} for date ${syncDate}:`, req.body);
 
   try {
-    const batch = db.batch();
+    // The device sends a full, current-day snapshot. Replacing the previous
+    // snapshot prevents repeated syncs from accumulating stale app durations.
+    const itemsByPackage = new Map();
     for (const item of usageData || []) {
-      const rawDuration = Number(item.duration || 0);
-      const category = (item.category || await resolveCategory(item.packageName) || 'Others').trim();
+      const packageName = String(item.packageName || 'unknown');
+      const durationSeconds = Math.max(0, Math.round(Number(item.durationSeconds ?? (Number(item.duration || 0) * 60))));
+      const duration = Math.floor(durationSeconds / 60);
+      const category = String(item.category || await resolveCategory(packageName) || 'Others').trim();
+      itemsByPackage.set(packageName, { packageName, category, duration, durationSeconds });
+    }
 
-      const appDocId = `${userId}_${syncDate}_app_${(item.packageName || 'unknown').replace(/\./g, '_')}`;
+    const [existingDetailsSnap, existingCategoriesSnap] = await Promise.all([
+      db.collection('appUsageDetails').where('userId', '==', userId).get(),
+      db.collection('appUsage').where('userId', '==', userId).get()
+    ]);
+
+    const batch = db.batch();
+
+    existingDetailsSnap.docs.forEach(doc => {
+      const data = doc.data();
+      if (data && normalizeDateValue(data.date) === syncDate) batch.delete(doc.ref);
+    });
+    existingCategoriesSnap.docs.forEach(doc => {
+      const data = doc.data();
+      if (data && normalizeDateValue(data.date) === syncDate) batch.delete(doc.ref);
+    });
+
+    const categoryTotals = {};
+    for (const item of itemsByPackage.values()) {
+      const appDocId = `${userId}_${syncDate}_app_${item.packageName.replace(/\./g, '_')}`;
       const appRef = db.collection('appUsageDetails').doc(appDocId);
 
       batch.set(appRef, {
         userId,
         date: syncDate,
         appName: item.packageName || 'Unknown',
-        category,
-        duration: rawDuration,
+        category: item.category,
+        duration: item.duration,
+        durationSeconds: item.durationSeconds,
         updatedAt: timestamp,
-      }, { merge: true });
+      });
 
-      const catDocId = `${userId}_${syncDate}_${category}`;
-      const catRef = db.collection('appUsage').doc(catDocId);
+      categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.durationSeconds;
+    }
+
+    for (const [cat, totalDurationSeconds] of Object.entries(categoryTotals)) {
+      const catRef = db.collection('appUsage').doc(`${userId}_${syncDate}_${cat}`);
       batch.set(catRef, {
         userId,
         date: syncDate,
-        category,
-        totalDuration: FieldValue.increment(rawDuration),
-        updatedAt: timestamp,
-      }, { merge: true });
+        category: cat,
+        totalDuration: Math.floor(totalDurationSeconds / 60),
+        totalDurationSeconds,
+        updatedAt: timestamp
+      });
     }
+
     await batch.commit();
 
-    const allApps = await db.collection('appUsageDetails').get();
-    const categoryTotals = {};
-
-    allApps.docs.forEach(doc => {
-      const d = doc.data();
-      if (!d || d.userId !== userId || normalizeDateValue(d.date) !== syncDate) return;
-      const category = d.category || 'Others';
-      categoryTotals[category] = (categoryTotals[category] || 0) + Number(d.duration || 0);
-    });
-
-    const updateBatch = db.batch();
-    for (const [cat, total] of Object.entries(categoryTotals)) {
-      const catRef = db.collection('appUsage').doc(`${userId}_${syncDate}_${cat}`);
-      updateBatch.set(catRef, { userId, date: syncDate, category: cat, totalDuration: total, updatedAt: timestamp }, { merge: true });
-    }
-    await updateBatch.commit();
-
-    res.json({ success: true, message: 'Usage stats synced and aggregated' });
+    res.json({ success: true, message: 'Usage snapshot synced', syncedApps: itemsByPackage.size });
   } catch (err) {
     console.error('Sync failed:', err.message);
     res.status(500).json({ success: false, message: 'Sync failed' });
@@ -79,13 +92,17 @@ router.get('/today', auth, async (req, res) => {
     const formattedUsage = snapshot.docs
       .map(doc => doc.data())
       .filter(data => data && data.userId === userId && normalizeDateValue(data.date) === today)
-      .map(data => ({
-        category: data.category,
-        time: `${Math.floor((data.totalDuration || 0) / 60)}h ${(data.totalDuration || 0) % 60}m`,
-        duration: data.totalDuration || 0,
-        progress: Math.min((data.totalDuration || 0) / 480, 1.0),
-        color: getColorForCategory(data.category)
-      }));
+      .map(data => {
+        const durationSeconds = Number(data.totalDurationSeconds ?? (data.totalDuration || 0) * 60);
+        return {
+          category: data.category,
+          time: formatDuration(durationSeconds),
+          duration: data.totalDuration || 0,
+          durationSeconds,
+          progress: Math.min(durationSeconds / (8 * 60 * 60), 1.0),
+          color: getColorForCategory(data.category)
+        };
+      });
 
     const detailsSnapshot = await db.collection('appUsageDetails').get();
 
@@ -94,14 +111,18 @@ router.get('/today', auth, async (req, res) => {
       .filter(data => data && data.userId === userId && normalizeDateValue(data.date) === today)
       .sort((a, b) => (b.duration || 0) - (a.duration || 0))
       .slice(0, 10)
-      .map(data => ({
-        name: data.appName || data.packageName || 'Unknown',
-        category: data.category,
-        time: `${Math.floor((data.duration || 0) / 60)}h ${(data.duration || 0) % 60}m`,
-        hours: (data.duration || 0) / 60.0,
-        duration: data.duration || 0,
-        color: getColorForCategory(data.category)
-      }));
+      .map(data => {
+        const durationSeconds = Number(data.durationSeconds ?? (data.duration || 0) * 60);
+        return {
+          name: data.appName || data.packageName || 'Unknown',
+          category: data.category,
+          time: formatDuration(durationSeconds),
+          hours: durationSeconds / 3600.0,
+          duration: data.duration || 0,
+          durationSeconds,
+          color: getColorForCategory(data.category)
+        };
+      });
 
     res.json({ success: true, usage: formattedUsage, topApps });
   } catch (err) {
@@ -119,6 +140,16 @@ function getColorForCategory(cat) {
     'Gaming': '#F97316'
   };
   return colors[cat] || '#6B7280';
+}
+
+function formatDuration(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+  return [hours > 0 ? `${hours}h` : null, minutes > 0 ? `${minutes}m` : null, remainingSeconds > 0 ? `${remainingSeconds}s` : null]
+    .filter(Boolean)
+    .join(' ') || '0s';
 }
 
 module.exports = router;

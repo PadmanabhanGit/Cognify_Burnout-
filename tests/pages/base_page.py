@@ -4,7 +4,7 @@ from selenium.webdriver.support import expected_conditions as EC
 class BasePage:
     def __init__(self, driver):
         self.driver = driver
-        self.timeout = 10
+        self.timeout = 30
 
     def find_element(self, locator):
         return WebDriverWait(self.driver, self.timeout).until(

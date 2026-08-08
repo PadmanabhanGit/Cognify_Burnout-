@@ -30,3 +30,8 @@ actual fun formatDashboardDate(): String {
     val sdf = SimpleDateFormat("EEEE, MMMM d, yyyy • h:mm a", Locale.getDefault())
     return sdf.format(Date())
 }
+
+actual fun getLocalDateString(): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    return sdf.format(Date())
+}

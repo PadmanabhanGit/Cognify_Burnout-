@@ -49,29 +49,31 @@ export default function AppUsage() {
     return 'Others';
   };
 
-  // Aggregate seconds per normalized bucket
+  // The current API preserves seconds; older records fall back to stored minutes.
   const buckets = { 'Social Media': 0, 'Gaming': 0, 'Streaming': 0, 'Productivity': 0 };
   usage.forEach(u => {
     const norm = normalizeCategory(u.category);
     if (norm in buckets) {
-      buckets[norm] += u.duration || 0;
+      buckets[norm] += Number(u.durationSeconds ?? (u.duration || 0) * 60);
     }
   });
 
   const totalSeconds = Object.values(buckets).reduce((a, b) => a + b, 0);
   
-  const formatMins = (totalMins) => {
-    if (!totalMins && totalMins !== 0) return '0m';
-    const h = Math.floor(totalMins / 60);
-    const m = Math.round(totalMins % 60);
+  const formatDuration = (totalSeconds) => {
+    const safeSeconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const h = Math.floor(safeSeconds / 3600);
+    const m = Math.floor((safeSeconds % 3600) / 60);
+    const s = safeSeconds % 60;
 
     let parts = [];
     if (h > 0) parts.push(`${h}h`);
-    if (m > 0 || parts.length === 0) parts.push(`${m}m`);
+    if (m > 0) parts.push(`${m}m`);
+    if (s > 0 || parts.length === 0) parts.push(`${s}s`);
     return parts.join(' ');
   };
 
-  const totalHoursStr = formatMins(totalSeconds);
+  const totalHoursStr = formatDuration(totalSeconds);
 
 
   return (
@@ -108,10 +110,9 @@ export default function AppUsage() {
           ) : (
             <>
               {['Social Media', 'Gaming', 'Streaming', 'Productivity'].map((cat, index) => {
-                const secs = buckets[cat] || 0; // it's actually mins
-                const durationStr = formatMins(secs);
-                // Assume 8 hours (480 mins) as max for full bar
-                const progress = Math.min(secs / 480, 1.0);
+                const secs = buckets[cat] || 0;
+                const durationStr = formatDuration(secs);
+                const progress = Math.min(secs / (8 * 60 * 60), 1.0);
                 const colors = { 'Social Media': '#F43F5E', 'Gaming': '#F59E0B', 'Streaming': '#3B82F6', 'Productivity': '#10B981' };
                 return (
                   <UsageItem key={index} label={cat} duration={durationStr} progress={progress}
@@ -146,7 +147,7 @@ export default function AppUsage() {
                       <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.category}</div>
                     </div>
                   </div>
-                  <div style={{ flex: 1, textAlign: 'right', fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{formatMins(item.duration)}</div>
+                  <div style={{ flex: 1, textAlign: 'right', fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{formatDuration(item.durationSeconds ?? (item.duration || 0) * 60)}</div>
                 </div>
               );
             })
@@ -158,7 +159,7 @@ export default function AppUsage() {
           <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>Burnout Risk Impact</div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Correlation between app type and burnout score</div>
           
-          {totalSeconds > 240 ? ( // 240 mins = 4 hours
+          {totalSeconds > 4 * 60 * 60 ? (
             <div style={{ backgroundColor: '#FFF1F2', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center' }}>
               <WarningIcon style={{ color: '#E11D48', fontSize: '16px', marginRight: '12px' }} />
               <div style={{ fontSize: '11px', color: '#9F1239' }}>Your entertainment usage is high. This can reduce focus by <span style={{ fontWeight: 700, color: '#E11D48' }}>12%</span>.</div>

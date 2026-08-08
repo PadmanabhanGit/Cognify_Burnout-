@@ -12,6 +12,7 @@ module.exports = async function(req, res, next) {
     req.user = decodedToken;   // now req.user.uid, req.user.email etc. all work
     next();
   } catch (err) {
+    console.warn('Firebase token validation failed:', err.code || err.message);
     res.status(401).json({ success: false, message: 'Token is not valid' });
   }
 };
