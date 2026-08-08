@@ -89,7 +89,14 @@ router.get('/stats/weekly', auth, async (req, res) => {
       }
     });
 
-    const activeSession = sessions.find(s => s.isActive === true) || null;
+    const activeSession = sessions
+      .sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+      .find(s => {
+         if (s.isActive !== true) return false;
+         // Ignore zombie sessions older than 24 hours
+         const ageHours = (new Date() - new Date(s.startTime)) / 3600000;
+         return ageHours < 24;
+      }) || null;
 
     res.json({
       success: true,
@@ -106,6 +113,53 @@ router.get('/stats/weekly', auth, async (req, res) => {
   } catch (err) {
     console.error('Error fetching weekly stats:', err.message);
     res.status(500).json({ success: false });
+  }
+});
+
+// @route   POST api/study/log-offline
+// @desc    Log a completed session from offline queue
+router.post('/log-offline', auth, async (req, res) => {
+  const { subject, duration, startTime } = req.body;
+  const userId = req.user.uid;
+  const actualStartTime = startTime || new Date().toISOString();
+  // Calculate end time
+  const start = new Date(actualStartTime);
+  const end = new Date(start.getTime() + (duration || 0) * 60000);
+  const endTime = end.toISOString();
+
+  try {
+    // Attempt to clean up any zombie active sessions that match this start time closely
+    const zombieSnapshot = await db.collection('studySessions')
+      .where('userId', '==', userId)
+      .where('isActive', '==', true)
+      .get();
+      
+    const batch = db.batch();
+    zombieSnapshot.docs.forEach(doc => {
+       const zData = doc.data();
+       // If zombie started within 2 minutes of this offline log, it's the same session
+       if (Math.abs(new Date(zData.startTime) - start) < 120000) {
+           batch.delete(doc.ref);
+       }
+    });
+    
+    // Add the completed session
+    const docRef = db.collection('studySessions').doc();
+    batch.set(docRef, {
+      userId,
+      subject: subject || null,
+      notes: null,
+      startTime: actualStartTime,
+      endTime,
+      duration: duration || 0,
+      isActive: false,
+    });
+    
+    await batch.commit();
+    res.json({ success: true, message: 'Offline session logged' });
+  } catch (err) {
+    console.error('Error logging offline session:', err.message);
+    res.status(500).json({ success: false, message: 'Database error' });
   }
 });
 
