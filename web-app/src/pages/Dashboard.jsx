@@ -69,7 +69,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-      <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', width: '100%' }}>
+      <div className="dashboard-header-bg" style={{ width: '100%' }}>
         <div className="desktop-padding" style={{ padding: '40px 24px 100px 24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -82,20 +82,20 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
-              <AccessTimeIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
-              <div style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>{todayStudyDisplay}</div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Study Today</div>
+            <div style={{ flex: 1, height: '110px', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <AccessTimeIcon style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }} />
+              <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{todayStudyDisplay}</div>
+              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>Study Today</div>
             </div>
-            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
-              <BedtimeIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
-              <div style={{ color: 'white', fontSize: '18px', fontWeight: 700 }}>{sleepHours}h</div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Sleep</div>
+            <div style={{ flex: 1, height: '110px', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <BedtimeIcon style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }} />
+              <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{sleepHours}h</div>
+              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>Sleep</div>
             </div>
-            <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid rgba(255,255,255,0.3)' }}>
-              <SentimentSatisfiedAltIcon style={{ color: 'white', fontSize: '24px', marginBottom: '8px' }} />
+            <div style={{ flex: 1, height: '110px', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <SentimentSatisfiedAltIcon style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }} />
               <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{moodEmoji}</div>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Mood</div>
+              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>Mood</div>
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@ export default function Dashboard() {
           />
           <FeatureCard 
             icon={BedtimeIcon} title="Sleep & Mood" subtitle="Wellness analysis" 
-            trailing="Log Today" progress={0.8} 
+            trailing={dashboardData?.quickStats?.lastMood || "Log Today"} progress={(dashboardData?.quickStats?.lastSleepQuality || 0) / 100} 
             color="#EEF2FF" iconColor="#6366F1" onClick={() => navigate('/sleep')} 
           />
           <FeatureCard 
