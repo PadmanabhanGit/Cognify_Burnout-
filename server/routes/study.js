@@ -74,6 +74,7 @@ router.get('/stats/weekly', auth, async (req, res) => {
 
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const dailyMap = {};
+    const subjectMap = {};
     let todayMinutes = 0;
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -83,6 +84,10 @@ router.get('/stats/weekly', auth, async (req, res) => {
       const dayName = dayNames[sDate.getDay()];
       
       dailyMap[dayName] = (dailyMap[dayName] || 0) + (s.duration || 0);
+      
+      if (s.subject) {
+        subjectMap[s.subject] = (subjectMap[s.subject] || 0) + (s.duration || 0);
+      }
       
       if (s.startTime.split('T')[0] === todayStr) {
         todayMinutes += (s.duration || 0);
@@ -105,7 +110,10 @@ router.get('/stats/weekly', auth, async (req, res) => {
         totalMinutes,
         todayMinutes,
         sessionCount: sessions.size || sessions.length,
+        sessionsCount: sessions.size || sessions.length,
         dailyBreakdown: dailyMap,
+        dailyTotals: dailyMap,
+        subjectBreakdown: subjectMap,
         recentSessions: sessions.slice(0, 5),
         activeSession
       }

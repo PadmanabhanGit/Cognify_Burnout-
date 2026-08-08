@@ -70,8 +70,7 @@ fun StudyTrackerScreen(navController: NavController) {
                     settings.putString("studyWeekHours", backendWeek.toString())
                 }
                 
-                val todayStr = kotlinx.datetime.Clock.System.now().toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date.toString()
-                val todayMins = stats.dailyTotals[todayStr] ?: 0
+                val todayMins = stats.todayMinutes ?: 0
                 val backendToday = (todayMins / 60f)
                 
                 if (backendToday >= AppData.studyTodayHours) {
@@ -81,6 +80,15 @@ fun StudyTrackerScreen(navController: NavController) {
                 
                 AppData.weeklyStudyData.clear()
                 for (i in 0..6) AppData.weeklyStudyData.add(0f) 
+                
+                val dayMap = stats.dailyTotals ?: stats.dailyBreakdown ?: emptyMap()
+                AppData.weeklyStudyData[0] = (dayMap["Mon"] ?: 0) / 60f
+                AppData.weeklyStudyData[1] = (dayMap["Tue"] ?: 0) / 60f
+                AppData.weeklyStudyData[2] = (dayMap["Wed"] ?: 0) / 60f
+                AppData.weeklyStudyData[3] = (dayMap["Thu"] ?: 0) / 60f
+                AppData.weeklyStudyData[4] = (dayMap["Fri"] ?: 0) / 60f
+                AppData.weeklyStudyData[5] = (dayMap["Sat"] ?: 0) / 60f
+                AppData.weeklyStudyData[6] = (dayMap["Sun"] ?: 0) / 60f
                 
                 stats.subjectBreakdown?.let { breakdown ->
                     breakdown.forEach { (subject, mins) ->
@@ -329,9 +337,12 @@ fun StudyTrackerScreen(navController: NavController) {
                                         totalScreenTime = AppData.currentFeatures.totalScreenTime + hours
                                     )
                                     
-                                    // Update graph data (assuming Mon-Sun index)
-                                    val currentDay = 0 // Mock day index
-                                    AppData.weeklyStudyData[currentDay] += hours
+                                    // Update graph data (Mon-Sun index)
+                                    val localDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                                    val currentDay = localDate.dayOfWeek.ordinal
+                                    if (currentDay in 0..6) {
+                                        AppData.weeklyStudyData[currentDay] += hours
+                                    }
                                     
                                     // Update monthly trend (Week 4)
                                     val currentWeekIndex = 3

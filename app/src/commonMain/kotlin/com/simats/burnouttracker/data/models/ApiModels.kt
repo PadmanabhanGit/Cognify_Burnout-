@@ -91,9 +91,12 @@ data class StudySessionResponse(
 data class StudyWeeklyStats(
     val totalMinutes: Int,
     val totalHours: Double,
-    val sessionsCount: Int,
-    val dailyTotals: Map<String, Int>,
-    val subjectBreakdown: Map<String, Int>
+    val sessionsCount: Int? = null,
+    val sessionCount: Int? = null,
+    val todayMinutes: Int? = null,
+    val dailyTotals: Map<String, Int>? = null,
+    val dailyBreakdown: Map<String, Int>? = null,
+    val subjectBreakdown: Map<String, Int>? = null
 )
 
 @Serializable
