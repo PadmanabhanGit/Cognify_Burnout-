@@ -5,7 +5,7 @@ import MailRoundedIcon from '@mui/icons-material/MailRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 
 export default function Login() {
@@ -15,6 +15,11 @@ export default function Login() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -33,6 +38,37 @@ export default function Login() {
       setError(err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const openPasswordReset = () => {
+    setResetEmail(email);
+    setResetMessage('');
+    setResetError('');
+    setShowPasswordReset(true);
+  };
+
+  const handlePasswordReset = async (event) => {
+    event.preventDefault();
+    const normalizedEmail = resetEmail.trim();
+    if (!normalizedEmail) {
+      setResetError('Enter the email address for your account.');
+      return;
+    }
+
+    setIsResetting(true);
+    setResetError('');
+    try {
+      await sendPasswordResetEmail(auth, normalizedEmail, {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: false,
+      });
+      setResetMessage('If an account exists for this address, a reset link has been sent. Check your inbox and spam folder.');
+    } catch (err) {
+      console.error('Password reset request failed', err);
+      setResetError('We could not send the reset email. Please check the address and try again.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -83,12 +119,13 @@ export default function Login() {
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <span 
-              onClick={() => alert('Forgot password flow not implemented yet.')}
+            <button
+              type="button"
+              onClick={openPasswordReset}
               style={{ color: '#9333EA', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}
             >
               Forgot Password?
-            </span>
+            </button>
           </div>
           
           <button type="submit" disabled={isLoading} className="btn-primary" style={{ width: '100%', height: '60px', marginTop: '24px', fontSize: '18px' }}>
@@ -139,6 +176,55 @@ export default function Login() {
           Sign Up
         </span>
       </div>
+
+      {showPasswordReset && (
+        <div
+          role="presentation"
+          onMouseDown={() => setShowPasswordReset(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'rgba(15, 23, 42, 0.58)' }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="password-reset-title"
+            onMouseDown={(event) => event.stopPropagation()}
+            className="white-card"
+            style={{ width: '100%', maxWidth: '440px', padding: '28px', background: 'var(--bg-secondary)' }}
+          >
+            <div id="password-reset-title" style={{ color: 'var(--text-primary)', fontSize: '24px', fontWeight: 800 }}>Reset your password</div>
+            <p style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '20px' }}>
+              Enter your email and we’ll send you a secure password-reset link.
+            </p>
+
+            {resetMessage ? (
+              <div style={{ marginTop: '20px', padding: '12px', borderRadius: '12px', color: '#047857', background: '#D1FAE5', fontSize: '14px', lineHeight: '20px' }}>
+                {resetMessage}
+              </div>
+            ) : (
+              <form onSubmit={handlePasswordReset} style={{ marginTop: '24px' }}>
+                <label htmlFor="reset-email" style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>Email address</label>
+                <input
+                  id="reset-email"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(event) => setResetEmail(event.target.value)}
+                  autoComplete="email"
+                  placeholder="student@example.com"
+                  style={{ width: '100%', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px', fontSize: '16px', color: 'var(--text-primary)', background: 'var(--input-bg)' }}
+                />
+                {resetError && <div style={{ color: '#DC2626', fontSize: '13px', marginTop: '10px' }}>{resetError}</div>}
+                <button type="submit" disabled={isResetting} className="btn-primary" style={{ width: '100%', height: '52px', marginTop: '20px', fontSize: '16px' }}>
+                  {isResetting ? 'Sending link...' : 'Send reset link'}
+                </button>
+              </form>
+            )}
+
+            <button type="button" onClick={() => setShowPasswordReset(false)} style={{ width: '100%', marginTop: '16px', color: '#6366F1', fontWeight: 700, fontSize: '14px' }}>
+              {resetMessage ? 'Back to sign in' : 'Cancel'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
