@@ -3,6 +3,26 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateValue(value) {
+  if (!value) return getLocalDateString();
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) return getLocalDateString(parsed);
+    return getLocalDateString();
+  }
+  if (value instanceof Date) return getLocalDateString(value);
+  return getLocalDateString();
+}
+
 // @route   POST api/study/start
 // @desc    Start a study session
 router.post('/start', auth, async (req, res) => {
@@ -76,7 +96,7 @@ router.get('/stats/weekly', auth, async (req, res) => {
     const dailyMap = {};
     const subjectMap = {};
     let todayMinutes = 0;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     sessions.forEach(s => {
       if (!s.startTime) return;
@@ -89,7 +109,7 @@ router.get('/stats/weekly', auth, async (req, res) => {
         subjectMap[s.subject] = (subjectMap[s.subject] || 0) + (s.duration || 0);
       }
       
-      if (s.startTime.split('T')[0] === todayStr) {
+      if (normalizeDateValue(s.startTime) === todayStr) {
         todayMinutes += (s.duration || 0);
       }
     });

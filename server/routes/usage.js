@@ -4,6 +4,26 @@ const auth = require('../middleware/auth');
 const { db, FieldValue } = require('../firebase');
 const { resolveCategory } = require('../services/appDiscoveryService');
 
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateValue(value) {
+  if (!value) return getLocalDateString();
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) return getLocalDateString(parsed);
+    return getLocalDateString();
+  }
+  if (value instanceof Date) return getLocalDateString(value);
+  return getLocalDateString();
+}
+
 // @route   POST api/usage/sync
 router.post('/sync', auth, async (req, res) => {
   const { usageData, date } = req.body;
@@ -69,15 +89,16 @@ router.post('/sync', auth, async (req, res) => {
 // @route   GET api/usage/today
 router.get('/today', auth, async (req, res) => {
   const userId = req.user.uid;
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
 
   try {
     const snapshot = await db.collection('appUsage')
       .where('userId', '==', userId)
-      .where('date', '==', today)
       .get();
 
-    const formattedUsage = snapshot.docs.map(doc => {
+    const formattedUsage = snapshot.docs
+      .filter(doc => normalizeDateValue(doc.data().date) === today)
+      .map(doc => {
       const r = doc.data();
       return {
         category: r.category,
@@ -91,10 +112,10 @@ router.get('/today', auth, async (req, res) => {
     // Also fetch top apps from appUsageDetails
     const detailsSnapshot = await db.collection('appUsageDetails')
       .where('userId', '==', userId)
-      .where('date', '==', today)
       .get();
 
     const topApps = detailsSnapshot.docs
+      .filter(doc => normalizeDateValue(doc.data().date) === today)
       .map(doc => doc.data())
       .sort((a, b) => b.duration - a.duration)
       .slice(0, 10)

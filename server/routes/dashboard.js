@@ -4,9 +4,29 @@ const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { computeBurnoutRisk } = require('../services/burnoutService');
 
+function getLocalDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateValue(value) {
+  if (!value) return getLocalDateString();
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) return getLocalDateString(parsed);
+    return getLocalDateString();
+  }
+  if (value instanceof Date) return getLocalDateString(value);
+  return getLocalDateString();
+}
+
 router.get('/', auth, async (req, res) => {
   const userId = req.user.uid;
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
 
   try {
     const sleepSnap = await db.collection('sleepMoodLogs')
@@ -34,7 +54,7 @@ router.get('/', auth, async (req, res) => {
     const weeklyStudyHours = Math.round((weeklyStudyMinutes / 60) * 10) / 10;
     
     const todayStudyMinutes = studySnap.docs
-      .filter(doc => (doc.data().startTime || '').startsWith(today))
+      .filter(doc => normalizeDateValue(doc.data().startTime) === today)
       .reduce((sum, doc) => sum + (doc.data().duration || 0), 0);
 
     const burnoutSnap = await db.collection('burnoutAssessments')
@@ -52,12 +72,12 @@ router.get('/', auth, async (req, res) => {
 
     const usageSnap = await db.collection('appUsage')
       .where('userId', '==', userId)
-      .where('date', '==', today)
       .get();
     
     let todayAppUsageMinutes = 0;
     usageSnap.docs.forEach(doc => {
       const data = doc.data();
+      if (normalizeDateValue(data.date) !== today) return;
       const cat = data.category || '';
       if (cat.includes('Social') || cat.includes('Gaming') || cat.includes('Stream') || cat.includes('Entertainment')) {
         todayAppUsageMinutes += (data.totalDuration || 0);

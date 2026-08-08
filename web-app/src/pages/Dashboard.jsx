@@ -24,19 +24,39 @@ export default function Dashboard() {
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
   useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const response = await api.get('/api/dashboard');
-        if (response.data.success) {
-          setDashboardData(response.data.dashboard);
-        }
-      } catch (err) {
-        console.error("Failed to load dashboard data", err);
-      } finally {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      if (!currentUser) {
+        setDashboardData(null);
         setLoading(false);
+        return;
       }
-    };
-    fetchDashboard();
+
+      const fetchDashboard = async () => {
+        try {
+          const response = await api.get('/api/dashboard');
+          if (response.data.success) {
+            setDashboardData(response.data.dashboard);
+          }
+        } catch (err) {
+          console.error('Failed to load dashboard data', err);
+          setDashboardData(null);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchDashboard();
+      const intervalId = window.setInterval(fetchDashboard, 10000);
+      const handleFocus = () => fetchDashboard();
+      window.addEventListener('focus', handleFocus);
+
+      return () => {
+        window.clearInterval(intervalId);
+        window.removeEventListener('focus', handleFocus);
+      };
+    });
+
+    return () => unsubscribe();
   }, []);
 
   if (loading) {

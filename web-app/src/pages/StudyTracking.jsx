@@ -43,7 +43,6 @@ export default function StudyTracking() {
             todayMinutes: res.data.stats.todayMinutes,
             totalMinutes: res.data.stats.totalMinutes,
           });
-          // Handle both dailyTotals and dailyBreakdown correctly as an array of 7 values
           const breakdown = res.data.stats.dailyTotals || res.data.stats.dailyBreakdown;
           if (breakdown) {
             if (Array.isArray(breakdown)) {
@@ -65,7 +64,15 @@ export default function StudyTracking() {
         console.error(err);
       }
     };
+
     fetchStats();
+    const intervalId = window.setInterval(fetchStats, 10000);
+    const handleFocus = () => fetchStats();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const handleStart = async () => {

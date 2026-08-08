@@ -20,7 +20,15 @@ export default function SleepMoodAnalytics() {
         setLoading(false);
       }
     };
+
     fetchTrends();
+    const intervalId = window.setInterval(fetchTrends, 10000);
+    const handleFocus = () => fetchTrends();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const chartData = {

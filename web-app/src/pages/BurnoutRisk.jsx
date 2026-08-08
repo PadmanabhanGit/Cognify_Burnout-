@@ -20,8 +20,6 @@ export default function BurnoutRisk() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    // In a real implementation, we might fetch a dedicated endpoint. 
-    // For now, we can piggyback off the dashboard logic or use placeholders that match Android.
     const fetchData = async () => {
       try {
         const res = await api.get('/api/dashboard');
@@ -32,7 +30,15 @@ export default function BurnoutRisk() {
         console.error(err);
       }
     };
+
     fetchData();
+    const intervalId = window.setInterval(fetchData, 10000);
+    const handleFocus = () => fetchData();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const riskScore = data?.burnoutAlert?.riskScore ?? 45;
