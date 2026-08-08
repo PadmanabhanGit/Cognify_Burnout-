@@ -80,6 +80,7 @@ router.get('/today', auth, async (req, res) => {
       return {
         category: r.category,
         time: `${Math.floor(r.totalDuration / 60)}h ${r.totalDuration % 60}m`,
+        duration: r.totalDuration,
         progress: Math.min(r.totalDuration / 480, 1.0),
         color: getColorForCategory(r.category)
       };
@@ -101,6 +102,7 @@ router.get('/today', auth, async (req, res) => {
         category: data.category,
         time: `${Math.floor(data.duration / 60)}h ${data.duration % 60}m`,
         hours: data.duration / 60.0,
+        duration: data.duration,
         color: getColorForCategory(data.category)
       };
     });
