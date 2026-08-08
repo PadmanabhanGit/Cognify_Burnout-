@@ -2,26 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
-
-function getLocalDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function normalizeDateValue(value) {
-  if (!value) return getLocalDateString();
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-    const parsed = new Date(trimmed);
-    if (!Number.isNaN(parsed.getTime())) return getLocalDateString(parsed);
-    return getLocalDateString();
-  }
-  if (value instanceof Date) return getLocalDateString(value);
-  return getLocalDateString();
-}
+const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
 
 // @route   POST api/study/start
 // @desc    Start a study session
@@ -34,10 +15,12 @@ router.post('/start', auth, async (req, res) => {
       userId,
       subject: subject || null,
       notes: notes || null,
+      date: getLocalDateString(new Date(startTime)),
       startTime,
       endTime: null,
       duration: null,
       isActive: true,
+      createdAt: startTime,
     });
     const doc = await docRef.get();
     res.json({ success: true, session: { id: doc.id, ...doc.data() } });
@@ -67,7 +50,7 @@ router.patch('/stop/:sessionId', auth, async (req, res) => {
     }
 
     const duration = Math.round((new Date(endTime) - new Date(session.startTime)) / 60000);
-    await docRef.update({ endTime, duration, isActive: false });
+    await docRef.update({ endTime, duration, isActive: false, date: getLocalDateString(new Date(endTime)), updatedAt: endTime });
     const updatedDoc = await docRef.get();
     res.json({ success: true, session: { id: updatedDoc.id, ...updatedDoc.data() } });
   } catch (err) {
@@ -182,10 +165,13 @@ router.post('/log-offline', auth, async (req, res) => {
       userId,
       subject: subject || null,
       notes: null,
+      date: getLocalDateString(new Date(actualStartTime)),
       startTime: actualStartTime,
       endTime,
       duration: duration || 0,
       isActive: false,
+      createdAt: actualStartTime,
+      updatedAt: endTime,
     });
     
     await batch.commit();

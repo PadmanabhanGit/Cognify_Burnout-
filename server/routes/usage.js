@@ -3,79 +3,61 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db, FieldValue } = require('../firebase');
 const { resolveCategory } = require('../services/appDiscoveryService');
-
-function getLocalDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function normalizeDateValue(value) {
-  if (!value) return getLocalDateString();
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-    const parsed = new Date(trimmed);
-    if (!Number.isNaN(parsed.getTime())) return getLocalDateString(parsed);
-    return getLocalDateString();
-  }
-  if (value instanceof Date) return getLocalDateString(value);
-  return getLocalDateString();
-}
+const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
 
 // @route   POST api/usage/sync
 router.post('/sync', auth, async (req, res) => {
   const { usageData, date } = req.body;
   const userId = req.user.uid;
-  const syncDate = date || new Date().toISOString().split('T')[0];
+  const syncDate = normalizeDateValue(date || new Date());
+  const timestamp = new Date().toISOString();
 
   console.log(`[usage/sync] Received data from user ${userId} for date ${syncDate}:`, req.body);
 
   try {
     const batch = db.batch();
-    for (const item of usageData) {
-      // Trust device category first, fallback to resolver
-      const category = item.category || await resolveCategory(item.packageName);
+    for (const item of usageData || []) {
+      const rawDuration = Number(item.duration || 0);
+      const category = (item.category || await resolveCategory(item.packageName) || 'Others').trim();
 
-      // Doc for the specific app (e.g., whatsapp)
-      const appDocId = `${userId}_${syncDate}_app_${item.packageName.replace(/\./g, '_')}`;
+      const appDocId = `${userId}_${syncDate}_app_${(item.packageName || 'unknown').replace(/\./g, '_')}`;
       const appRef = db.collection('appUsageDetails').doc(appDocId);
 
       batch.set(appRef, {
         userId,
         date: syncDate,
-        appName: item.packageName,
+        appName: item.packageName || 'Unknown',
         category,
-        duration: item.duration,
+        duration: rawDuration,
+        updatedAt: timestamp,
       }, { merge: true });
 
-      // Aggregate into category doc for the dashboard bars
       const catDocId = `${userId}_${syncDate}_${category}`;
       const catRef = db.collection('appUsage').doc(catDocId);
       batch.set(catRef, {
         userId,
         date: syncDate,
         category,
-        totalDuration: FieldValue.increment(0),
+        totalDuration: FieldValue.increment(rawDuration),
+        updatedAt: timestamp,
       }, { merge: true });
     }
     await batch.commit();
 
-    // Now update category totals by re-aggregating from appUsageDetails
-    const allApps = await db.collection('appUsageDetails')
-      .where('userId', '==', userId).where('date', '==', syncDate).get();
-
+    const allApps = await db.collection('appUsageDetails').get();
     const categoryTotals = {};
+
     allApps.docs.forEach(doc => {
       const d = doc.data();
-      categoryTotals[d.category] = (categoryTotals[d.category] || 0) + d.duration;
+      if (!d || d.userId !== userId || normalizeDateValue(d.date) !== syncDate) return;
+      const category = d.category || 'Others';
+      categoryTotals[category] = (categoryTotals[category] || 0) + Number(d.duration || 0);
     });
 
     const updateBatch = db.batch();
     for (const [cat, total] of Object.entries(categoryTotals)) {
       const catRef = db.collection('appUsage').doc(`${userId}_${syncDate}_${cat}`);
-      updateBatch.set(catRef, { userId, date: syncDate, category: cat, totalDuration: total }, { merge: true });
+      updateBatch.set(catRef, { userId, date: syncDate, category: cat, totalDuration: total, updatedAt: timestamp }, { merge: true });
     }
     await updateBatch.commit();
 
@@ -92,43 +74,34 @@ router.get('/today', auth, async (req, res) => {
   const today = getLocalDateString();
 
   try {
-    const snapshot = await db.collection('appUsage')
-      .where('userId', '==', userId)
-      .get();
+    const snapshot = await db.collection('appUsage').get();
 
     const formattedUsage = snapshot.docs
-      .filter(doc => normalizeDateValue(doc.data().date) === today)
-      .map(doc => {
-      const r = doc.data();
-      return {
-        category: r.category,
-        time: `${Math.floor(r.totalDuration / 60)}h ${r.totalDuration % 60}m`,
-        duration: r.totalDuration,
-        progress: Math.min(r.totalDuration / 480, 1.0),
-        color: getColorForCategory(r.category)
-      };
-    });
+      .map(doc => doc.data())
+      .filter(data => data && data.userId === userId && normalizeDateValue(data.date) === today)
+      .map(data => ({
+        category: data.category,
+        time: `${Math.floor((data.totalDuration || 0) / 60)}h ${(data.totalDuration || 0) % 60}m`,
+        duration: data.totalDuration || 0,
+        progress: Math.min((data.totalDuration || 0) / 480, 1.0),
+        color: getColorForCategory(data.category)
+      }));
 
-    // Also fetch top apps from appUsageDetails
-    const detailsSnapshot = await db.collection('appUsageDetails')
-      .where('userId', '==', userId)
-      .get();
+    const detailsSnapshot = await db.collection('appUsageDetails').get();
 
     const topApps = detailsSnapshot.docs
-      .filter(doc => normalizeDateValue(doc.data().date) === today)
       .map(doc => doc.data())
-      .sort((a, b) => b.duration - a.duration)
+      .filter(data => data && data.userId === userId && normalizeDateValue(data.date) === today)
+      .sort((a, b) => (b.duration || 0) - (a.duration || 0))
       .slice(0, 10)
-      .map(data => {
-        return {
-          name: data.appName,
+      .map(data => ({
+        name: data.appName || data.packageName || 'Unknown',
         category: data.category,
-        time: `${Math.floor(data.duration / 60)}h ${data.duration % 60}m`,
-        hours: data.duration / 60.0,
-        duration: data.duration,
+        time: `${Math.floor((data.duration || 0) / 60)}h ${(data.duration || 0) % 60}m`,
+        hours: (data.duration || 0) / 60.0,
+        duration: data.duration || 0,
         color: getColorForCategory(data.category)
-      };
-    });
+      }));
 
     res.json({ success: true, usage: formattedUsage, topApps });
   } catch (err) {

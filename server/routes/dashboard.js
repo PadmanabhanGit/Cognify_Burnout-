@@ -16,8 +16,12 @@ router.get('/', auth, async (req, res) => {
     const sleepDocs = sleepSnap.docs
       .map(d => d.data())
       .filter(item => item && item.userId === userId)
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    const lastSleep = sleepDocs.length > 0 ? sleepDocs[0] : null;
+      .sort((a, b) => {
+        const aTime = new Date(a.createdAt || a.updatedAt || a.date || 0).getTime();
+        const bTime = new Date(b.createdAt || b.updatedAt || b.date || 0).getTime();
+        return bTime - aTime;
+      });
+    const lastSleep = sleepDocs.find(item => normalizeDateValue(item.date || item.createdAt) === today) || sleepDocs[0] || null;
 
     const prodSnap = await db.collection('productivityLogs')
       .where('userId', '==', userId)
