@@ -50,12 +50,36 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
     val usageHelper = rememberUsageStatsHelper()
     val predictor = rememberBurnoutPredictor()
     val scope = rememberCoroutineScope()
+    
+    var activeSessionSeconds by remember { mutableStateOf(0L) }
 
-    // Real-time update logic
+    // Real-time ticking logic
+    LaunchedEffect(Unit) {
+        val startTime = System.currentTimeMillis()
+        while(true) {
+            delay(1000)
+            activeSessionSeconds = (System.currentTimeMillis() - startTime) / 1000
+        }
+    }
+
+    // Backend sync and heavy data refresh logic
     LaunchedEffect(Unit) {
         while(true) {
             if (usageHelper.hasUsageStatsPermission()) {
-                val realFeatures = usageHelper.fetchDailyUsage()
+                val rawFeatures = usageHelper.fetchDailyUsage()
+                
+                // Add current session time to bypass Android OS aggregation lag
+                val addedHours = activeSessionSeconds / 3600f
+                val realFeatures = rawFeatures.copy(
+                    productivityHours = rawFeatures.productivityHours + addedHours,
+                    totalScreenTime = rawFeatures.totalScreenTime + addedHours,
+                    topApps = rawFeatures.topApps.map {
+                        if (it.packageName.contains("simats")) {
+                            it.copy(hours = it.hours + addedHours)
+                        } else it
+                    }
+                )
+                
                 AppData.currentFeatures = realFeatures
                 AppData.predictedScore = predictor.predict(realFeatures)
                 
@@ -81,7 +105,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                     AppData.isSyncing = false
                 }
             }
-            delay(3000) // Update every 3 seconds for near real-time sync
+            delay(15000) // Update every 15 seconds to prevent DDoS and save Firebase quota
         }
     }
 

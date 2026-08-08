@@ -17,6 +17,7 @@ export default function AppUsage() {
   const [usage, setUsage] = useState([]);
   const [topApps, setTopApps] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeSeconds, setActiveSeconds] = useState(0);
 
   useEffect(() => {
     const fetchUsage = async () => {
@@ -25,6 +26,7 @@ export default function AppUsage() {
         if (res.data.success) {
           setUsage(res.data.usage || []);
           setTopApps(res.data.topApps || []);
+          setActiveSeconds(0); // Reset optimistic ticks on fresh data
         }
       } catch (err) {
         console.error("Failed to load usage data", err);
@@ -34,9 +36,18 @@ export default function AppUsage() {
     };
     
     fetchUsage(); // initial fetch
-    const intervalId = setInterval(fetchUsage, 3000); // refresh every 3 seconds
+    const intervalId = setInterval(fetchUsage, 15000); // refresh every 15 seconds to save Firebase read quota
     return () => clearInterval(intervalId); // cleanup on unmount
   }, []);
+
+  // Optimistic UI Ticking
+  useEffect(() => {
+    if (loading) return;
+    const tickId = setInterval(() => {
+      setActiveSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(tickId);
+  }, [loading]);
 
   // Normalize categories from backend — classifier may return "Entertainment", "Others", etc.
   const normalizeCategory = (cat) => {
@@ -58,7 +69,18 @@ export default function AppUsage() {
     }
   });
 
+  // Apply optimistic ticking to Productivity
+  buckets['Productivity'] += activeSeconds;
+
   const totalSeconds = Object.values(buckets).reduce((a, b) => a + b, 0);
+
+  const optimisticTopApps = topApps.map(app => {
+    const isCognify = app.name.toLowerCase().includes('cognify') || app.name.toLowerCase().includes('burnout') || (app.packageName && app.packageName.includes('simats'));
+    if (isCognify) {
+      return { ...app, durationSeconds: (app.durationSeconds ?? (app.duration || 0) * 60) + activeSeconds };
+    }
+    return app;
+  });
   
   const formatDuration = (totalSeconds) => {
     const safeSeconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
@@ -134,10 +156,10 @@ export default function AppUsage() {
           <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Top Used Apps Today</div>
           {loading ? (
             <div>Syncing...</div>
-          ) : topApps.length === 0 ? (
+          ) : optimisticTopApps.length === 0 ? (
             <div style={{ color: '#6B7280', fontSize: '14px' }}>No specific apps recorded today.</div>
           ) : (
-            topApps.map((item, index) => {
+            optimisticTopApps.map((item, index) => {
               return (
                 <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
                   <div style={{ width: '100%', maxWidth: '300px', display: 'flex', alignItems: 'center' }}>
