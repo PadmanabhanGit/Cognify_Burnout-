@@ -225,9 +225,16 @@ class SleepMonitoringEngine(private val context: Context) {
         earliestWakeCal.set(Calendar.MILLISECOND, 0)
         val earliestWake = earliestWakeCal.timeInMillis
 
-        // Window already closed (guarded above), so this is a real past boundary,
-        // not a fabricated future timestamp.
-        var sleepEnd = endTime
+        // -1 means "no wake cluster confirmed yet", NOT a time.
+        //
+        // This was previously seeded with `endTime` (the 09:00 window close). If
+        // the loop below found no qualifying cluster, that boundary survived and
+        // was stored as though it were a detected wake time — so an absence of
+        // wake evidence rendered as "you slept until 9:00 AM", with the maximum
+        // possible duration and, because no events existed to penalise, a 100%
+        // quality score. The cluster search itself is unchanged; only the
+        // no-evidence outcome changes, at the guard below.
+        var sleepEnd = -1L
         val post = activity.filter { it > sleepStart }
         var i = 0
         while (i < post.size) {
@@ -241,6 +248,23 @@ class SleepMonitoringEngine(private val context: Context) {
                 break
             }
             i = j + 1
+        }
+
+        // ── 2b. No confirmed wake → no session, same as the other no-evidence exits ──
+        //
+        // Consistent with the three guards already above (no usage events, no
+        // sustained inactivity gap, session too short): when the evidence isn't
+        // there, the engine records nothing rather than substituting a
+        // plausible-looking value. Every downstream surface already renders an
+        // honest unavailable state for "no session".
+        //
+        // NOTE: this tests for WAKE EVIDENCE only. It is deliberately not
+        // related to awakeningCount — a night with a real sleep start, a real
+        // confirmed wake cluster and zero awakenings is perfectly legitimate and
+        // is still recorded exactly as before.
+        if (sleepEnd < 0) {
+            println("[SLEEP] No confirmed wake cluster after ${EARLIEST_WAKE_HOUR}:00 on $dateLabel; no session recorded (window boundary is not wake evidence).")
+            return
         }
 
         // ── 3. Reject implausibly short sessions rather than padding the UI ──
