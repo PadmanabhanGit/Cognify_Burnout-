@@ -5,86 +5,91 @@ import TimerIcon from '@mui/icons-material/Timer';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import api from '../services/api';
 import BottomNavigation from '../components/BottomNavigation';
 
 export default function StudyTracking() {
   const navigate = useNavigate();
-  const [isActive, setIsActive] = useState(false);
+
+  // Whether the web UI itself started an active session this page-load
+  const [webIsActive, setWebIsActive] = useState(false);
+  // The session object from the server (id, startTime, etc.)
   const [session, setSession] = useState(null);
+  // Live elapsed seconds for the web-started session
   const [elapsed, setElapsed] = useState(0);
+
   const [error, setError] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
-  const [stats, setStats] = useState({ weeklyHours: 0, sessionCount: 0 });
-  const [weeklyData, setWeeklyData] = useState([0, 0, 0, 0, 0, 0, 0]); // Sun-Sat or Mon-Sun depending on backend
-  
-  const maxHours = Math.max(...weeklyData, 1);
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  // Study stats from backend — all computed server-side from Firestore
+  const [stats, setStats] = useState({
+    weekMinutes: 0,
+    todayMinutes: 0,
+    sessionCount: 0,
+    dailyBreakdown: {},
+    subjectBreakdown: {},
+    activeSession: null,
+  });
 
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  // Derive weekly chart data from dailyBreakdown (minutes per day, Mon–Sun)
+  const weeklyData = days.map(d => stats.dailyBreakdown[d] || 0);
+  const maxMinutes = Math.max(...weeklyData, 1);
+
+  // --- Live timer for the web-side active session ---
   useEffect(() => {
     let interval = null;
-    if (isActive) {
+    if (webIsActive) {
       interval = setInterval(() => setElapsed(e => e + 1), 1000);
     } else {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isActive]);
+  }, [webIsActive]);
 
+  // --- Fetch study stats on mount ---
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await api.get('/api/study/stats/weekly');
-        if (res.data.success) {
-          setStats({
-            weeklyHours: res.data.stats.totalHours,
-            sessionCount: res.data.stats.sessionCount,
-            todayMinutes: res.data.stats.todayMinutes,
-            totalMinutes: res.data.stats.totalMinutes,
-          });
-          const breakdown = res.data.stats.dailyTotals || res.data.stats.dailyBreakdown;
-          if (breakdown) {
-            if (Array.isArray(breakdown)) {
-              setWeeklyData(breakdown);
-            } else if (typeof breakdown === 'object') {
-              const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-              const arr = days.map(d => breakdown[d] || 0);
-              setWeeklyData(arr);
-            }
-          }
-          if (res.data.stats.activeSession) {
-            setSession(res.data.stats.activeSession);
-            setIsActive(true);
-            const elapsedSeconds = Math.floor((new Date() - new Date(res.data.stats.activeSession.startTime)) / 1000);
-            setElapsed(elapsedSeconds);
-          }
-          setLastSyncedAt(Date.now());
-          setError(false);
-        } else {
-          setError(true);
-        }
-      } catch (err) {
-        console.error(err);
-        setError(true);
-      }
-    };
-
     fetchStats();
   }, []);
 
+  const fetchStats = async () => {
+    try {
+      const res = await api.get('/api/study/stats/weekly');
+      if (res.data.success) {
+        const s = res.data.stats;
+        setStats({
+          weekMinutes: s.weekMinutes ?? s.totalMinutes ?? 0,
+          todayMinutes: s.todayMinutes ?? 0,
+          sessionCount: s.sessionCount ?? 0,
+          dailyBreakdown: s.dailyBreakdown || s.dailyTotals || {},
+          subjectBreakdown: s.subjectBreakdown || {},
+          activeSession: s.activeSession || null,
+        });
+        // If Android has an active session, show it (but web hasn't started it)
+        // Do NOT set webIsActive — web only tracks sessions it initiates
+        setLastSyncedAt(Date.now());
+        setError(false);
+      } else {
+        setError(true);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    }
+  };
+
   const handleStart = async () => {
     try {
-      const subject = prompt("What are you working on?", "e.g. Mathematics, Project Research");
+      const subject = prompt('What are you working on?', 'e.g. Mathematics, Project Research');
       if (!subject) return;
-      
       const res = await api.post('/api/study/start', { subject, notes: '' });
       if (res.data.success) {
         setSession(res.data.session);
-        setIsActive(true);
+        setWebIsActive(true);
         setElapsed(0);
+        // Refresh stats to pick up the new active session from backend
+        await fetchStats();
       }
     } catch (err) {
       console.error(err);
@@ -95,33 +100,17 @@ export default function StudyTracking() {
     if (!session) return;
     try {
       await api.patch(`/api/study/stop/${session.id}`);
-      setIsActive(false);
+      setWebIsActive(false);
       setSession(null);
-      // Refresh stats
-      const res = await api.get('/api/study/stats/weekly');
-      if (res.data.success) {
-        setStats({
-          weeklyHours: res.data.stats.totalHours,
-          sessionCount: res.data.stats.sessionCount,
-          todayMinutes: res.data.stats.todayMinutes,
-          totalMinutes: res.data.stats.totalMinutes,
-        });
-        const breakdown = res.data.stats.dailyTotals || res.data.stats.dailyBreakdown;
-        if (breakdown) {
-          if (Array.isArray(breakdown)) {
-            setWeeklyData(breakdown);
-          } else if (typeof breakdown === 'object') {
-            const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-            const arr = days.map(d => breakdown[d] || 0);
-            setWeeklyData(arr);
-          }
-        }
-      }
+      setElapsed(0);
+      // Refresh stats after stopping
+      await fetchStats();
     } catch (err) {
       console.error(err);
     }
   };
 
+  // Format HH:MM:SS for the live timer display
   const formatTime = (secs) => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
@@ -129,29 +118,44 @@ export default function StudyTracking() {
     return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
   };
 
-  const getFormattedDuration = (baseMins, addedSecs) => {
-    const totalSecs = (baseMins || 0) * 60 + addedSecs;
+  // Format a duration in minutes + extra seconds as a human-readable string
+  const getFormattedDuration = (baseMins, addedSecs = 0) => {
+    const totalSecs = (baseMins || 0) * 60 + (addedSecs || 0);
     if (!totalSecs) return '0s';
     const h = Math.floor(totalSecs / 3600);
     const m = Math.floor((totalSecs % 3600) / 60);
     const s = totalSecs % 60;
-    
-    let parts = [];
+    const parts = [];
     if (h > 0) parts.push(`${h}h`);
     if (m > 0) parts.push(`${m}m`);
     if (s > 0) parts.push(`${s}s`);
     return parts.length > 0 ? parts.join(' ') : '0s';
   };
 
-  const todaysDisplay = error ? '--' : getFormattedDuration(stats.todayMinutes, elapsed);
-  const weeklyDisplay = error ? '--' : getFormattedDuration(stats.totalMinutes, elapsed);
+  // Today's display:
+  //   - Backend todayMinutes already includes active session elapsed (server computed it)
+  //   - If WEB started this session, add local elapsed since todayMinutes was last fetched
+  //   - If ANDROID started the session (stats.activeSession but webIsActive=false), the
+  //     backend todayMinutes already has its elapsed baked in — do not double-count
+  const webElapsedToAdd = webIsActive ? elapsed : 0;
+  const todaysDisplay = error ? '--' : getFormattedDuration(stats.todayMinutes, webElapsedToAdd);
+
+  // This Week:
+  //   - Backend weekMinutes = sum of completed sessions this Mon–Sun (active not included)
+  //   - If WEB started this session add elapsed; Android sessions: already completed,
+  //     their duration is in weekMinutes
+  const weeklyDisplay = error ? '--' : getFormattedDuration(stats.weekMinutes, webElapsedToAdd);
+
+  // Determine whether to show "IN PROGRESS" status
+  // True if web has an active session OR if Android has an active session (from backend)
+  const isAnySessionActive = webIsActive || Boolean(stats.activeSession);
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       {/* Header Section */}
-      <div style={{ 
-        background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)', 
-        borderBottomLeftRadius: '32px', 
+      <div style={{
+        background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+        borderBottomLeftRadius: '32px',
         borderBottomRightRadius: '32px',
         width: '100%',
         position: 'relative',
@@ -170,48 +174,55 @@ export default function StudyTracking() {
       </div>
 
       <div className="desktop-padding" style={{ padding: '0 24px', marginTop: '-35px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        
+
         {/* Current Session Card */}
         <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '8px', borderRadius: '12px', display: 'flex', marginRight: '12px' }}>
-                 <TimerIcon style={{ color: '#6366F1', fontSize: '20px' }} />
+                <TimerIcon style={{ color: '#6366F1', fontSize: '20px' }} />
               </div>
               <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Current Session</div>
             </div>
-            <div style={{ 
-              backgroundColor: isActive ? 'rgba(234, 179, 8, 0.15)' : 'rgba(34, 197, 94, 0.15)', 
-              padding: '6px 12px', 
-              borderRadius: '20px', 
-              fontSize: '11px', 
-              fontWeight: 800, 
-              color: isActive ? '#EAB308' : '#22C55E',
+            <div style={{
+              backgroundColor: isAnySessionActive ? 'rgba(234, 179, 8, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              fontSize: '11px',
+              fontWeight: 800,
+              color: isAnySessionActive ? '#EAB308' : '#22C55E',
               letterSpacing: '0.5px'
             }}>
-              {isActive ? "IN PROGRESS" : "READY"}
+              {isAnySessionActive ? 'IN PROGRESS' : 'READY'}
             </div>
           </div>
 
+          {/* Live timer — only shown when WEB started the session */}
           <div style={{ marginTop: '36px', marginBottom: '36px', fontSize: '72px', fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', textShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-            {formatTime(elapsed)}
+            {webIsActive
+              ? formatTime(elapsed)
+              : (stats.activeSession
+                ? <span style={{ fontSize: '20px', color: 'var(--text-secondary)', fontWeight: 600 }}>📱 Session active on Android</span>
+                : formatTime(0)
+              )
+            }
           </div>
 
-          <button 
-            onClick={isActive ? handleStop : handleStart}
-            style={{ 
-              width: '80%', height: '60px', borderRadius: '30px', 
-              background: isActive ? 'linear-gradient(135deg, #EF4444, #F43F5E)' : 'linear-gradient(135deg, #4F46E5, #7C3AED)', 
+          <button
+            onClick={webIsActive ? handleStop : handleStart}
+            style={{
+              width: '80%', height: '60px', borderRadius: '30px',
+              background: webIsActive ? 'linear-gradient(135deg, #EF4444, #F43F5E)' : 'linear-gradient(135deg, #4F46E5, #7C3AED)',
               color: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', border: 'none', cursor: 'pointer',
-              boxShadow: isActive ? '0 8px 25px -5px rgba(239, 68, 68, 0.5)' : '0 8px 25px -5px rgba(99, 102, 241, 0.5)',
+              boxShadow: webIsActive ? '0 8px 25px -5px rgba(239, 68, 68, 0.5)' : '0 8px 25px -5px rgba(99, 102, 241, 0.5)',
               transition: 'all 0.3s ease',
-              transform: isActive ? 'scale(1.02)' : 'scale(1)'
+              transform: webIsActive ? 'scale(1.02)' : 'scale(1)'
             }}
             onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-            onMouseOut={(e) => e.currentTarget.style.transform = isActive ? 'scale(1.02)' : 'scale(1)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = webIsActive ? 'scale(1.02)' : 'scale(1)'}
           >
-            {isActive ? <StopIcon style={{ marginRight: '8px' }} /> : <PlayArrowIcon style={{ marginRight: '8px' }} />}
-            <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '0.5px' }}>{isActive ? 'End Session' : 'Start Session'}</span>
+            {webIsActive ? <StopIcon style={{ marginRight: '8px' }} /> : <PlayArrowIcon style={{ marginRight: '8px' }} />}
+            <span style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '0.5px' }}>{webIsActive ? 'End Session' : 'Start Session'}</span>
           </button>
 
           <div style={{ display: 'flex', width: '100%', gap: '16px', marginTop: '32px' }}>
@@ -226,45 +237,88 @@ export default function StudyTracking() {
           </div>
         </div>
 
-        {/* Weekly Overview Card */}
+        {/* Weekly Overview Card — shows Mon–Sun of current week only */}
         <div className="glass-card" style={{ padding: '24px', marginBottom: '40px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '8px', borderRadius: '12px', display: 'flex', marginRight: '12px' }}>
-                 <CalendarMonthIcon style={{ color: '#8B5CF6', fontSize: '20px' }} />
+                <CalendarMonthIcon style={{ color: '#8B5CF6', fontSize: '20px' }} />
               </div>
               <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>Weekly Overview</div>
             </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>This week (Mon–Sun)</div>
           </div>
-          
-          {/* Bar Chart */}
+
+          {/* Bar Chart — each bar = actual minutes from Firestore for that day */}
           <div style={{ display: 'flex', height: '180px', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 4px', gap: '12px' }}>
             {weeklyData.map((val, idx) => {
-              const heightPercentage = Math.max((val / maxHours) * 100, 5); // min height 5%
+              const heightPercentage = val > 0 ? Math.max((val / maxMinutes) * 100, 8) : 4;
+              const isToday = (() => {
+                // Must match backend IST (UTC+05:30) day index: 0=Mon … 6=Sun
+                const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+                const istDate = new Date(Date.now() + IST_OFFSET_MS);
+                const utcDay = istDate.getUTCDay(); // 0=Sun … 6=Sat in IST wall-clock
+                const mondayBased = utcDay === 0 ? 6 : utcDay - 1; // 0=Mon … 6=Sun
+                return idx === mondayBased;
+              })();
               return (
                 <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                  <div style={{ 
-                    width: '100%', 
-                    height: `${heightPercentage}%`, 
-                    background: 'linear-gradient(to top, #6366F1, #8B5CF6)', 
+                  <div style={{
+                    width: '100%',
+                    height: `${heightPercentage}%`,
+                    background: isToday
+                      ? 'linear-gradient(to top, #F59E0B, #FBBF24)'
+                      : (val > 0 ? 'linear-gradient(to top, #6366F1, #8B5CF6)' : 'var(--border-color)'),
                     borderRadius: '8px',
-                    boxShadow: '0 4px 10px rgba(99, 102, 241, 0.3)',
-                    transition: 'height 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                    boxShadow: val > 0 ? '0 4px 10px rgba(99, 102, 241, 0.3)' : 'none',
+                    transition: 'height 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                    opacity: val > 0 ? 1 : 0.3,
                   }}></div>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '12px' }}>{days[idx]}</div>
+                  {val > 0 && (
+                    <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: 600 }}>
+                      {val >= 60 ? `${Math.floor(val / 60)}h${val % 60 > 0 ? `${val % 60}m` : ''}` : `${val}m`}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '11px', fontWeight: isToday ? 700 : 600, color: isToday ? '#F59E0B' : 'var(--text-secondary)', marginTop: '4px' }}>{days[idx]}</div>
                 </div>
               );
             })}
           </div>
-        </div>
 
+          {/* Subject Breakdown */}
+          {Object.keys(stats.subjectBreakdown).length > 0 && (
+            <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Study Breakdown</div>
+              {Object.entries(stats.subjectBreakdown)
+                .sort((a, b) => b[1] - a[1])
+                .map(([subject, mins]) => {
+                  const totalMins = Object.values(stats.subjectBreakdown).reduce((s, v) => s + v, 0) || 1;
+                  const pct = Math.round((mins / totalMins) * 100);
+                  const displayDur = mins >= 60
+                    ? `${Math.floor(mins / 60)}h${mins % 60 > 0 ? ` ${mins % 60}m` : ''}`
+                    : `${mins}m`;
+                  return (
+                    <div key={subject} style={{ marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{subject || 'Uncategorized'}</span>
+                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{displayDur} ({pct}%)</span>
+                      </div>
+                      <div style={{ height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg, #6366F1, #8B5CF6)', borderRadius: '3px', transition: 'width 0.5s ease' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
 
         <div style={{ textAlign: 'center', marginTop: '8px', marginBottom: '24px', fontSize: '12px', color: error ? '#EF4444' : 'var(--text-secondary)' }}>
           {error ? '⚠️ Unable to sync data. Retry.' : (lastSyncedAt ? `Synced just now (${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : 'Syncing...')}
         </div>
 
       </div>
-      
+
       <BottomNavigation activeTab="tracker" />
     </div>
   );

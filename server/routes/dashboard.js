@@ -3,11 +3,41 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { computeBurnoutRisk } = require('../services/burnoutService');
-const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
+const { getLocalDateString } = require('../utils/dateUtils');
+
+// ─── IST helpers (must match study.js exactly) ────────────────────────────────
+// Android device timezone = IST (UTC+05:30).  All calendar-day and week
+// boundaries are computed in IST so they match the Android app exactly.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+function toIST(dateOrString) {
+  return new Date(new Date(dateOrString).getTime() + IST_OFFSET_MS);
+}
+
+function getISTDateString(dateOrString) {
+  const ist = toIST(dateOrString);
+  const y = ist.getUTCFullYear();
+  const m = String(ist.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(ist.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getWeekStartISO() {
+  const nowIST = toIST(new Date());
+  const dayOfWeek = nowIST.getUTCDay(); // 0=Sun … 6=Sat
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const mondayIST = new Date(nowIST);
+  mondayIST.setUTCDate(nowIST.getUTCDate() - daysFromMonday);
+  mondayIST.setUTCHours(0, 0, 0, 0);
+  // Shift back to real UTC
+  return new Date(mondayIST.getTime() - IST_OFFSET_MS).toISOString();
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/', auth, async (req, res) => {
   const userId = req.user.uid;
-  const today = getLocalDateString();
+  // today in IST (for app-usage query which uses the `date` field, also written in IST)
+  const today = getISTDateString(new Date());
 
   try {
     const sleepSnap = await db.collection('sleepMoodLogs')
@@ -24,35 +54,37 @@ router.get('/', auth, async (req, res) => {
       .get();
     const lastProd = prodSnap.docs.length > 0 ? prodSnap.docs[0].data() : null;
 
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-
+    // Fetch this-week sessions using the same IST Monday boundary as study.js
+    const weekStartISO = getWeekStartISO();
     const studySnap = await db.collection('studySessions')
       .where('userId', '==', userId)
-      .where('startTime', '>=', weekAgo.toISOString())
+      .where('startTime', '>=', weekStartISO)
       .get();
 
-    const studyDocs = studySnap.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }));
+    const studyDocs = studySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    const sessionCount = studyDocs.length;
-    const weeklyStudyMinutes = studyDocs.reduce((sum, doc) => sum + Number(doc.duration || 0), 0);
+    // Weekly total: completed sessions only
+    const completedDocs = studyDocs.filter(doc => doc.isActive === false && doc.duration != null);
+    const weeklyStudyMinutes = completedDocs.reduce((sum, doc) => sum + Number(doc.duration || 0), 0);
     const weeklyStudyHours = Math.round((weeklyStudyMinutes / 60) * 10) / 10;
-    
-    const completedTodayStudyMinutes = studyDocs
-      .filter(doc => normalizeDateValue(doc.startTime) === today)
+    const sessionCount = studyDocs.length;
+
+    // Today's completed study (IST date match)
+    const completedTodayStudyMinutes = completedDocs
+      .filter(doc => getISTDateString(doc.startTime) === today)
       .reduce((sum, doc) => sum + Number(doc.duration || 0), 0);
 
-    // An active session has no persisted duration until it is stopped. Include its
-    // elapsed time here so the dashboard is consistent with the running mobile timer.
+    // Active session: must have started today (IST), not be a zombie (< 24h)
     const now = Date.now();
     const activeSession = studyDocs
-      .filter(doc => doc.isActive === true && normalizeDateValue(doc.startTime) === today)
-      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-      .find(doc => {
+      .filter(doc => {
+        if (doc.isActive !== true) return false;
         const startedAt = new Date(doc.startTime).getTime();
-        return Number.isFinite(startedAt) && now - startedAt < 24 * 60 * 60 * 1000;
-      }) || null;
+        if (!Number.isFinite(startedAt) || now - startedAt >= 24 * 60 * 60 * 1000) return false;
+        return getISTDateString(doc.startTime) === today;
+      })
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())[0] || null;
+
     const activeStudySeconds = activeSession
       ? Math.max(0, Math.floor((now - new Date(activeSession.startTime).getTime()) / 1000))
       : 0;
@@ -70,14 +102,14 @@ router.get('/', auth, async (req, res) => {
     } else {
       burnout = await computeBurnoutRisk(userId, today);
     }
-    
+
     if (!burnout.warnings) burnout.warnings = [];
 
     const usageSnap = await db.collection('appUsage')
       .where('userId', '==', userId)
       .where('date', '==', today)
       .get();
-    
+
     let todayAppUsageSeconds = 0;
     usageSnap.docs.forEach(doc => {
       const data = doc.data();
@@ -88,7 +120,6 @@ router.get('/', auth, async (req, res) => {
     });
     const todayAppUsageMinutes = Math.floor(todayAppUsageSeconds / 60);
 
-    // Fetch User Profile for FirstName
     const userDoc = await db.collection('users').doc(userId).get();
     const userProfile = userDoc.exists ? userDoc.data() : {};
     const firstName = userProfile.firstName || req.user.email.split('@')[0];
@@ -96,9 +127,7 @@ router.get('/', auth, async (req, res) => {
     res.json({
       success: true,
       dashboard: {
-        user: {
-          firstName: firstName
-        },
+        user: { firstName },
         quickStats: {
           lastSleepHours: lastSleep?.sleepDuration ?? null,
           lastSleepQuality: lastSleep?.sleepQuality ?? null,
@@ -117,7 +146,7 @@ router.get('/', auth, async (req, res) => {
         burnoutAlert: {
           riskScore: burnout.riskScore,
           riskLevel: burnout.riskLevel,
-          topWarning: burnout.warnings[0] || "No significant risk factors detected today.",
+          topWarning: burnout.warnings[0] || 'No significant risk factors detected today.',
           warnings: burnout.warnings || [],
           factors: burnout.factors || []
         },
