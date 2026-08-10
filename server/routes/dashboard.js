@@ -12,40 +12,28 @@ router.get('/', auth, async (req, res) => {
   try {
     const sleepSnap = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(1)
       .get();
-    const sleepDocs = sleepSnap.docs
-      .map(d => d.data())
-      .filter(item => item && item.userId === userId)
-      .sort((a, b) => {
-        const aTime = new Date(a.createdAt || a.updatedAt || a.date || 0).getTime();
-        const bTime = new Date(b.createdAt || b.updatedAt || b.date || 0).getTime();
-        return bTime - aTime;
-      });
-    const lastSleep = sleepDocs.find(item => normalizeDateValue(item.date || item.createdAt) === today) || sleepDocs[0] || null;
+    const lastSleep = sleepSnap.docs.length > 0 ? sleepSnap.docs[0].data() : null;
 
     const prodSnap = await db.collection('productivityLogs')
       .where('userId', '==', userId)
+      .orderBy('date', 'desc')
+      .limit(1)
       .get();
-    const prodDocs = prodSnap.docs
-      .map(d => d.data())
-      .filter(item => item && item.userId === userId)
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    const lastProd = prodDocs.length > 0 ? prodDocs[0] : null;
+    const lastProd = prodSnap.docs.length > 0 ? prodSnap.docs[0].data() : null;
 
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
 
     const studySnap = await db.collection('studySessions')
       .where('userId', '==', userId)
+      .where('startTime', '>=', weekAgo.toISOString())
       .get();
 
     const studyDocs = studySnap.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(doc => {
-        if (!doc.startTime) return false;
-        const startTime = new Date(doc.startTime);
-        return !Number.isNaN(startTime.getTime()) && startTime >= weekAgo;
-      });
+      .map(doc => ({ id: doc.id, ...doc.data() }));
 
     const sessionCount = studyDocs.length;
     const weeklyStudyMinutes = studyDocs.reduce((sum, doc) => sum + Number(doc.duration || 0), 0);
@@ -73,14 +61,12 @@ router.get('/', auth, async (req, res) => {
 
     const burnoutSnap = await db.collection('burnoutAssessments')
       .where('userId', '==', userId)
+      .orderBy('date', 'desc')
+      .limit(1)
       .get();
-    const burnoutDocs = burnoutSnap.docs
-      .map(d => d.data())
-      .filter(item => item && item.userId === userId)
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     let burnout = null;
-    if (burnoutDocs.length > 0) {
-      burnout = burnoutDocs[0];
+    if (burnoutSnap.docs.length > 0) {
+      burnout = burnoutSnap.docs[0].data();
     } else {
       burnout = await computeBurnoutRisk(userId, today);
     }
@@ -89,12 +75,12 @@ router.get('/', auth, async (req, res) => {
 
     const usageSnap = await db.collection('appUsage')
       .where('userId', '==', userId)
+      .where('date', '==', today)
       .get();
     
     let todayAppUsageSeconds = 0;
     usageSnap.docs.forEach(doc => {
       const data = doc.data();
-      if (normalizeDateValue(data.date) !== today) return;
       const cat = data.category || '';
       if (cat.includes('Social') || cat.includes('Gaming') || cat.includes('Stream') || cat.includes('Entertainment')) {
         todayAppUsageSeconds += Number(data.totalDurationSeconds ?? (data.totalDuration || 0) * 60);
