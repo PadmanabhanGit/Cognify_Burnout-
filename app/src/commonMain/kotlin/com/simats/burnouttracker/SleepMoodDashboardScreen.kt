@@ -35,11 +35,8 @@ fun SleepMoodDashboardScreen(navController: NavController) {
     val viewModel = remember { SleepViewModel(repository) }
     val sessions by viewModel.sessions.collectAsState()
     val latestSession = sessions.firstOrNull()
-    
-    // Sync fallback from AI engine if real session not yet analyzed
-    val displayQuality = latestSession?.sleepQuality ?: (100 - com.simats.burnouttracker.utils.AppData.predictedScore).toInt()
-    val displayDisturbance = latestSession?.disturbanceScore ?: (com.simats.burnouttracker.utils.AppData.predictedScore * 2.5f).toInt()
-    
+    val available = latestSession != null
+
     val wakeEvents by viewModel.selectedWakeEvents.collectAsState()
 
     val headerGradient = Brush.verticalGradient(
@@ -84,13 +81,13 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                     }
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "Sleep Monitoring",
+                        text = "Sleep Analysis",
                         color = Color.White,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Scientific analysis of your night rest",
+                        text = "Detailed breakdown of your automatically detected sleep",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 14.sp
                     )
@@ -103,112 +100,146 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                     .offset(y = (-30).dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Sleep Quality Score Card
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color.White,
-                    shadowElevation = 8.dp
-                ) {
-                    Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
-                            CircularProgressIndicator(
-                                progress = { displayQuality / 100f },
-                                modifier = Modifier.fillMaxSize(),
-                                color = getQualityColor(displayQuality),
-                                strokeWidth = 10.dp,
-                                trackColor = ThemeColors.background
+                if (!available) {
+                    // No automatic session at all — explicit unavailable state.
+                    // No gauge, no metric grid, no "--" scattered across a full
+                    // layout: the whole analysis section is unavailable, so it
+                    // says so once rather than showing an empty-looking dashboard.
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.White,
+                        shadowElevation = 8.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(32.dp).fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.Bedtime, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(40.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Sleep analysis unavailable",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ThemeColors.textPrimary
                             )
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "$displayQuality%",
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = ThemeColors.textPrimary
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "No detected sleep session is available yet.",
+                                fontSize = 13.sp,
+                                color = Color.Gray,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    val session = latestSession!!
+
+                    // Sleep Quality Score Card — session.sleepQuality is the engine's
+                    // own 0-100 score (100 - disturbanceScore, computed in
+                    // SleepMonitoringEngine.kt). Displayed as-is; no second formula.
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.White,
+                        shadowElevation = 8.dp
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
+                                CircularProgressIndicator(
+                                    progress = { session.sleepQuality / 100f },
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = getQualityColor(session.sleepQuality),
+                                    strokeWidth = 10.dp,
+                                    trackColor = ThemeColors.background
                                 )
-                                Text(
-                                    text = getQualityLevel(displayQuality),
-                                    fontSize = 12.sp,
-                                    color = getQualityColor(displayQuality),
-                                    fontWeight = FontWeight.Bold
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "${session.sleepQuality}%",
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = ThemeColors.textPrimary
+                                    )
+                                    Text(
+                                        text = getQualityLevel(session.sleepQuality),
+                                        fontSize = 12.sp,
+                                        color = getQualityColor(session.sleepQuality),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                MetricCard(
+                                    label = "Total Sleep",
+                                    value = formatMinutes(session.totalSleepMinutes),
+                                    icon = Icons.Default.Bedtime,
+                                    color = Color(0xFF6366F1),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                MetricCard(
+                                    label = "Awakenings",
+                                    value = "${session.awakeningCount}",
+                                    icon = Icons.Default.NotificationsActive,
+                                    color = Color(0xFFF59E0B),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                MetricCard(
+                                    label = "Disturbance",
+                                    value = "${session.disturbanceScore}",
+                                    icon = Icons.Default.Warning,
+                                    color = Color(0xFFEF4444),
+                                    modifier = Modifier.weight(1f)
                                 )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            MetricCard(
-                                label = "Total Sleep",
-                                value = formatMinutes(latestSession?.totalSleepMinutes ?: (com.simats.burnouttracker.utils.AppData.lastSleepLogged * 60).toInt()),
-                                icon = Icons.Default.Bedtime,
-                                color = Color(0xFF6366F1),
-                                modifier = Modifier.weight(1f)
-                            )
-                            MetricCard(
-                                label = "Awakenings",
-                                value = "${latestSession?.awakeningCount ?: 0}",
-                                icon = Icons.Default.NotificationsActive,
-                                color = Color(0xFFF59E0B),
-                                modifier = Modifier.weight(1f)
-                            )
-                            MetricCard(
-                                label = "Disturbance",
-                                value = "$displayDisturbance",
-                                icon = Icons.Default.Warning,
-                                color = Color(0xFFEF4444),
-                                modifier = Modifier.weight(1f)
-                            )
+                    }
+
+                    // Sleep Start & Wake Times
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        shadowElevation = 4.dp
+                    ) {
+                        Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            TimeInfo(label = "Sleep Start", time = formatTimestamp(session.sleepStart), icon = Icons.Default.Nightlight)
+                            VerticalDivider(modifier = Modifier.height(40.dp), thickness = 1.dp, color = ThemeColors.background)
+                            TimeInfo(label = "Wake Up", time = formatTimestamp(session.sleepEnd), icon = Icons.Default.WbSunny)
                         }
                     }
-                }
 
-                // Sleep Start & Wake Times
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color.White,
-                    shadowElevation = 4.dp
-                ) {
-                    Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        TimeInfo(label = "Sleep Start", time = formatTimestamp(latestSession?.sleepStart ?: 0), icon = Icons.Default.Nightlight)
-                        VerticalDivider(modifier = Modifier.height(40.dp), thickness = 1.dp, color = ThemeColors.background)
-                        TimeInfo(label = "Wake Up", time = formatTimestamp(latestSession?.sleepEnd ?: 0), icon = Icons.Default.WbSunny)
-                    }
-                }
+                    // Timeline Section — real sleepStart/sleepEnd and real WakeEvent
+                    // rows only (from Room wake_events, populated by the engine's
+                    // actual awakening detection). No "Monitoring Started" node:
+                    // there is no persisted monitoring-start timestamp anywhere in
+                    // the data model, so the previous hardcoded "10:00 PM" here had
+                    // nothing real to represent.
+                    Text(
+                        text = "Sleep Timeline",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColors.textPrimary,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
 
-                // Timeline Section
-                Text(
-                    text = "Sleep Timeline",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColors.textPrimary,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color.White,
-                    shadowElevation = 4.dp
-                ) {
-                    Column(modifier = Modifier.padding(24.dp)) {
-                        TimelineItem(
-                            time = "10:00 PM",
-                            title = "Monitoring Started",
-                            icon = Icons.Default.RadioButtonChecked,
-                            color = Color(0xFF6366F1)
-                        )
-                        
-                        if (latestSession != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color.White,
+                        shadowElevation = 4.dp
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp)) {
                             TimelineItem(
-                                time = formatTimestamp(latestSession.sleepStart),
+                                time = formatTimestamp(session.sleepStart),
                                 title = "Sleep Started",
-                                subtitle = "User became inactive for 20+ mins",
+                                subtitle = "Detected from a sustained inactivity gap",
                                 icon = Icons.Default.Bedtime,
                                 color = Color(0xFF4F46E5)
                             )
-                            
+
                             wakeEvents.forEach { event ->
                                 TimelineItem(
                                     time = formatTimestamp(event.timestamp),
@@ -218,21 +249,19 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                                     color = Color(0xFFF59E0B)
                                 )
                             }
-                            
+
                             TimelineItem(
-                                time = formatTimestamp(latestSession.sleepEnd),
+                                time = formatTimestamp(session.sleepEnd),
                                 title = "Final Wake Up",
-                                subtitle = "Monitoring successfully completed",
+                                subtitle = "Detected from a sustained activity cluster",
                                 icon = Icons.Default.WbSunny,
                                 color = Color(0xFF10B981),
                                 isLast = true
                             )
-                        } else {
-                            Text(text = "No timeline data for today.", color = Color.Gray, fontSize = 14.sp)
                         }
                     }
                 }
-                
+
                 Button(
                     onClick = { navController.navigate("sleep_mood_analytics") },
                     modifier = Modifier.fillMaxWidth().height(56.dp),

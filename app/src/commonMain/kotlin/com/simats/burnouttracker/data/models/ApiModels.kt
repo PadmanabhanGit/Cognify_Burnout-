@@ -120,8 +120,11 @@ data class StudyMonthlyResponse(
 
 @Serializable
 data class SleepMoodLogRequest(
-    val sleepDuration: Double,    // hours (e.g. 7.5)
-    val sleepQuality: Int,        // 1-10
+    // Nullable: a mood-only entry (no sleep session, automatic or manual, to
+    // report) must be able to send neither rather than a fabricated value.
+    // The server already treats these as optional (`sleepDuration ?? null`).
+    val sleepDuration: Double? = null,    // hours (e.g. 7.5)
+    val sleepQuality: Int? = null,        // automatic writers: 0-100. Manual writers: 1-10 (unchanged, see source below).
     val mood: String,             // "happy", "sad", "anxious", etc.
     val moodScore: Int,           // 1-10
     val notes: String? = null,
@@ -129,7 +132,12 @@ data class SleepMoodLogRequest(
     val sleepStart: Long? = null,
     val sleepEnd: Long? = null,
     val awakeningCount: Int? = null,
-    val disturbanceScore: Int? = null
+    val disturbanceScore: Int? = null,
+    // Explicit record of who produced this entry: "automatic" (SleepMonitoringEngine)
+    // or "manual" (a logging screen). Nullable/additive so older builds that don't
+    // set it still compile and post successfully — the server falls back to its
+    // existing sleepStart/sleepEnd-presence heuristic when this is absent.
+    val source: String? = null
 )
 
 @Serializable
@@ -145,7 +153,9 @@ data class SleepMoodLog(
     val sleepStart: Long? = null,
     val sleepEnd: Long? = null,
     val awakeningCount: Int? = null,
-    val disturbanceScore: Int? = null
+    val disturbanceScore: Int? = null,
+    // Additive: absent on records written before this change.
+    val source: String? = null
 )
 
 @Serializable

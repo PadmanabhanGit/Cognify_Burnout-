@@ -35,3 +35,8 @@ actual fun getLocalDateString(): String {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     return sdf.format(Date())
 }
+
+actual fun getCurrentHourMinute(): Pair<Int, Int> {
+    val cal = Calendar.getInstance()
+    return cal.get(Calendar.HOUR_OF_DAY) to cal.get(Calendar.MINUTE)
+}

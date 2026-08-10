@@ -111,7 +111,8 @@ fun SleepMoodLoggerScreen(navController: NavController) {
                                             "Happy" -> 10
                                             "Neutral" -> 5
                                             else -> 2
-                                        }
+                                        },
+                                        source = "manual"
                                     )
                                 )
                                 println("DEBUG_SAVE: Network call finished. Success: ${response.success}")

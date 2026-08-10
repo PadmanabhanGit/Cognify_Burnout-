@@ -33,6 +33,27 @@ function hasValidDetectedSleep(log) {
   return Number.isFinite(start) && Number.isFinite(end) && start > 0 && end > start;
 }
 
+/**
+ * True when a record should be treated as an automatic sleep-recognition
+ * session for canonical selection.
+ *
+ * Prefers the explicit `source` field written by routes/sleepMood.js's POST
+ * handler. Records written before that field existed have no `source` at
+ * all (undefined) — those fall back to the original structural check
+ * (hasValidDetectedSleep) so historical documents keep working unchanged,
+ * per the backward-compatibility requirement for this pass.
+ *
+ * A record explicitly tagged `source: "manual"` is NEVER treated as
+ * automatic here, even if it happened to carry a start/end pair — the
+ * explicit tag takes precedence over the structural heuristic once present.
+ */
+function isAutomaticSource(log) {
+  if (!log) return false;
+  if (log.source === 'manual') return false;
+  if (log.source === 'automatic') return true;
+  return true; // no `source` field at all: legacy record, fall through to hasValidDetectedSleep below
+}
+
 /** Recency key, mirroring the existing fallback chain in routes/sleepMood.js. */
 function recencyOf(log) {
   const t = new Date((log && (log.createdAt || log.updatedAt || log.date)) || 0).getTime();
@@ -50,13 +71,14 @@ function sortByRecencyDesc(logs) {
  */
 function selectCanonicalSleepLog(logs) {
   if (!Array.isArray(logs)) return null;
-  const detected = logs.filter(hasValidDetectedSleep);
+  const detected = logs.filter(log => isAutomaticSource(log) && hasValidDetectedSleep(log));
   if (detected.length === 0) return null;
   return sortByRecencyDesc(detected)[0];
 }
 
 module.exports = {
   hasValidDetectedSleep,
+  isAutomaticSource,
   recencyOf,
   sortByRecencyDesc,
   selectCanonicalSleepLog,

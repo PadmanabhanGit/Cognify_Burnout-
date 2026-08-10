@@ -17,7 +17,8 @@ export default function SleepMoodLogger() {
         sleepQuality: Math.max(1, Math.min(10, Math.round((sleepHours / 8) * 10))),
         mood: moodScore > 7 ? 'Happy' : 'Neutral',
         moodScore: moodScore,
-        notes: 'Logged from Web App'
+        notes: 'Logged from Web App',
+        source: 'manual'
       });
       alert('Logged successfully!');
       navigate('/sleep');

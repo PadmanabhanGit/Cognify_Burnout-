@@ -333,7 +333,8 @@ class SleepMonitoringEngine(private val context: Context) {
                     sleepStart = session.sleepStart,
                     sleepEnd = session.sleepEnd,
                     awakeningCount = session.awakeningCount,
-                    disturbanceScore = session.disturbanceScore
+                    disturbanceScore = session.disturbanceScore,
+                    source = "automatic"
                 )
             )
         } catch (e: Exception) {

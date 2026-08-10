@@ -343,7 +343,7 @@ fun SleepMoodBottomNavigation(navController: NavController, currentRoute: String
             BottomNavItem(
                 icon = Icons.Default.MonitorHeart, 
                 label = "Health", 
-                isSelected = currentRoute == "sleep_mood_dashboard" || currentRoute == "sleep_mood_logger", 
+                isSelected = currentRoute == "sleep_mood_dashboard" || currentRoute == "sleep_mood" || currentRoute == "sleep_mood_logger",
                 selectedColor = Color(0xFF4F46E5), 
                 onClick = { if (currentRoute != "sleep_mood_dashboard") navController.navigate("sleep_mood_dashboard") }
             )

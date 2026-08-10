@@ -311,7 +311,13 @@ fun DashboardScreen(navController: NavController) {
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
                     title = "Productivity",
                     subtitle = "Weekly trends",
-                    trailing = "+${(AppData.productivityScore % 15) + 5}%",
+                    // Previously "+${(AppData.productivityScore % 15) + 5}%" — a
+                    // fabricated week-over-week change with no real weekly-history
+                    // source behind it (no such data exists on Android or the
+                    // backend). Shows the real current score instead, matching
+                    // Web Dashboard.jsx's equivalent card exactly
+                    // (`${productivityScore}%`) rather than inventing a trend.
+                    trailing = "${AppData.productivityScore}%",
                     color = Color(0xFFDCFCE7),
                     iconColor = Color(0xFF10B981),
                     onClick = { navController.navigate("productivity") },

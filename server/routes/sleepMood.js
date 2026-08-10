@@ -3,7 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
-const { selectCanonicalSleepLog, sortByRecencyDesc } = require('../utils/sleepSelection');
+const { selectCanonicalSleepLog, sortByRecencyDesc, hasValidDetectedSleep } = require('../utils/sleepSelection');
 
 // @route   POST api/sleep-mood/log
 router.post('/log', auth, async (req, res) => {
@@ -11,6 +11,16 @@ router.post('/log', auth, async (req, res) => {
   const userId = req.user.uid;
   const logDate = normalizeDateValue(date || new Date());
   const timestamp = new Date().toISOString();
+
+  // Explicit source, trusted when the caller sets it. Older app builds that
+  // don't send `source` yet fall back to the same sleepStart/sleepEnd-presence
+  // heuristic sleepSelection.js already used before this change — so this is
+  // not a behavior change for existing clients, only an upgrade path for new
+  // ones. Any unrecognized value is treated the same as "not provided".
+  const requestedSource = req.body.source === 'automatic' || req.body.source === 'manual'
+    ? req.body.source
+    : null;
+  const source = requestedSource || (hasValidDetectedSleep(req.body) ? 'automatic' : 'manual');
 
   try {
     const docRef = await db.collection('sleepMoodLogs').add({
@@ -27,6 +37,7 @@ router.post('/log', auth, async (req, res) => {
       sleepEnd: req.body.sleepEnd ?? null,
       awakeningCount: req.body.awakeningCount ?? null,
       disturbanceScore: req.body.disturbanceScore ?? null,
+      source,
     });
 
     const doc = await docRef.get();
