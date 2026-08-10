@@ -82,6 +82,30 @@ object ApiClient {
         }
     }
 
+    // success=false here means "request failed" (network/auth/server error), which
+    // callers must treat differently from a successful response whose `log` is null
+    // (meaning: no record exists yet for today). Collapsing those two cases would
+    // show a fabricated empty state on a transient failure.
+    suspend fun getProductivityToday(): ProductivityTodayResponse {
+        return try {
+            client.get("api/productivity/today") {
+                authHeader()?.let { header(HttpHeaders.Authorization, it) }
+            }.body()
+        } catch (e: Exception) {
+            ProductivityTodayResponse(success = false, log = null)
+        }
+    }
+
+    suspend fun getProductivityWeekly(): ProductivityWeeklyResponse {
+        return try {
+            client.get("api/productivity/weekly") {
+                authHeader()?.let { header(HttpHeaders.Authorization, it) }
+            }.body()
+        } catch (e: Exception) {
+            ProductivityWeeklyResponse(success = false, days = emptyList())
+        }
+    }
+
     suspend fun saveSleepMoodLog(request: SleepMoodLogRequest): SleepMoodLogResponse {
         return try {
             client.post("api/sleep-mood/log") {

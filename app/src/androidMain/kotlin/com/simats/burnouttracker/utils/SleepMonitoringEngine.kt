@@ -11,6 +11,60 @@ class SleepMonitoringEngine(private val context: Context) {
     private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     private val sleepDao = SleepDatabase.getDatabase(context).sleepDao()
 
+    companion object {
+        // Night window: 21:00 the previous evening → 09:00 on the morning of the sleep date.
+        private const val NIGHT_START_HOUR = 21
+        private const val NIGHT_END_HOUR = 9
+
+        // A gap only counts as sleep if the device was untouched this long.
+        // 90 min deliberately exceeds the old 45 min so that a 45–60 min evening
+        // lull can never be mistaken for the start of a night.
+        private const val MIN_INACTIVITY_MS = 90 * 60 * 1000L
+
+        // Existing settling adjustment: the user put the phone down, then fell asleep.
+        private const val SETTLE_MS = 15 * 60 * 1000L
+
+        // Activity events closer together than this belong to the same cluster.
+        // 30 min < MIN_INACTIVITY_MS, so clustering can never swallow a real sleep gap,
+        // yet it still keeps a foreground→background pair (e.g. a 30 min video) together.
+        private const val CLUSTER_GAP_MS = 30 * 60 * 1000L
+
+        // A cluster must span at least this long to count as a genuine wake-up.
+        private const val WAKE_CONFIRM_MS = 10 * 60 * 1000L
+
+        // Sleep cannot be confirmed as ended before this hour.
+        private const val EARLIEST_WAKE_HOUR = 4
+
+        // Gaps starting outside 21:00–05:00 are not bedtimes.
+        private const val BEDTIME_WINDOW_END_HOUR = 5
+
+        // Anything shorter than this is a nap, not a night.
+        private const val MIN_SESSION_MS = 120 * 60 * 1000L
+
+        // KEYGUARD_HIDDEN (device unlocked). Literal for API-24 compatibility;
+        // the same literal is already used by the scoring section below.
+        private const val EVENT_KEYGUARD_HIDDEN = 18
+    }
+
+    /** Events that indicate the user was present at the device. */
+    private fun isActivityEvent(type: Int): Boolean =
+        type == UsageEvents.Event.MOVE_TO_FOREGROUND ||
+        type == UsageEvents.Event.MOVE_TO_BACKGROUND ||
+        type == UsageEvents.Event.USER_INTERACTION ||
+        type == EVENT_KEYGUARD_HIDDEN
+
+    private fun hourOf(timestamp: Long): Int {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = timestamp
+        return cal.get(Calendar.HOUR_OF_DAY)
+    }
+
+    /** True when a timestamp falls in the plausible bedtime range 21:00–05:00. */
+    private fun isPlausibleBedtime(timestamp: Long): Boolean {
+        val hour = hourOf(timestamp)
+        return hour >= NIGHT_START_HOUR || hour < BEDTIME_WINDOW_END_HOUR
+    }
+
     private val categories = mapOf(
         "com.instagram.android" to "SOCIAL",
         "com.facebook.katana" to "SOCIAL",
@@ -44,17 +98,46 @@ class SleepMonitoringEngine(private val context: Context) {
         }
     }
 
+    /**
+     * Analyse the night that ENDED on the morning of [date].
+     *
+     * Window: 21:00 the previous evening → 09:00 on [date].
+     * (The previous implementation anchored 21:00 on [date] itself, so when the
+     * worker ran at 06:01 the whole window was in the FUTURE, queryEvents returned
+     * nothing, and the empty-window branch fabricated a 22:00→09:00 / 11h / 100%
+     * session. Both of those causes are removed here.)
+     *
+     * State model: ACTIVE → sustained inactivity → confirmed sleep → sleeping →
+     * sustained activity → awake. Brief interruptions stay inside the session.
+     *
+     * Produces no session at all rather than guessing.
+     */
     suspend fun analyzeNight(date: Date) {
-        val calendar = Calendar.getInstance()
-        calendar.time = date
-        calendar.set(Calendar.HOUR_OF_DAY, 21)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        val startTime = calendar.timeInMillis
+        // ── Window: previous evening 21:00 → morning 09:00 ───────────────────
+        val morning = Calendar.getInstance()
+        morning.time = date
+        morning.set(Calendar.HOUR_OF_DAY, NIGHT_END_HOUR)
+        morning.set(Calendar.MINUTE, 0)
+        morning.set(Calendar.SECOND, 0)
+        morning.set(Calendar.MILLISECOND, 0)
+        val endTime = morning.timeInMillis
 
-        calendar.add(Calendar.DAY_OF_YEAR, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 9)
-        val endTime = calendar.timeInMillis
+        val evening = morning.clone() as Calendar
+        evening.add(Calendar.DAY_OF_YEAR, -1)
+        evening.set(Calendar.HOUR_OF_DAY, NIGHT_START_HOUR)
+        val startTime = evening.timeInMillis
+
+        // Never finalise a night that has not finished yet. This makes the engine
+        // safe no matter who calls it (SleepWorker, refreshSleepData, manual).
+        if (System.currentTimeMillis() < endTime) {
+            println("[SLEEP] Window not complete yet (ends ${Date(endTime)}); skipping.")
+            return
+        }
+
+        // Skip nights already analysed — prevents duplicate Room rows and duplicate
+        // Firestore POSTs when refreshSleepData() re-scans the last 3 days.
+        val dateLabel = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
+        if (sleepDao.getSessionByDate(dateLabel) != null) return
 
         val events = usageStatsManager.queryEvents(startTime, endTime)
         val eventList = mutableListOf<UsageEvents.Event>()
@@ -64,60 +147,77 @@ class SleepMonitoringEngine(private val context: Context) {
             eventList.add(event)
         }
 
-        var sleepStart = startTime
-        var sleepEnd = endTime
+        // Presence timeline used for both boundaries.
+        val activity = eventList
+            .filter { isActivityEvent(it.eventType) }
+            .map { it.timeStamp }
+            .sorted()
 
-        if (eventList.isEmpty()) {
-            // No activity in the entire window -> sleep is the whole window
-            sleepStart = startTime + 60 * 60 * 1000 // Assume they slept at 10:00 PM if no activity
-        } else {
-            // 1. Detect Sleep Start
-            // Find first gap of at least 45 mins
-            var gapFound = false
-            for (i in 0 until eventList.size - 1) {
-                val current = eventList[i]
-                val next = eventList[i+1]
-                
-                if (next.timeStamp - current.timeStamp > 45 * 60 * 1000) {
-                    sleepStart = current.timeStamp + 15 * 60 * 1000 // 15 mins after last activity
-                    gapFound = true
-                    break
-                }
-            }
-            
-            if (!gapFound) {
-                // Check gap between last event and endTime
-                if (endTime - eventList.last().timeStamp > 45 * 60 * 1000) {
-                    sleepStart = eventList.last().timeStamp + 15 * 60 * 1000
-                } else {
-                    return // No sleep detected
-                }
-            }
+        // No usable data → no detected sleep. NEVER fabricate a session.
+        if (activity.isEmpty()) {
+            println("[SLEEP] No usage events in $dateLabel window; no session recorded.")
+            return
+        }
 
-            // Detect Sleep End (First interaction after 04:00 AM)
-            val fourAmCal = Calendar.getInstance()
-            fourAmCal.timeInMillis = startTime
-            fourAmCal.add(Calendar.DAY_OF_YEAR, 1)
-            fourAmCal.set(Calendar.HOUR_OF_DAY, 4)
-            val fourAm = fourAmCal.timeInMillis
-
-            var wakeFound = false
-            for (event in eventList) {
-                if (event.timeStamp > fourAm && event.timeStamp > sleepStart) {
-                    if (event.eventType == UsageEvents.Event.USER_INTERACTION || event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                        sleepEnd = event.timeStamp
-                        wakeFound = true
-                        break
-                    }
-                }
-            }
-            if (!wakeFound) {
-                // Or end of final gap if no morning usage
-                sleepEnd = eventList.last().timeStamp
-                if (sleepEnd < sleepStart) sleepEnd = endTime
+        // ── 1. Sleep START: longest sustained inactivity beginning at a plausible bedtime ──
+        var gapFrom = -1L
+        var gapLength = 0L
+        for (i in 0 until activity.size - 1) {
+            val from = activity[i]
+            val length = activity[i + 1] - from
+            if (length >= MIN_INACTIVITY_MS && isPlausibleBedtime(from) && length > gapLength) {
+                gapFrom = from
+                gapLength = length
             }
         }
-        
+        // Trailing gap: last interaction of the night → window close.
+        val lastActivity = activity.last()
+        val trailing = endTime - lastActivity
+        if (trailing >= MIN_INACTIVITY_MS && isPlausibleBedtime(lastActivity) && trailing > gapLength) {
+            gapFrom = lastActivity
+            gapLength = trailing
+        }
+
+        if (gapFrom < 0) {
+            println("[SLEEP] No sustained inactivity >= 90m on $dateLabel; no session recorded.")
+            return
+        }
+
+        val sleepStart = gapFrom + SETTLE_MS
+
+        // ── 2. Sleep END: first cluster of SUSTAINED activity after 04:00 ────
+        val earliestWakeCal = Calendar.getInstance()
+        earliestWakeCal.timeInMillis = endTime
+        earliestWakeCal.set(Calendar.HOUR_OF_DAY, EARLIEST_WAKE_HOUR)
+        earliestWakeCal.set(Calendar.MINUTE, 0)
+        earliestWakeCal.set(Calendar.SECOND, 0)
+        earliestWakeCal.set(Calendar.MILLISECOND, 0)
+        val earliestWake = earliestWakeCal.timeInMillis
+
+        // Window already closed (guarded above), so this is a real past boundary,
+        // not a fabricated future timestamp.
+        var sleepEnd = endTime
+        val post = activity.filter { it > sleepStart }
+        var i = 0
+        while (i < post.size) {
+            var j = i
+            while (j + 1 < post.size && post[j + 1] - post[j] <= CLUSTER_GAP_MS) j++
+            val clusterStart = post[i]
+            val clusterSpan = post[j] - clusterStart
+            // A lone tap is an interruption; only sustained activity ends the night.
+            if (clusterSpan >= WAKE_CONFIRM_MS && clusterStart >= earliestWake) {
+                sleepEnd = clusterStart
+                break
+            }
+            i = j + 1
+        }
+
+        // ── 3. Reject implausibly short sessions rather than padding the UI ──
+        if (sleepEnd - sleepStart < MIN_SESSION_MS) {
+            println("[SLEEP] Session on $dateLabel shorter than 2h; rejected as a nap.")
+            return
+        }
+
         // 2. Identify Awakenings
         val awakenings = mutableListOf<WakeEvent>()
         val usageLogs = mutableListOf<AppUsageLog>()

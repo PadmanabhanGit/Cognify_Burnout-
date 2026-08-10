@@ -109,7 +109,7 @@ export default function BurnoutRisk() {
         </div>
         <div style={{ marginTop: '24px' }}>
           <div style={{ color: 'white', fontSize: '24px', fontWeight: 700 }}>Burnout Risk Analysis</div>
-          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '4px' }}>AI-powered mental fatigue prediction</div>
+          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '4px' }}>ML-powered mental fatigue prediction</div>
         </div>
       </div>
 

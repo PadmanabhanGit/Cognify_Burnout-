@@ -47,7 +47,12 @@ object AppData {
     var studyMonthHours by mutableStateOf(0f)
     val weeklyStudyData = mutableStateListOf(0f, 0f, 0f, 0f, 0f, 0f, 0f)
     val studyBreakdown = mutableStateMapOf<String, Float>()
-    val monthlyStudyTrend = mutableStateListOf(0.4f, 0.7f, 0.55f, 0.85f) // Normalized 0-1
+    // Normalized 0-1, index 3 = current week. Only index 3 is ever written (from
+    // real backend week totals); the backend exposes no multi-week study history,
+    // so indices 0-2 have no source and stay 0. Size is fixed at 4 because
+    // StudyTrackerScreen writes index 3 directly.
+    // Previously seeded with 0.4/0.7/0.55/0.85, which drew a fabricated trend line.
+    val monthlyStudyTrend = mutableStateListOf(0f, 0f, 0f, 0f)
 
     var activeSessionName by mutableStateOf<String?>(null)
     var activeSessionId by mutableStateOf<String?>(null)

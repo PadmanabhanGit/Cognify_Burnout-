@@ -135,15 +135,11 @@ fun DashboardScreen(navController: NavController) {
                     e.printStackTrace()
                 }
 
-                // Add a mock log if empty
-                if (AppData.sleepLogs.isEmpty()) {
-                    AppData.sleepLogs.add(
-                        SleepLog("Feb 24", 8.0f, "😊", "Excellent", Color(0xFF10B981))
-                    )
-                    AppData.sleepLogs.add(
-                        SleepLog("Feb 23", 6.5f, "😐", "Fair", Color(0xFFF97316))
-                    )
-                }
+                // Mock sleep logs removed. "Feb 24 / 8.0h / Excellent" and
+                // "Feb 23 / 6.5h / Fair" were injected whenever the list was empty
+                // and rendered as real entries on the Dashboard and the Sleep &
+                // Mood screen. Real entries come from the user's own sleep/mood
+                // logging; an empty list now stays empty.
 
                 AppData.hasData = true
                 AppData.lastUpdatedTime = formatCurrentTime()

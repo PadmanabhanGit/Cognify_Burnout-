@@ -23,6 +23,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'rec
 export default function Dashboard() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
+  const [studyStats, setStudyStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
@@ -57,7 +58,23 @@ export default function Dashboard() {
         }
       };
 
+      // Real Mon–Sun study minutes for the study chart below. One request on
+      // mount, alongside the dashboard fetch — no polling, no backend change.
+      // /api/dashboard does not carry dailyBreakdown, and the backend has no
+      // multi-week study history at all, so this is the only real trend data
+      // that exists.
+      const fetchWeeklyStudy = async () => {
+        try {
+          const res = await api.get('/api/study/stats/weekly');
+          setStudyStats(res.data.success ? res.data.stats : null);
+        } catch (err) {
+          console.error('Failed to load weekly study stats', err);
+          setStudyStats(null);
+        }
+      };
+
       fetchDashboard();
+      fetchWeeklyStudy();
     });
 
     return () => unsubscribe();
@@ -142,13 +159,20 @@ export default function Dashboard() {
   const productivityScore = quickStats.lastProductivityScore;
   const moodEmoji = error ? '--' : (moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : (moodScore > 0 ? '😔' : '--'));
 
-  // Monthly trend mock data based on backend stats if available, else standard points
-  const trendData = [
-    { name: 'Week 1', value: 0.4 },
-    { name: 'Week 2', value: 0.6 },
-    { name: 'Week 3', value: 0.5 },
-    { name: 'Week 4', value: (todayStudySeconds / (40 * 3600)).toFixed(2) }
-  ];
+  // Real study hours per day for the current Mon–Sun week, straight from
+  // /api/study/stats/weekly `dailyBreakdown` (minutes, IST calendar days).
+  // This replaces a hardcoded 4-week "trend" of 0.4 / 0.6 / 0.5. The backend
+  // holds no multi-week study history — there is no /stats/monthly route — so a
+  // 4-week chart cannot be produced from real data.
+  const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dailyBreakdown = studyStats?.dailyBreakdown ?? studyStats?.dailyTotals ?? null;
+  const trendData = dailyBreakdown
+    ? WEEK_DAYS.map(d => ({
+        name: d,
+        value: Math.round(((Number(dailyBreakdown[d]) || 0) / 60) * 10) / 10,
+      }))
+    : [];
+  const hasStudyTrend = trendData.some(d => d.value > 0);
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
@@ -255,35 +279,44 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Monthly Trend Section */}
+        {/* Study This Week — real daily totals, Mon–Sun */}
         <div style={{ marginTop: '24px', marginBottom: '16px' }}>
           <div className="white-card" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '8px', borderRadius: '12px', display: 'flex', marginRight: '12px' }}>
                 <TimelineIcon style={{ color: '#8B5CF6', fontSize: '20px' }} />
               </div>
-              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>Monthly Trend</div>
+              <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>Study This Week</div>
             </div>
 
-            <div style={{ width: '100%', height: '200px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trendData}>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    itemStyle={{ fontSize: '12px', fontWeight: 700 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#8B5CF6"
-                    strokeWidth={3}
-                    dot={{ r: 6, fill: '#fff', stroke: '#8B5CF6', strokeWidth: 2 }}
-                    activeDot={{ r: 8, fill: '#8B5CF6', stroke: '#fff', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            {hasStudyTrend ? (
+              <div style={{ width: '100%', height: '200px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData}>
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <Tooltip
+                      formatter={(v) => [`${v}h`, 'Studied']}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      itemStyle={{ fontSize: '12px', fontWeight: 700 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#8B5CF6"
+                      strokeWidth={3}
+                      dot={{ r: 6, fill: '#fff', stroke: '#8B5CF6', strokeWidth: 2 }}
+                      activeDot={{ r: 8, fill: '#8B5CF6', stroke: '#fff', strokeWidth: 2 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)', padding: '0 16px' }}>
+                {studyStats === null
+                  ? 'Study data unavailable.'
+                  : 'No study sessions recorded this week yet.'}
+              </div>
+            )}
           </div>
         </div>
 

@@ -210,20 +210,37 @@ data class CategoryItem(
     val hours: Double
 )
 
+/**
+ * The persisted productivityLogs/{userId}_{IST-date} document, as returned by
+ * POST /log and GET /today. Every field beyond `date` is nullable and has no
+ * default other than null: the backend only ever stores what was actually
+ * sent (see server/routes/productivity.js), so an unsent optional field is
+ * simply ABSENT from the document, not defaulted to 0/empty. Treating any of
+ * these as non-null here would either crash deserialization on a real
+ * document or silently misrepresent "not sent" as "sent as zero".
+ *
+ * Replaces a previous version of this model (SerialName("_id"), non-null
+ * peakHourStart/peakHourEnd/categories/etc.) that was never wired to any
+ * caller and did not match what the Firestore-backed endpoint actually
+ * returns — it assumed a Mongo-style `_id` and fields the backend never
+ * stores at all.
+ */
 @Serializable
 data class ProductivityLog(
-    @SerialName("_id") val id: String,
-    val userId: String,
-    val date: String,
-    val productivityScore: Int,
-    val focusHours: Double,
-    val breakHours: Double,
-    val tasksCompleted: Int,
-    val tasksPlanned: Int,
-    val peakHourStart: Int,
-    val peakHourEnd: Int,
-    val distractions: Int,
-    val categories: List<CategoryItem>
+    val id: String? = null,
+    val userId: String? = null,
+    val date: String? = null,
+    val productivityScore: Int? = null,
+    val focusHours: Double? = null,
+    val breakHours: Double? = null,
+    val tasksCompleted: Int? = null,
+    val tasksPlanned: Int? = null,
+    val peakHourStart: Int? = null,
+    val peakHourEnd: Int? = null,
+    val distractions: Int? = null,
+    val categories: List<CategoryItem>? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null
 )
 
 @Serializable
@@ -239,10 +256,19 @@ data class ProductivityTodayResponse(
     val log: ProductivityLog? = null
 )
 
+/** One entry of GET /weekly's `days[]` array — see server/routes/productivity.js. */
+@Serializable
+data class ProductivityWeeklyDay(
+    val date: String,
+    val available: Boolean = false,
+    val productivityScore: Int? = null,
+    val focusHours: Double? = null
+)
+
 @Serializable
 data class ProductivityWeeklyResponse(
     val success: Boolean,
-    val trend: List<ProductivityLog>
+    val days: List<ProductivityWeeklyDay> = emptyList()
 )
 
 // ─── Burnout ───────────────────────────────────────────────────────────────────

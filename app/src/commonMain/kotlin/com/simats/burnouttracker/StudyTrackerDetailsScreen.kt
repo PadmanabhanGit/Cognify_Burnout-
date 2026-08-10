@@ -145,6 +145,25 @@ fun StudyTrackerDetailsScreen(navController: NavController) {
 @Composable
 fun MonthlyTrendChart() {
     val points = AppData.monthlyStudyTrend
+
+    // A trend needs at least two real weeks. The backend has no multi-week study
+    // history (no /api/study/stats/monthly route exists), so only the current
+    // week is ever populated. Drawing a line through the remaining zeros would
+    // assert that no studying happened in those weeks, which is not known.
+    if (points.count { it > 0f } < 2) {
+        Box(
+            modifier = Modifier.fillMaxWidth().height(180.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Not enough history yet for a monthly trend.",
+                fontSize = 13.sp,
+                color = Color.Gray
+            )
+        }
+        return
+    }
+
     Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
         val width = size.width
         val height = size.height - 40.dp.toPx()
