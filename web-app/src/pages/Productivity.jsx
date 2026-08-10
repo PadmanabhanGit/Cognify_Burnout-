@@ -14,6 +14,8 @@ export default function Productivity() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   useEffect(() => {
     const fetchProd = async () => {
@@ -21,9 +23,14 @@ export default function Productivity() {
         const res = await api.get('/api/productivity/today');
         if (res.data.success && res.data.log) {
           setData(res.data.log);
+          setLastSyncedAt(Date.now());
+          setError(false);
+        } else {
+          setError(true);
         }
       } catch (err) {
         console.error("Failed to load productivity data", err);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -32,11 +39,11 @@ export default function Productivity() {
     fetchProd();
   }, []);
   
-  const productivityScore = data?.productivityScore ?? 85;
-  const peakFocusHours = data?.focusHours ?? 4.2;
-  const goalHitRate = data?.tasksPlanned ? Math.round((data.tasksCompleted / data.tasksPlanned) * 100) : 80;
-  const averageStartTime = "09:00 AM";
-  const userGlobalRanking = "Top 15%";
+  const productivityScore = error ? 0 : (data?.productivityScore ?? 0);
+  const peakFocusHours = error ? 0 : (data?.focusHours ?? 0);
+  const goalHitRate = error ? 0 : (data?.tasksPlanned ? Math.round((data.tasksCompleted / data.tasksPlanned) * 100) : 0);
+  const averageStartTime = error ? '--:--' : (data?.averageStartTime || '--:--');
+  const userGlobalRanking = error ? '--' : (data?.ranking || '--');
   
   const activeHours = peakFocusHours + (data?.breakHours ?? 1.5);
 
@@ -151,6 +158,10 @@ export default function Productivity() {
 
 
 
+      </div>
+      
+      <div style={{ textAlign: 'center', marginTop: '24px', marginBottom: '24px', fontSize: '12px', color: error ? '#EF4444' : 'var(--text-secondary)' }}>
+        {error ? '⚠️ Unable to sync data. Retry.' : (lastSyncedAt ? `Synced just now (${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : 'Syncing...')}
       </div>
       
       <BottomNavigation activeTab="analytics" />

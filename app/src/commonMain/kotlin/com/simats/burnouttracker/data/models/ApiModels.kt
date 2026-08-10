@@ -125,7 +125,11 @@ data class SleepMoodLogRequest(
     val mood: String,             // "happy", "sad", "anxious", etc.
     val moodScore: Int,           // 1-10
     val notes: String? = null,
-    val date: String? = null      // ISO date string, defaults to now
+    val date: String? = null,     // ISO date string, defaults to now
+    val sleepStart: Long? = null,
+    val sleepEnd: Long? = null,
+    val awakeningCount: Int? = null,
+    val disturbanceScore: Int? = null
 )
 
 @Serializable
@@ -137,7 +141,11 @@ data class SleepMoodLog(
     val sleepQuality: Int,
     val mood: String,
     val moodScore: Int,
-    val notes: String? = null
+    val notes: String? = null,
+    val sleepStart: Long? = null,
+    val sleepEnd: Long? = null,
+    val awakeningCount: Int? = null,
+    val disturbanceScore: Int? = null
 )
 
 @Serializable

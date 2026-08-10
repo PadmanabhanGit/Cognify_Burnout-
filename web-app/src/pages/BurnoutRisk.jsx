@@ -18,6 +18,8 @@ import BottomNavigation from '../components/BottomNavigation';
 export default function BurnoutRisk() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [error, setError] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,17 +27,22 @@ export default function BurnoutRisk() {
         const res = await api.get('/api/dashboard');
         if (res.data.success) {
           setData(res.data.dashboard);
+          setLastSyncedAt(Date.now());
+          setError(false);
+        } else {
+          setError(true);
         }
       } catch (err) {
         console.error(err);
+        setError(true);
       }
     };
 
     fetchData();
   }, []);
 
-  const riskScore = data?.burnoutAlert?.riskScore ?? 45;
-  const riskLevel = data?.burnoutAlert?.riskLevel ?? "MODERATE";
+  const riskScore = error ? 0 : (data?.burnoutAlert?.riskScore ?? 45);
+  const riskLevel = error ? "UNKNOWN" : (data?.burnoutAlert?.riskLevel ?? "MODERATE");
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: '#F9FAFB' }}>
@@ -98,19 +105,35 @@ export default function BurnoutRisk() {
             <NotificationsIcon style={{ color: 'white', fontSize: '20px', marginRight: '12px' }} />
             <div style={{ fontSize: '16px', fontWeight: 700, color: 'white' }}>Warning Indicators</div>
           </div>
-          <WarningItem text="Increased study hours (>15%)" />
-          <WarningItem text="Sleep deficit detected" />
-          {riskScore > 60 && <WarningItem text="Elevated stress levels" />}
+          {data?.burnoutAlert?.warnings?.length > 0 ? (
+            data.burnoutAlert.warnings.map((warning, index) => (
+              <WarningItem key={index} text={warning} />
+            ))
+          ) : (
+            <div style={{ color: 'white', fontSize: '13px', fontWeight: 500, padding: '12px' }}>No warnings</div>
+          )}
         </div>
 
         {/* Contributing Factors */}
         <div className="white-card" style={{ padding: '24px' }}>
           <div style={{ fontSize: '16px', fontWeight: 700, color: '#1F2937', marginBottom: '20px' }}>Contributing Factors</div>
           
-          <FactorItem name="Study Load" value={75} color="#EF4444" icon={<MenuBookIcon />} />
-          <FactorItem name="Sleep Quality" value={60} color="#3B82F6" icon={<BedtimeIcon />} />
-          <FactorItem name="Stress Level" value={80} color="#EF4444" icon={<FavoriteIcon />} />
-          <FactorItem name="Recovery Time" value={40} color="#3B82F6" icon={<RestoreIcon />} />
+          {data?.burnoutAlert?.factors?.length > 0 ? (
+            data.burnoutAlert.factors.map((factor, index) => {
+              let icon = <InfoIcon />;
+              let color = factor.score > 60 ? "#EF4444" : "#3B82F6";
+              if (factor.name.toLowerCase().includes('study')) icon = <MenuBookIcon />;
+              else if (factor.name.toLowerCase().includes('sleep')) icon = <BedtimeIcon />;
+              else if (factor.name.toLowerCase().includes('stress') || factor.name.toLowerCase().includes('burnout')) icon = <FavoriteIcon />;
+              else if (factor.name.toLowerCase().includes('recovery') || factor.name.toLowerCase().includes('mood')) icon = <RestoreIcon />;
+              
+              return (
+                <FactorItem key={index} name={factor.name} value={factor.score} color={color} icon={icon} />
+              );
+            })
+          ) : (
+            <div style={{ color: '#6B7280', fontSize: '14px', fontWeight: 500 }}>No data</div>
+          )}
         </div>
 
         {/* Action Plan Button */}
@@ -132,6 +155,10 @@ export default function BurnoutRisk() {
           <div style={{ color: 'white', fontSize: '16px', fontWeight: 700 }}>Generate Personalized Action Plan</div>
         </div>
 
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: '8px', marginBottom: '24px', fontSize: '12px', color: error ? '#EF4444' : 'var(--text-secondary)' }}>
+        {error ? '⚠️ Unable to sync data. Retry.' : (lastSyncedAt ? `Synced just now (${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : 'Syncing...')}
       </div>
 
       <BottomNavigation activeTab="home" />

@@ -20,7 +20,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [lastSyncedAt, setLastSyncedAt] = useState(Date.now());
+  const [error, setError] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const firstName = dashboardData?.user?.firstName || auth.currentUser?.email?.split('@')[0] || "Student";
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
@@ -39,9 +40,13 @@ export default function Dashboard() {
           if (response.data.success) {
             setDashboardData(response.data.dashboard);
             setLastSyncedAt(Date.now());
+            setError(false);
+          } else {
+            setError(true);
           }
         } catch (err) {
           console.error('Failed to load dashboard data', err);
+          setError(true);
           setDashboardData(null);
         } finally {
           setLoading(false);
@@ -83,12 +88,12 @@ export default function Dashboard() {
   const hasActiveStudySession = quickStats.hasActiveStudySession === true || Number(quickStats.activeStudySeconds) > 0;
   const todayStudySeconds = Number(quickStats.todayStudySeconds ?? (quickStats.todayStudyMinutes || 0) * 60)
     + (hasActiveStudySession ? Math.floor((currentTime - lastSyncedAt) / 1000) : 0);
-  const todayStudyDisplay = formatDuration(todayStudySeconds);
+  const todayStudyDisplay = error ? '--' : formatDuration(todayStudySeconds);
   const appUsageSeconds = Number(quickStats.todayAppUsageSeconds ?? (quickStats.todayAppUsageMinutes || 0) * 60);
-  const appUsageDisplay = formatDuration(appUsageSeconds);
-  const appUsageProgress = Math.min(appUsageSeconds / (10 * 60 * 60), 1);
+  const appUsageDisplay = error ? '--' : formatDuration(appUsageSeconds);
+  const appUsageProgress = error ? 0 : Math.min(appUsageSeconds / (10 * 60 * 60), 1);
   const sleepDurationMinutes = Math.round(Number(quickStats.lastSleepHours ?? 0) * 60);
-  const sleepDisplay = formatDuration(sleepDurationMinutes * 60);
+  const sleepDisplay = error ? '--' : formatDuration(sleepDurationMinutes * 60);
   const moodScore = Number(dashboardData?.quickStats?.lastMoodScore ?? 0);
   const sleepQuality = Number(quickStats.lastSleepQuality);
   const sleepProgress = Number.isFinite(sleepQuality)
@@ -98,7 +103,7 @@ export default function Dashboard() {
     : sleepQuality >= 6 || moodScore >= 6 ? 'Good'
     : quickStats.lastMood ? 'Needs care' : 'Log Today';
   const productivityScore = quickStats.lastProductivityScore;
-  const moodEmoji = moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : '😔';
+  const moodEmoji = error ? '--' : (moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : (moodScore > 0 ? '😔' : '--'));
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
@@ -165,6 +170,9 @@ export default function Dashboard() {
           />
         </div>
 
+        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '12px', color: error ? '#EF4444' : 'var(--text-secondary)' }}>
+          {error ? '⚠️ Unable to sync data. Retry.' : (lastSyncedAt ? `Synced just now (${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : 'Syncing...')}
+        </div>
 
       </div>
 

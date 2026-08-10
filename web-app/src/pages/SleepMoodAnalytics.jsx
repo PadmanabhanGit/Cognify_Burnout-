@@ -8,14 +8,23 @@ export default function SleepMoodAnalytics() {
   const navigate = useNavigate();
   const [trends, setTrends] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   useEffect(() => {
     const fetchTrends = async () => {
       try {
         const res = await api.get('/api/sleep-mood/trends/sleep?days=30');
+        if (res.data.success) {
           setTrends(res.data.trends || []);
+          setLastSyncedAt(Date.now());
+          setError(false);
+        } else {
+          setError(true);
+        }
       } catch (err) {
         console.error("Failed to load trends", err);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -52,11 +61,17 @@ export default function SleepMoodAnalytics() {
           <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', color: '#1F2937' }}>30-Day Trend</div>
           {loading ? (
             <div>Loading trends...</div>
+          ) : error ? (
+            <div style={{ color: '#EF4444' }}>⚠️ Unable to sync data. Retry.</div>
           ) : trends.length === 0 ? (
             <div style={{ color: '#6B7280' }}>Not enough data for analytics.</div>
           ) : (
             <Line data={chartData} options={{ scales: { y: { min: 0, max: 14 } } }} />
           )}
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '12px', color: error ? '#EF4444' : 'var(--text-secondary)' }}>
+          {error ? '⚠️ Sync failed' : (lastSyncedAt ? `Synced just now (${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : 'Syncing...')}
         </div>
       </div>
     </div>

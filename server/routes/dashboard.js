@@ -117,7 +117,9 @@ router.get('/', auth, async (req, res) => {
         burnoutAlert: {
           riskScore: burnout.riskScore,
           riskLevel: burnout.riskLevel,
-          topWarning: burnout.warnings[0] || "No significant risk factors detected today."
+          topWarning: burnout.warnings[0] || "No significant risk factors detected today.",
+          warnings: burnout.warnings || [],
+          factors: burnout.factors || []
         },
         featureCards: {
           study: { weeklyHours: weeklyStudyHours, sessionCount },

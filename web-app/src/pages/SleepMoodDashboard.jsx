@@ -15,6 +15,8 @@ export default function SleepMoodDashboard() {
   const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -22,9 +24,14 @@ export default function SleepMoodDashboard() {
         const res = await api.get('/api/sleep-mood/logs');
         if (res.data.success) {
           setLogs(res.data.logs);
+          setLastSyncedAt(Date.now());
+          setError(false);
+        } else {
+          setError(true);
         }
       } catch (err) {
         console.error("Failed to load sleep logs", err);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -34,10 +41,10 @@ export default function SleepMoodDashboard() {
   }, []);
 
   const latestSession = logs.length > 0 ? logs[0] : null;
-  const displayQuality = Number(latestSession?.sleepQuality ?? 0);
-  const displayDisturbance = Number(latestSession?.disturbanceScore ?? 0);
-  const sleepDuration = Number(latestSession?.sleepDuration ?? 0);
-  const awakeningCount = Number(latestSession?.awakeningCount ?? 0);
+  const displayQuality = error ? '--' : Number(latestSession?.sleepQuality ?? 0);
+  const displayDisturbance = error ? '--' : Number(latestSession?.disturbanceScore ?? 0);
+  const sleepDuration = error ? '--' : Number(latestSession?.sleepDuration ?? 0);
+  const awakeningCount = error ? '--' : Number(latestSession?.awakeningCount ?? 0);
 
   const getQualityColor = (score) => {
     if (score >= 75) return '#10B981';
@@ -56,6 +63,11 @@ export default function SleepMoodDashboard() {
   const formatTimestamp = (dateString) => {
     if (!dateString) return '--:--';
     return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatTimeMillis = (millis) => {
+    if (!millis) return '--:--';
+    return new Date(Number(millis)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -110,9 +122,9 @@ export default function SleepMoodDashboard() {
 
         {/* Sleep Start & Wake Times */}
         <div className="white-card" style={{ padding: '20px', display: 'flex', justifyContent: 'space-evenly', alignItems: 'center' }}>
-          <TimeInfo label="Sleep Start" time={formatTimestamp(latestSession?.date)} icon={<NightlightIcon />} />
+          <TimeInfo label="Sleep Start" time={latestSession?.sleepStart ? formatTimeMillis(latestSession.sleepStart) : formatTimestamp(latestSession?.date)} icon={<NightlightIcon />} />
           <div style={{ width: '1px', height: '40px', backgroundColor: '#F3F4F6' }}></div>
-          <TimeInfo label="Wake Up" time={latestSession ? "07:30 AM" : "--:--"} icon={<WbSunnyIcon />} />
+          <TimeInfo label="Wake Up" time={latestSession?.sleepEnd ? formatTimeMillis(latestSession.sleepEnd) : (latestSession ? "07:30 AM" : "--:--")} icon={<WbSunnyIcon />} />
         </div>
 
         {/* Timeline Section */}
@@ -123,14 +135,14 @@ export default function SleepMoodDashboard() {
           {latestSession ? (
             <>
               <TimelineItem 
-                time={formatTimestamp(latestSession.date)} 
+                time={latestSession?.sleepStart ? formatTimeMillis(latestSession.sleepStart) : formatTimestamp(latestSession?.date)} 
                 title="Sleep Started" 
-                subtitle="User became inactive for 20+ mins" 
+                subtitle={latestSession?.sleepStart ? "User became inactive for 45+ mins" : "User became inactive for 20+ mins"} 
                 icon={<BedtimeIcon />} 
                 color="#4F46E5" 
               />
               <TimelineItem 
-                time="07:30 AM" 
+                time={latestSession?.sleepEnd ? formatTimeMillis(latestSession.sleepEnd) : "07:30 AM"} 
                 title="Final Wake Up" 
                 subtitle="Monitoring successfully completed" 
                 icon={<WbSunnyIcon />} 
@@ -150,6 +162,11 @@ export default function SleepMoodDashboard() {
           View Full Analytics
           <ArrowForwardIcon style={{ marginLeft: '8px' }} />
         </button>
+
+
+        <div style={{ textAlign: 'center', marginTop: '8px', marginBottom: '24px', fontSize: '12px', color: error ? '#EF4444' : 'var(--text-secondary)' }}>
+          {error ? '⚠️ Unable to sync data. Retry.' : (lastSyncedAt ? `Synced just now (${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : 'Syncing...')}
+        </div>
 
       </div>
       

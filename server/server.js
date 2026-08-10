@@ -11,6 +11,14 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Prevent browser caching for all API responses
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/study', require('./routes/study'));

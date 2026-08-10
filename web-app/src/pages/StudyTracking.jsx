@@ -15,6 +15,8 @@ export default function StudyTracking() {
   const [isActive, setIsActive] = useState(false);
   const [session, setSession] = useState(null);
   const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   const [stats, setStats] = useState({ weeklyHours: 0, sessionCount: 0 });
   const [weeklyData, setWeeklyData] = useState([0, 0, 0, 0, 0, 0, 0]); // Sun-Sat or Mon-Sun depending on backend
@@ -59,9 +61,14 @@ export default function StudyTracking() {
             const elapsedSeconds = Math.floor((new Date() - new Date(res.data.stats.activeSession.startTime)) / 1000);
             setElapsed(elapsedSeconds);
           }
+          setLastSyncedAt(Date.now());
+          setError(false);
+        } else {
+          setError(true);
         }
       } catch (err) {
         console.error(err);
+        setError(true);
       }
     };
 
@@ -136,8 +143,8 @@ export default function StudyTracking() {
     return parts.length > 0 ? parts.join(' ') : '0s';
   };
 
-  const todaysDisplay = getFormattedDuration(stats.todayMinutes, elapsed);
-  const weeklyDisplay = getFormattedDuration(stats.totalMinutes, elapsed);
+  const todaysDisplay = error ? '--' : getFormattedDuration(stats.todayMinutes, elapsed);
+  const weeklyDisplay = error ? '--' : getFormattedDuration(stats.totalMinutes, elapsed);
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
@@ -249,6 +256,11 @@ export default function StudyTracking() {
               );
             })}
           </div>
+        </div>
+
+
+        <div style={{ textAlign: 'center', marginTop: '8px', marginBottom: '24px', fontSize: '12px', color: error ? '#EF4444' : 'var(--text-secondary)' }}>
+          {error ? '⚠️ Unable to sync data. Retry.' : (lastSyncedAt ? `Synced just now (${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : 'Syncing...')}
         </div>
 
       </div>

@@ -47,13 +47,13 @@ class SleepMonitoringEngine(private val context: Context) {
     suspend fun analyzeNight(date: Date) {
         val calendar = Calendar.getInstance()
         calendar.time = date
-        calendar.set(Calendar.HOUR_OF_DAY, 22)
+        calendar.set(Calendar.HOUR_OF_DAY, 21)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         val startTime = calendar.timeInMillis
 
         calendar.add(Calendar.DAY_OF_YEAR, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 6)
+        calendar.set(Calendar.HOUR_OF_DAY, 9)
         val endTime = calendar.timeInMillis
 
         val events = usageStatsManager.queryEvents(startTime, endTime)
@@ -64,45 +64,59 @@ class SleepMonitoringEngine(private val context: Context) {
             eventList.add(event)
         }
 
-        if (eventList.isEmpty()) return
-
-        // 1. Detect Sleep Start
-        // Sleep start is 20 mins after last activity before a long gap
         var sleepStart = startTime
-        var lastActivityTime = startTime
-        
-        // Find first large gap of at least 20 mins
-        for (i in 0 until eventList.size - 1) {
-            val current = eventList[i]
-            val next = eventList[i+1]
-            
-            if (next.timeStamp - current.timeStamp > 20 * 60 * 1000) {
-                // Potential sleep start
-                sleepStart = current.timeStamp + 5 * 60 * 1000 // 5 mins after last activity
-                break
-            }
-        }
-        
-        // If no large gap found, user might have stayed awake?
-        // Let's refine: find the LONGEST gap.
-        var maxGap = 0L
-        var gapStart = startTime
-        for (i in 0 until eventList.size - 1) {
-            val gap = eventList[i+1].timeStamp - eventList[i].timeStamp
-            if (gap > maxGap) {
-                maxGap = gap
-                gapStart = eventList[i].timeStamp
-            }
-        }
-        
-        if (maxGap > 20 * 60 * 1000) {
-            sleepStart = gapStart + 5 * 60 * 1000
-        } else {
-            // If user never had a 20 min gap, they didn't sleep in this window
-            return 
-        }
+        var sleepEnd = endTime
 
-        val sleepEnd = eventList.last().timeStamp
+        if (eventList.isEmpty()) {
+            // No activity in the entire window -> sleep is the whole window
+            sleepStart = startTime + 60 * 60 * 1000 // Assume they slept at 10:00 PM if no activity
+        } else {
+            // 1. Detect Sleep Start
+            // Find first gap of at least 45 mins
+            var gapFound = false
+            for (i in 0 until eventList.size - 1) {
+                val current = eventList[i]
+                val next = eventList[i+1]
+                
+                if (next.timeStamp - current.timeStamp > 45 * 60 * 1000) {
+                    sleepStart = current.timeStamp + 15 * 60 * 1000 // 15 mins after last activity
+                    gapFound = true
+                    break
+                }
+            }
+            
+            if (!gapFound) {
+                // Check gap between last event and endTime
+                if (endTime - eventList.last().timeStamp > 45 * 60 * 1000) {
+                    sleepStart = eventList.last().timeStamp + 15 * 60 * 1000
+                } else {
+                    return // No sleep detected
+                }
+            }
+
+            // Detect Sleep End (First interaction after 04:00 AM)
+            val fourAmCal = Calendar.getInstance()
+            fourAmCal.timeInMillis = startTime
+            fourAmCal.add(Calendar.DAY_OF_YEAR, 1)
+            fourAmCal.set(Calendar.HOUR_OF_DAY, 4)
+            val fourAm = fourAmCal.timeInMillis
+
+            var wakeFound = false
+            for (event in eventList) {
+                if (event.timeStamp > fourAm && event.timeStamp > sleepStart) {
+                    if (event.eventType == UsageEvents.Event.USER_INTERACTION || event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                        sleepEnd = event.timeStamp
+                        wakeFound = true
+                        break
+                    }
+                }
+            }
+            if (!wakeFound) {
+                // Or end of final gap if no morning usage
+                sleepEnd = eventList.last().timeStamp
+                if (sleepEnd < sleepStart) sleepEnd = endTime
+            }
+        }
         
         // 2. Identify Awakenings
         val awakenings = mutableListOf<WakeEvent>()
@@ -131,8 +145,8 @@ class SleepMonitoringEngine(private val context: Context) {
                             category = getCategory(currentPackage)
                         ))
                         
-                        // It's an awakening if it happened after sleep started
-                        if (currentSessionStart > sleepStart + 10 * 60 * 1000) {
+                        // It's an awakening if it happened during sleep and lasted > 3 minutes
+                        if (currentSessionStart >= sleepStart && event.timeStamp <= sleepEnd && duration > 3 * 60 * 1000) {
                             awakenings.add(WakeEvent(
                                 sessionId = 0,
                                 timestamp = currentSessionStart,
@@ -197,7 +211,7 @@ class SleepMonitoringEngine(private val context: Context) {
             date = df.format(date),
             sleepStart = sleepStart,
             sleepEnd = sleepEnd,
-            totalSleepMinutes = ((sleepEnd - sleepStart) / 60000).toInt(),
+            totalSleepMinutes = Math.max(0, ((sleepEnd - sleepStart) / 60000).toInt() - (awakenings.sumOf { it.duration } / 60000).toInt()),
             awakeningCount = awakenings.size,
             sleepQuality = quality,
             disturbanceScore = penalty
@@ -206,5 +220,24 @@ class SleepMonitoringEngine(private val context: Context) {
         val sessionId = sleepDao.insertSession(session)
         awakenings.forEach { sleepDao.insertWakeEvent(it.copy(sessionId = sessionId)) }
         usageLogs.forEach { sleepDao.insertUsageLog(it.copy(sessionId = sessionId)) }
+
+        // Sync to backend automatically
+        try {
+            com.simats.burnouttracker.data.api.ApiClient.saveSleepMoodLog(
+                com.simats.burnouttracker.data.models.SleepMoodLogRequest(
+                    sleepDuration = session.totalSleepMinutes / 60.0,
+                    sleepQuality = session.sleepQuality,
+                    mood = "Auto-detected",
+                    moodScore = 5,
+                    date = session.date,
+                    sleepStart = session.sleepStart,
+                    sleepEnd = session.sleepEnd,
+                    awakeningCount = session.awakeningCount,
+                    disturbanceScore = session.disturbanceScore
+                )
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

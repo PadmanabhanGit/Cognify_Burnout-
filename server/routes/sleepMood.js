@@ -22,6 +22,10 @@ router.post('/log', auth, async (req, res) => {
       mood: mood ?? null,
       moodScore: moodScore ?? null,
       notes: notes ?? null,
+      sleepStart: req.body.sleepStart ?? null,
+      sleepEnd: req.body.sleepEnd ?? null,
+      awakeningCount: req.body.awakeningCount ?? null,
+      disturbanceScore: req.body.disturbanceScore ?? null,
     });
 
     const doc = await docRef.get();
