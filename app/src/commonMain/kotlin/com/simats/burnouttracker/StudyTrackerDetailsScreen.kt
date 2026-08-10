@@ -110,7 +110,7 @@ fun StudyTrackerDetailsScreen(navController: NavController) {
                         val hours = AppData.studyBreakdown[subject] ?: 0f
                         SubjectProgressItem(
                             label = subject,
-                            hours = "${((hours * 10).toInt() / 10f)}h",
+                            hours = formatDisplayTime((hours * 3600).toLong()),
                             progress = hours / 15f,
                             color = subjectColors[index % subjectColors.size]
                         )
@@ -131,7 +131,7 @@ fun StudyTrackerDetailsScreen(navController: NavController) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = "Total Study Time", fontWeight = FontWeight.Medium, color = ThemeColors.textSecondary)
-                            Text(text = "${(AppData.studyWeekHours * 10).toInt() / 10f}h", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF7C3AED))
+                            Text(text = formatDisplayTime((AppData.studyWeekHours * 3600).toLong()), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF7C3AED))
                         }
                     }
                 }
@@ -195,4 +195,14 @@ fun SubjectProgressItem(label: String, hours: String, progress: Float, color: Co
             strokeCap = StrokeCap.Round
         )
     }
+}
+
+private fun formatDisplayTime(seconds: Long): String {
+    if (seconds < 3600) {
+        val mins = (seconds / 60).toInt()
+        return "${mins}m"
+    }
+    val hours = seconds / 3600f
+    val formatted = (hours * 10).toInt() / 10f
+    return "${formatted}H"
 }

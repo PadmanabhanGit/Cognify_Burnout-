@@ -91,6 +91,9 @@ fun DashboardScreen(navController: NavController) {
                 AppData.goalHitRate = ((AppData.studyTodayHours / 8f) * 100f).toInt().coerceIn(0, 100)
                 // Peak focus is derived from average session length (assume max session is ~2x average, converted to hours)
                 AppData.peakFocusHours = ((realFeatures.averageSessionMinutes * 2f) / 60f).coerceAtLeast(0.2f)
+
+                // Cache today's study hours locally to prevent reset on restart
+                studySettings.putString("studyTodayHours", AppData.studyTodayHours.toString())
                 
                 // Sync prediction to backend
                 try {
@@ -207,7 +210,7 @@ fun DashboardScreen(navController: NavController) {
                         )
                         SummaryCard(
                             icon = Icons.Default.Bedtime,
-                            value = formatMinutes(latestSleepSession?.totalSleepMinutes ?: (AppData.lastSleepLogged * 60).toInt()),
+                            value = formatDisplayTime((latestSleepSession?.totalSleepMinutes ?: (AppData.lastSleepLogged * 60).toInt()) * 60L),
                             label = "Sleep",
                             modifier = Modifier.weight(1f)
                         )
@@ -274,7 +277,7 @@ fun DashboardScreen(navController: NavController) {
                     icon = Icons.Default.BarChart,
                     title = "App Usage",
                     subtitle = "Leisure time impact",
-                    trailing = formatHours(AppData.currentFeatures.socialHours + AppData.currentFeatures.gamingHours + AppData.currentFeatures.streamingHours),
+                    trailing = formatDisplayTime(((AppData.currentFeatures.socialHours + AppData.currentFeatures.gamingHours + AppData.currentFeatures.streamingHours) * 3600).toLong()),
                     progress = ((AppData.currentFeatures.socialHours + AppData.currentFeatures.gamingHours + AppData.currentFeatures.streamingHours) / 10f).coerceIn(0f, 1f),
                     color = Color(0xFFF5F3FF),
                     iconColor = Color(0xFF8B5CF6),
@@ -383,7 +386,17 @@ fun BurnoutAlertBox(riskLevel: String, riskScore: Int, onClick: () -> Unit, modi
 }
 
 @Composable
-fun FeatureCard(icon: ImageVector, title: String, subtitle: String, trailing: String? = null, progress: Float? = null, color: Color, iconColor: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun FeatureCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    trailing: String? = null,
+    progress: Float? = null,
+    color: Color,
+    iconColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Surface(onClick = onClick, modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = Color.White, shadowElevation = 2.dp) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(modifier = Modifier.size(48.dp), shape = RoundedCornerShape(12.dp), color = color) {
@@ -415,6 +428,26 @@ fun FeatureCard(icon: ImageVector, title: String, subtitle: String, trailing: St
     }
 }
 
+private fun formatDisplayTime(seconds: Long): String {
+    if (seconds < 3600) {
+        val mins = (seconds / 60).toInt()
+        return "${mins}m"
+    }
+    val hours = seconds / 3600f
+    val formatted = (hours * 10).toInt() / 10f
+    return "${formatted}H"
+}
+
+private fun formatProgressTime(seconds: Long): String {
+    if (seconds < 3600) {
+        val mins = (seconds / 60).toInt()
+        return "${mins} min"
+    }
+    val hours = seconds / 3600f
+    val formatted = (hours * 10).toInt() / 10f
+    return "${formatted} hr"
+}
+
 private fun getRiskLevelName(score: Float): String = when {
     score > 75 -> "High"
     score > 40 -> "Moderate"
@@ -423,15 +456,5 @@ private fun getRiskLevelName(score: Float): String = when {
 
 private fun getFormattedExactDuration(hoursDecimal: Float, addedSeconds: Long): String {
     val totalSecs = (hoursDecimal * 3600).toLong() + addedSeconds
-    if (totalSecs <= 0) return "0s"
-    val h = totalSecs / 3600
-    val m = (totalSecs % 3600) / 60
-    val s = totalSecs % 60
-    
-    val parts = mutableListOf<String>()
-    if (h > 0) parts.add("${h}h")
-    if (m > 0) parts.add("${m}m")
-    if (s > 0) parts.add("${s}s")
-    
-    return if (parts.isNotEmpty()) parts.joinToString(" ") else "0s"
+    return formatDisplayTime(totalSecs)
 }

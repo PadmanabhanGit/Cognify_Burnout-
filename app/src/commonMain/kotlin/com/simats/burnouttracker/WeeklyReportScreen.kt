@@ -125,10 +125,10 @@ fun WeeklyReportScreen(navController: NavController) {
                     }
                     Spacer(modifier = Modifier.height(20.dp))
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        val studyH = (AppData.studyTodayHours * 10).toInt() / 10f
-                        SummaryItem(label = "TOTAL STUDY TIME", value = "${studyH}h", trend = "", trendColor = Color(0xFF10B981), modifier = Modifier.weight(1f))
-                        val sleepH = (AppData.lastSleepLogged * 10).toInt() / 10f
-                        SummaryItem(label = "AVG SLEEP", value = "${sleepH}h", trend = "", trendColor = Color(0xFFEF4444), modifier = Modifier.weight(1f))
+                        val studyH = formatDisplayTime((AppData.studyTodayHours * 3600).toLong())
+                        SummaryItem(label = "TOTAL STUDY TIME", value = studyH, trend = "", trendColor = Color(0xFF10B981), modifier = Modifier.weight(1f))
+                        val sleepH = formatDisplayTime((AppData.lastSleepLogged * 3600).toLong())
+                        SummaryItem(label = "AVG SLEEP", value = sleepH, trend = "", trendColor = Color(0xFFEF4444), modifier = Modifier.weight(1f))
                     }
                     Spacer(modifier = Modifier.height(20.dp))
                     Row(modifier = Modifier.fillMaxWidth()) {
@@ -408,6 +408,16 @@ fun GoalItem(text: String) {
             Text(text = text, fontSize = 13.sp, color = Color(0xFF1E40AF))
         }
     }
+}
+
+private fun formatDisplayTime(seconds: Long): String {
+    if (seconds < 3600) {
+        val mins = (seconds / 60).toInt()
+        return "${mins}m"
+    }
+    val hours = seconds / 3600f
+    val formatted = (hours * 10).toInt() / 10f
+    return "${formatted}H"
 }
 
 @Composable

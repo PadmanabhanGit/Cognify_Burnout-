@@ -372,8 +372,8 @@ fun StudyTrackerScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(24.dp))
                         
                         val currentAddedSeconds = if (isTimerRunning) elapsedTimeSeconds else 0L
-                        val todaysDisplay = getFormattedExactDuration(AppData.studyTodayHours, currentAddedSeconds)
-                        val weeklyDisplay = getFormattedExactDuration(AppData.studyWeekHours, currentAddedSeconds)
+                        val todaysDisplay = formatDisplayTime((AppData.studyTodayHours * 3600).toLong() + currentAddedSeconds)
+                        val weeklyDisplay = formatDisplayTime((AppData.studyWeekHours * 3600).toLong() + currentAddedSeconds)
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             SessionStatItem(label = "Today's Total", value = todaysDisplay, color = Color(0xFFEFF6FF), textColor = Color(0xFF2563EB), modifier = Modifier.weight(1f))
@@ -451,17 +451,12 @@ private fun formatElapsedTime(seconds: Long): String {
     return "${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}"
 }
 
-private fun getFormattedExactDuration(hoursDecimal: Float, addedSeconds: Long): String {
-    val totalSecs = (hoursDecimal * 3600).toLong() + addedSeconds
-    if (totalSecs <= 0) return "0s"
-    val h = totalSecs / 3600
-    val m = (totalSecs % 3600) / 60
-    val s = totalSecs % 60
-    
-    val parts = mutableListOf<String>()
-    if (h > 0) parts.add("${h}h")
-    if (m > 0) parts.add("${m}m")
-    if (s > 0) parts.add("${s}s")
-    
-    return if (parts.isNotEmpty()) parts.joinToString(" ") else "0s"
+private fun formatDisplayTime(seconds: Long): String {
+    if (seconds < 3600) {
+        val mins = (seconds / 60).toInt()
+        return "${mins}m"
+    }
+    val hours = seconds / 3600f
+    val formatted = (hours * 10).toInt() / 10f
+    return "${formatted}H"
 }

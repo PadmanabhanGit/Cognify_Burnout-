@@ -150,14 +150,12 @@ export default function StudyTracking() {
   const getFormattedDuration = (baseMins, addedSecs = 0) => {
     const totalSecs = (baseMins || 0) * 60 + (addedSecs || 0);
     if (!totalSecs) return '0s';
-    const h = Math.floor(totalSecs / 3600);
-    const m = Math.floor((totalSecs % 3600) / 60);
-    const s = totalSecs % 60;
-    const parts = [];
-    if (h > 0) parts.push(`${h}h`);
-    if (m > 0) parts.push(`${m}m`);
-    if (s > 0) parts.push(`${s}s`);
-    return parts.length > 0 ? parts.join(' ') : '0s';
+    if (totalSecs < 3600) {
+      const m = Math.floor(totalSecs / 60);
+      return `${m}m`;
+    }
+    const h = (totalSecs / 3600).toFixed(1);
+    return `${h}H`;
   };
 
   // Today's display:
@@ -304,7 +302,7 @@ export default function StudyTracking() {
                   }}></div>
                   {val > 0 && (
                     <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: 600 }}>
-                      {val >= 60 ? `${Math.floor(val / 60)}h${val % 60 > 0 ? `${val % 60}m` : ''}` : `${val}m`}
+                      {val >= 60 ? `${(val / 60).toFixed(1)}H` : `${val}m`}
                     </div>
                   )}
                   <div style={{ fontSize: '11px', fontWeight: isToday ? 700 : 600, color: isToday ? '#F59E0B' : 'var(--text-secondary)', marginTop: '4px' }}>{days[idx]}</div>
@@ -323,7 +321,7 @@ export default function StudyTracking() {
                   const totalMins = Object.values(stats.subjectBreakdown).reduce((s, v) => s + v, 0) || 1;
                   const pct = Math.round((mins / totalMins) * 100);
                   const displayDur = mins >= 60
-                    ? `${Math.floor(mins / 60)}h${mins % 60 > 0 ? ` ${mins % 60}m` : ''}`
+                    ? `${(mins / 60).toFixed(1)}H`
                     : `${mins}m`;
                   return (
                     <div key={subject} style={{ marginBottom: '12px' }}>

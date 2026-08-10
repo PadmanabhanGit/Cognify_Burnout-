@@ -1,7 +1,7 @@
 import React from 'react';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 
-export default function FeatureCard({ icon: Icon, title, subtitle, trailing, progress, color, iconColor, onClick }) {
+export default function FeatureCard({ icon: Icon, title, subtitle, trailing, progress, progressLabel, color, iconColor, onClick }) {
   return (
     <div 
       className="white-card" 
@@ -22,8 +22,15 @@ export default function FeatureCard({ icon: Icon, title, subtitle, trailing, pro
         <div style={{ fontSize: '12px', color: '#6B7280' }}>{subtitle}</div>
         
         {progress !== undefined && (
-          <div style={{ marginTop: '8px', height: '4px', backgroundColor: `${iconColor}1A`, borderRadius: '2px', width: '100%' }}>
-            <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: iconColor, borderRadius: '2px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: '8px' }}>
+            <div style={{ flex: 1, height: '4px', backgroundColor: `${iconColor}1A`, borderRadius: '2px' }}>
+              <div style={{ width: `${progress * 100}%`, height: '100%', backgroundColor: iconColor, borderRadius: '2px' }} />
+            </div>
+            {progressLabel && (
+              <div style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 700, color: iconColor, whiteSpace: 'nowrap' }}>
+                {progressLabel}
+              </div>
+            )}
           </div>
         )}
       </div>
