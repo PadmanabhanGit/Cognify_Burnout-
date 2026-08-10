@@ -58,16 +58,36 @@ export default function StudyTracking() {
       const res = await api.get('/api/study/stats/weekly');
       if (res.data.success) {
         const s = res.data.stats;
-        setStats({
+        const newStats = {
           weekMinutes: s.weekMinutes ?? s.totalMinutes ?? 0,
           todayMinutes: s.todayMinutes ?? 0,
           sessionCount: s.sessionCount ?? 0,
           dailyBreakdown: s.dailyBreakdown || s.dailyTotals || {},
           subjectBreakdown: s.subjectBreakdown || {},
           activeSession: s.activeSession || null,
+        };
+        setStats(newStats);
+
+        // [STUDY WEB TIMER DEBUG]
+        // webIsActive: only true if THIS browser tab called handleStart()
+        // webOwnsSession: same — session state from this component instance
+        // Android-owned active sessions must NOT start a web timer.
+        // The timer useEffect depends only on webIsActive (set only in handleStart).
+        console.log('[STUDY WEB TIMER DEBUG]', {
+          activeSessionFromBackend: s.activeSession
+            ? { id: s.activeSession.id, startTime: s.activeSession.startTime }
+            : null,
+          webOwnsSession: false, // fetchStats never sets webIsActive — only handleStart() does
+          timerStarted: false,   // timer only starts if webIsActive was set by handleStart
+          backendTodayMinutes: newStats.todayMinutes,
+          backendWeekMinutes: newStats.weekMinutes,
+          localElapsedWillAdd: 0, // elapsed is only added if webIsActive — see todaysDisplay
+          note: 'If Android owns the active session: webOwnsSession=false, timer=false, todayMinutes=backend snapshot',
         });
-        // If Android has an active session, show it (but web hasn't started it)
-        // Do NOT set webIsActive — web only tracks sessions it initiates
+
+        // NOTE: We intentionally do NOT set webIsActive here.
+        // Even if the backend reports an active session (Android-owned),
+        // the web must not start a local elapsed timer for it.
         setLastSyncedAt(Date.now());
         setError(false);
       } else {
@@ -88,6 +108,13 @@ export default function StudyTracking() {
         setSession(res.data.session);
         setWebIsActive(true);
         setElapsed(0);
+        // [STUDY WEB TIMER DEBUG] — Web now owns this session
+        console.log('[STUDY WEB TIMER DEBUG]', {
+          webOwnsSession: true,
+          timerStarted: true,
+          sessionId: res.data.session?.id,
+          note: 'Web started this session — local timer is permitted',
+        });
         // Refresh stats to pick up the new active session from backend
         await fetchStats();
       }
@@ -95,6 +122,7 @@ export default function StudyTracking() {
       console.error(err);
     }
   };
+
 
   const handleStop = async () => {
     if (!session) return;

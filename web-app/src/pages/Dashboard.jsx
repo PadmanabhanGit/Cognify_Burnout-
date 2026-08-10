@@ -22,7 +22,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
-  const [currentTime, setCurrentTime] = useState(Date.now());
+
   const firstName = dashboardData?.user?.firstName || auth.currentUser?.email?.split('@')[0] || "Student";
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
@@ -59,10 +59,6 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const timerId = window.setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => window.clearInterval(timerId);
-  }, []);
 
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
@@ -85,10 +81,23 @@ export default function Dashboard() {
   };
 
   const quickStats = dashboardData?.quickStats ?? {};
-  const hasActiveStudySession = quickStats.hasActiveStudySession === true || Number(quickStats.activeStudySeconds) > 0;
-  const todayStudySeconds = Number(quickStats.todayStudySeconds ?? (quickStats.todayStudyMinutes || 0) * 60)
-    + (hasActiveStudySession ? Math.floor((currentTime - lastSyncedAt) / 1000) : 0);
+
+  // IMPORTANT: The backend already includes active-session elapsed in todayStudySeconds
+  // (computed at fetch time in dashboard.js). The Web must NOT add local elapsed on top,
+  // because:
+  //   1. The Dashboard has no way to know if the session is still running after the fetch.
+  //   2. Android may have stopped the session seconds after the fetch.
+  //   3. Adding (currentTime - lastSyncedAt) causes the displayed value to keep growing
+  //      indefinitely even after Android has stopped — the exact bug reported.
+  //
+  // Rule: Dashboard always displays the backend snapshot value as-is.
+  // The value updates only when the page re-mounts / re-fetches.
+  const todayStudySeconds = Math.max(0, Number(quickStats.todayStudySeconds ?? (quickStats.todayStudyMinutes || 0) * 60));
+  const hasActiveStudySession = quickStats.hasActiveStudySession === true;
   const todayStudyDisplay = error ? '--' : formatDuration(todayStudySeconds);
+
+
+
   const appUsageSeconds = Number(quickStats.todayAppUsageSeconds ?? (quickStats.todayAppUsageMinutes || 0) * 60);
   const appUsageDisplay = error ? '--' : formatDuration(appUsageSeconds);
   const appUsageProgress = error ? 0 : Math.min(appUsageSeconds / (10 * 60 * 60), 1);
