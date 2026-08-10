@@ -124,8 +124,13 @@ export default function Dashboard() {
   const appUsageSeconds = Number(quickStats.todayAppUsageSeconds ?? (quickStats.todayAppUsageMinutes || 0) * 60);
   const appUsageDisplay = error ? '--' : formatDuration(appUsageSeconds);
   const appUsageProgress = error ? 0 : Math.min(appUsageSeconds / (10 * 60 * 60), 1);
-  const sleepDurationMinutes = Math.round(Number(quickStats.lastSleepHours ?? 0) * 60);
-  const sleepDisplay = error ? '--' : formatDuration(sleepDurationMinutes * 60);
+  // Same canonical detected-sleep record as the Sleep page (see
+  // server/utils/sleepSelection.js). null means Android has not synced one —
+  // show '--' rather than '0m', which reads as "slept zero minutes".
+  const sleepHoursRaw = Number(quickStats.lastSleepHours);
+  const sleepAvailable = !error && Number.isFinite(sleepHoursRaw);
+  const sleepDurationMinutes = sleepAvailable ? Math.round(sleepHoursRaw * 60) : null;
+  const sleepDisplay = sleepAvailable ? formatDuration(sleepDurationMinutes * 60) : '--';
   const moodScore = Number(dashboardData?.quickStats?.lastMoodScore ?? 0);
   const sleepQuality = Number(quickStats.lastSleepQuality);
   const sleepProgress = Number.isFinite(sleepQuality)

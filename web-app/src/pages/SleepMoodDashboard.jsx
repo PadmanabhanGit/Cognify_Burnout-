@@ -13,7 +13,7 @@ import api from '../services/api';
 
 export default function SleepMoodDashboard() {
   const navigate = useNavigate();
-  const [logs, setLogs] = useState([]);
+  const [canonical, setCanonical] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
@@ -23,7 +23,10 @@ export default function SleepMoodDashboard() {
       try {
         const res = await api.get('/api/sleep-mood/logs');
         if (res.data.success) {
-          setLogs(res.data.logs);
+          // `canonical` is the newest record containing Android's detected
+          // sleepStart/sleepEnd. It is null when no detected session has synced —
+          // in that case every value below stays null and the page says so.
+          setCanonical(res.data.canonical ?? null);
           setLastSyncedAt(Date.now());
           setError(false);
         } else {
@@ -40,13 +43,21 @@ export default function SleepMoodDashboard() {
     fetchLogs();
   }, []);
 
-  const latestSession = logs.length > 0 ? logs[0] : null;
-  const displayQuality = error ? '--' : Number(latestSession?.sleepQuality ?? 0);
-  const displayDisturbance = error ? '--' : Number(latestSession?.disturbanceScore ?? 0);
-  const sleepDuration = error ? '--' : Number(latestSession?.sleepDuration ?? 0);
-  const awakeningCount = error ? '--' : Number(latestSession?.awakeningCount ?? 0);
+  const latestSession = error ? null : canonical;
+  const available = latestSession !== null;
+
+  const toNumber = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const displayQuality = available ? toNumber(latestSession.sleepQuality) : null;
+  const displayDisturbance = available ? toNumber(latestSession.disturbanceScore) : null;
+  const awakeningCount = available ? toNumber(latestSession.awakeningCount) : null;
+  const sleepDurationHours = available ? toNumber(latestSession.sleepDuration) : null;
 
   const getQualityColor = (score) => {
+    if (score === null) return '#9CA3AF';
     if (score >= 75) return '#10B981';
     if (score >= 60) return '#F59E0B';
     return '#EF4444';
@@ -60,15 +71,25 @@ export default function SleepMoodDashboard() {
     return 'Very Poor';
   };
 
-  const formatTimestamp = (dateString) => {
-    if (!dateString) return '--:--';
-    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Epoch millis → wall-clock time. Absolute instant, so this matches the Android
+  // clock for a viewer in the same timezone. Never derived from the `date` field:
+  // `new Date("2026-08-10")` parses as UTC midnight and rendered 05:30 AM in IST.
+  const formatTimeMillis = (millis) => {
+    const n = Number(millis);
+    if (!Number.isFinite(n) || n <= 0) return '--:--';
+    return new Date(n).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const formatTimeMillis = (millis) => {
-    if (!millis) return '--:--';
-    return new Date(Number(millis)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Hours (float) → "11h 0m", matching Android's formatMinutes output. Avoids
+  // rendering raw floats such as 1.8999999767158142h.
+  const formatDurationHours = (hours) => {
+    if (hours === null) return '--';
+    const totalMinutes = Math.max(0, Math.round(hours * 60));
+    return `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
   };
+
+  const sleepStartDisplay = available ? formatTimeMillis(latestSession.sleepStart) : '--:--';
+  const sleepEndDisplay = available ? formatTimeMillis(latestSession.sleepEnd) : '--:--';
 
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh', backgroundColor: '#F9FAFB' }}>
@@ -103,55 +124,65 @@ export default function SleepMoodDashboard() {
               <path
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 fill="none" stroke={getQualityColor(displayQuality)} strokeWidth="3"
-                strokeDasharray={`${displayQuality}, 100`}
+                strokeDasharray={`${displayQuality ?? 0}, 100`}
                 strokeLinecap="round"
               />
             </svg>
             <div style={{ position: 'absolute', textAlign: 'center' }}>
-              <div style={{ fontSize: '28px', fontWeight: 800, color: '#1F2937' }}>{displayQuality}%</div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: getQualityColor(displayQuality) }}>{getQualityLevel(displayQuality)}</div>
+              <div style={{ fontSize: '28px', fontWeight: 800, color: '#1F2937' }}>
+                {displayQuality === null ? '--' : `${displayQuality}%`}
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: getQualityColor(displayQuality) }}>
+                {displayQuality === null ? 'Unavailable' : getQualityLevel(displayQuality)}
+              </div>
             </div>
           </div>
 
           <div style={{ display: 'flex', width: '100%', marginTop: '24px', gap: '12px' }}>
-            <MetricCard label="Total Sleep" value={`${sleepDuration}h`} icon={<BedtimeIcon />} color="#6366F1" />
-            <MetricCard label="Awakenings" value={awakeningCount} icon={<NotificationsActiveIcon />} color="#F59E0B" />
-            <MetricCard label="Disturbance" value={displayDisturbance} icon={<WarningIcon />} color="#EF4444" />
+            <MetricCard label="Total Sleep" value={formatDurationHours(sleepDurationHours)} icon={<BedtimeIcon />} color="#6366F1" />
+            <MetricCard label="Awakenings" value={awakeningCount === null ? '--' : awakeningCount} icon={<NotificationsActiveIcon />} color="#F59E0B" />
+            <MetricCard label="Disturbance" value={displayDisturbance === null ? '--' : displayDisturbance} icon={<WarningIcon />} color="#EF4444" />
           </div>
         </div>
 
-        {/* Sleep Start & Wake Times */}
+        {/* Sleep Start & Wake Times — straight from Android's persisted epoch millis */}
         <div className="white-card" style={{ padding: '20px', display: 'flex', justifyContent: 'space-evenly', alignItems: 'center' }}>
-          <TimeInfo label="Sleep Start" time={latestSession?.sleepStart ? formatTimeMillis(latestSession.sleepStart) : formatTimestamp(latestSession?.date)} icon={<NightlightIcon />} />
+          <TimeInfo label="Sleep Start" time={sleepStartDisplay} icon={<NightlightIcon />} />
           <div style={{ width: '1px', height: '40px', backgroundColor: '#F3F4F6' }}></div>
-          <TimeInfo label="Wake Up" time={latestSession?.sleepEnd ? formatTimeMillis(latestSession.sleepEnd) : (latestSession ? "07:30 AM" : "--:--")} icon={<WbSunnyIcon />} />
+          <TimeInfo label="Wake Up" time={sleepEndDisplay} icon={<WbSunnyIcon />} />
         </div>
 
         {/* Timeline Section */}
         <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Sleep Timeline</div>
 
         <div className="white-card" style={{ padding: '24px' }}>
-          <TimelineItem time="10:00 PM" title="Monitoring Started" icon={<RadioButtonCheckedIcon />} color="#6366F1" />
-          {latestSession ? (
+          {available ? (
             <>
-              <TimelineItem 
-                time={latestSession?.sleepStart ? formatTimeMillis(latestSession.sleepStart) : formatTimestamp(latestSession?.date)} 
-                title="Sleep Started" 
-                subtitle={latestSession?.sleepStart ? "User became inactive for 45+ mins" : "User became inactive for 20+ mins"} 
-                icon={<BedtimeIcon />} 
-                color="#4F46E5" 
+              {/* No monitoring-window start is persisted, so no time is shown here.
+                  The previous "10:00 PM" was a hardcoded literal. */}
+              <TimelineItem time="--:--" title="Monitoring Started" icon={<RadioButtonCheckedIcon />} color="#6366F1" />
+              <TimelineItem
+                time={sleepStartDisplay}
+                title="Sleep Started"
+                subtitle="Detected by the Android sleep monitor"
+                icon={<BedtimeIcon />}
+                color="#4F46E5"
               />
-              <TimelineItem 
-                time={latestSession?.sleepEnd ? formatTimeMillis(latestSession.sleepEnd) : "07:30 AM"} 
-                title="Final Wake Up" 
-                subtitle="Monitoring successfully completed" 
-                icon={<WbSunnyIcon />} 
-                color="#10B981" 
-                isLast={true} 
+              <TimelineItem
+                time={sleepEndDisplay}
+                title="Final Wake Up"
+                subtitle="Monitoring successfully completed"
+                icon={<WbSunnyIcon />}
+                color="#10B981"
+                isLast={true}
               />
             </>
           ) : (
-            <div style={{ color: 'gray', fontSize: '14px' }}>No timeline data for today.</div>
+            <div style={{ color: 'gray', fontSize: '14px' }}>
+              {error
+                ? 'Unable to load sleep data. Retry.'
+                : 'No detected sleep session yet — open the Android app to sync your latest night.'}
+            </div>
           )}
         </div>
 

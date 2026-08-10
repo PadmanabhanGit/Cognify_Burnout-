@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { getLocalDateString } = require('../utils/dateUtils');
+const { selectCanonicalSleepLog, sortByRecencyDesc } = require('../utils/sleepSelection');
 
 // ─── IST helpers (must match study.js exactly) ────────────────────────────────
 // Android device timezone = IST (UTC+05:30).  All calendar-day and week
@@ -39,12 +40,18 @@ router.get('/', auth, async (req, res) => {
   const today = getISTDateString(new Date());
 
   try {
+    // Sleep values must come from the SAME canonical record the Sleep page uses
+    // (see utils/sleepSelection.js) — otherwise the two pages can disagree.
+    // The previous `.orderBy('createdAt','desc').limit(1)` also silently dropped
+    // any document missing `createdAt`, since Firestore excludes those from an
+    // orderBy. Mood is deliberately still taken from the newest log so this
+    // change does not alter the Mood card.
     const sleepSnap = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .limit(1)
       .get();
-    const lastSleep = sleepSnap.docs.length > 0 ? sleepSnap.docs[0].data() : null;
+    const allSleepLogs = sleepSnap.docs.map(d => d.data());
+    const lastSleep = sortByRecencyDesc(allSleepLogs)[0] || null;   // mood source (unchanged)
+    const canonicalSleep = selectCanonicalSleepLog(allSleepLogs);   // sleep source (canonical)
 
     const prodSnap = await db.collection('productivityLogs')
       .where('userId', '==', userId)
@@ -129,8 +136,11 @@ router.get('/', auth, async (req, res) => {
       dashboard: {
         user: { firstName },
         quickStats: {
-          lastSleepHours: lastSleep?.sleepDuration ?? null,
-          lastSleepQuality: lastSleep?.sleepQuality ?? null,
+          // Canonical detected sleep — same record as the Sleep page. null when
+          // Android has not synced one; never substituted from a manual log.
+          lastSleepHours: canonicalSleep?.sleepDuration ?? null,
+          lastSleepQuality: canonicalSleep?.sleepQuality ?? null,
+          sleepAvailable: canonicalSleep !== null,
           lastMood: lastSleep?.mood ?? null,
           lastMoodScore: lastSleep?.moodScore ?? null,
           lastProductivityScore: lastProd?.productivityScore ?? null,
@@ -158,7 +168,7 @@ router.get('/', auth, async (req, res) => {
         },
         featureCards: {
           study: { weeklyHours: weeklyStudyHours, sessionCount },
-          sleep: { lastDuration: lastSleep?.sleepDuration ?? null, lastQuality: lastSleep?.sleepQuality ?? null },
+          sleep: { lastDuration: canonicalSleep?.sleepDuration ?? null, lastQuality: canonicalSleep?.sleepQuality ?? null },
           burnout: {
             riskScore: burnoutAvailable ? burnout.riskScore : null,
             riskLevel: burnoutAvailable ? burnout.riskLevel : null

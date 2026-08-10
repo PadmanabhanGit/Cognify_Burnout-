@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
+const { selectCanonicalSleepLog, sortByRecencyDesc } = require('../utils/sleepSelection');
 
 // @route   POST api/sleep-mood/log
 router.post('/log', auth, async (req, res) => {
@@ -45,15 +46,25 @@ router.get('/logs', auth, async (req, res) => {
     const snapshot = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
       .get();
-    const logs = snapshot.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => {
-        const aTime = new Date(a.createdAt || a.updatedAt || a.date || 0).getTime();
-        const bTime = new Date(b.createdAt || b.updatedAt || b.date || 0).getTime();
-        return bTime - aTime;
-      })
-      .slice(0, limit);
-    res.json({ success: true, logs });
+
+    const allLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // `logs` keeps its existing contract exactly: newest-first, same fields,
+    // same limit — manual mood logging and any other consumer are unaffected.
+    const logs = sortByRecencyDesc(allLogs).slice(0, limit);
+
+    // `canonical` is additive: the newest record that actually contains
+    // Android's detected sleepStart/sleepEnd. Selected from ALL logs, not just
+    // the limited slice, so a newer manual mood entry can no longer hide it.
+    // null when Android has not synced a detected session.
+    const canonical = selectCanonicalSleepLog(allLogs);
+
+    res.json({
+      success: true,
+      logs,
+      canonical,
+      canonicalAvailable: canonical !== null
+    });
   } catch (err) {
     console.error('Error fetching logs:', err.message);
     res.status(500).json({ success: false, message: 'Error fetching logs' });
