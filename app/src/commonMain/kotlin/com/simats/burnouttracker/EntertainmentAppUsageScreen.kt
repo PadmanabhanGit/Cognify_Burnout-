@@ -36,6 +36,7 @@ import com.simats.burnouttracker.data.api.ApiClient
 import com.simats.burnouttracker.data.models.*
 import com.simats.burnouttracker.utils.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -62,7 +63,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
         }
     }
 
-    // Backend sync and heavy data refresh logic
+    // Local data refresh logic (no network sync here)
     LaunchedEffect(Unit) {
         while(true) {
             if (usageHelper.hasUsageStatsPermission()) {
@@ -82,10 +83,49 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                 
                 AppData.currentFeatures = realFeatures
                 AppData.predictedScore = predictor.predict(realFeatures)
+            }
+            delay(5000) // Update UI locally more frequently since it's cheap
+        }
+    }
+
+    // Backend sync logic: Once on active, once on leave
+    DisposableEffect(Unit) {
+        // 1. Sync when screen becomes active
+        val activeSyncJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+            if (!usageHelper.hasUsageStatsPermission() || AppData.isSyncing) return@launch
+            try {
+                AppData.isSyncing = true
+                val realFeatures = AppData.currentFeatures
+                if (realFeatures.topApps.isEmpty()) return@launch
                 
-                // Sync to backend
+                val usageItems = realFeatures.topApps.map { appUsage: DetailedAppUsage ->
+                    UsageItemRequest(
+                        packageName = appUsage.packageName,
+                        category = appUsage.category,
+                        duration = (appUsage.hours * 60).toLong(),
+                        durationSeconds = (appUsage.hours * 60 * 60).toLong()
+                    )
+                }
+                val response = ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems, date = getLocalDateString()))
+                AppData.lastSyncFailed = !response.success
+                AppData.lastSyncError = if (response.success) "" else "Unable to reach your secure data service. Sign in again and retry."
+                if (response.success) AppData.lastUpdatedTime = formatCurrentTime()
+            } catch (e: Exception) {
+                AppData.lastSyncFailed = true
+                AppData.lastSyncError = "Unable to reach your secure data service. Check your connection and retry."
+            } finally {
+                AppData.isSyncing = false
+            }
+        }
+
+        onDispose {
+            // 2. Sync when leaving or navigating away
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                if (!usageHelper.hasUsageStatsPermission() || AppData.isSyncing) return@launch
                 try {
                     AppData.isSyncing = true
+                    val realFeatures = AppData.currentFeatures
+                    if (realFeatures.topApps.isEmpty()) return@launch
                     val usageItems = realFeatures.topApps.map { appUsage: DetailedAppUsage ->
                         UsageItemRequest(
                             packageName = appUsage.packageName,
@@ -94,18 +134,13 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                             durationSeconds = (appUsage.hours * 60 * 60).toLong()
                         )
                     }
-                    val response = ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems, date = getLocalDateString()))
-                    AppData.lastSyncFailed = !response.success
-                    AppData.lastSyncError = if (response.success) "" else "Unable to reach your secure data service. Sign in again and retry."
-                    if (response.success) AppData.lastUpdatedTime = formatCurrentTime()
+                    ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems, date = getLocalDateString()))
                 } catch (e: Exception) {
-                    AppData.lastSyncFailed = true
-                    AppData.lastSyncError = "Unable to reach your secure data service. Check your connection and retry."
+                    // Ignore errors on dispose
                 } finally {
                     AppData.isSyncing = false
                 }
             }
-            delay(15000) // Update every 15 seconds to prevent DDoS and save Firebase quota
         }
     }
 

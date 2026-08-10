@@ -27,8 +27,8 @@ router.post('/sync', auth, async (req, res) => {
     }
 
     const [existingDetailsSnap, existingCategoriesSnap] = await Promise.all([
-      db.collection('appUsageDetails').where('userId', '==', userId).get(),
-      db.collection('appUsage').where('userId', '==', userId).get()
+      db.collection('appUsageDetails').where('userId', '==', userId).where('date', '==', syncDate).get(),
+      db.collection('appUsage').where('userId', '==', userId).where('date', '==', syncDate).get()
     ]);
 
     const batch = db.batch();
@@ -76,7 +76,10 @@ router.post('/sync', auth, async (req, res) => {
 
     res.json({ success: true, message: 'Usage snapshot synced', syncedApps: itemsByPackage.size });
   } catch (err) {
-    console.error('Sync failed:', err.message);
+    console.error(`Sync failed for user ${userId} on date ${syncDate}. Code: ${err.code}. Message: ${err.message}`);
+    if (err.code === 8 || err.code === 'RESOURCE_EXHAUSTED' || (err.message && err.message.includes('Quota exceeded'))) {
+      return res.status(429).json({ success: false, message: 'Firestore quota exhausted' });
+    }
     res.status(500).json({ success: false, message: 'Sync failed' });
   }
 });
