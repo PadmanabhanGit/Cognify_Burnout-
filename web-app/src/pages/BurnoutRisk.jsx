@@ -32,13 +32,6 @@ export default function BurnoutRisk() {
     };
 
     fetchData();
-    const intervalId = window.setInterval(fetchData, 10000);
-    const handleFocus = () => fetchData();
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-    };
   }, []);
 
   const riskScore = data?.burnoutAlert?.riskScore ?? 45;

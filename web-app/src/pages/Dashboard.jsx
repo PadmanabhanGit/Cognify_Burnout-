@@ -49,14 +49,6 @@ export default function Dashboard() {
       };
 
       fetchDashboard();
-      const intervalId = window.setInterval(fetchDashboard, 10000);
-      const handleFocus = () => fetchDashboard();
-      window.addEventListener('focus', handleFocus);
-
-      return () => {
-        window.clearInterval(intervalId);
-        window.removeEventListener('focus', handleFocus);
-      };
     });
 
     return () => unsubscribe();

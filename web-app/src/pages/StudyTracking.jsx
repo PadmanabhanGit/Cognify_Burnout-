@@ -66,13 +66,6 @@ export default function StudyTracking() {
     };
 
     fetchStats();
-    const intervalId = window.setInterval(fetchStats, 10000);
-    const handleFocus = () => fetchStats();
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-    };
   }, []);
 
   const handleStart = async () => {

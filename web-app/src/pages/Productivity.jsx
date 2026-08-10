@@ -30,13 +30,6 @@ export default function Productivity() {
     };
 
     fetchProd();
-    const intervalId = window.setInterval(fetchProd, 10000);
-    const handleFocus = () => fetchProd();
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-    };
   }, []);
   
   const productivityScore = data?.productivityScore ?? 85;

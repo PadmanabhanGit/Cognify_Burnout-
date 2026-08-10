@@ -36,8 +36,6 @@ export default function AppUsage() {
     };
     
     fetchUsage(); // initial fetch
-    const intervalId = setInterval(fetchUsage, 15000); // refresh every 15 seconds to save Firebase read quota
-    return () => clearInterval(intervalId); // cleanup on unmount
   }, []);
 
   // Optimistic UI Ticking

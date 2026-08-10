@@ -31,13 +31,6 @@ export default function SleepMoodDashboard() {
     };
 
     fetchLogs();
-    const intervalId = window.setInterval(fetchLogs, 10000);
-    const handleFocus = () => fetchLogs();
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-    };
   }, []);
 
   const latestSession = logs.length > 0 ? logs[0] : null;
