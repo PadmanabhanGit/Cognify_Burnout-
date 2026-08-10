@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingFlat
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -61,134 +59,17 @@ fun MoodItem(label: String, emoji: String, isSelected: Boolean, onClick: () -> U
     }
 }
 
-@Composable
-fun RecentSleepLogsCard(navController: NavController? = null) {
-    val logs = com.simats.burnouttracker.utils.AppData.sleepLogs
-    Surface(
-        modifier = Modifier.fillMaxWidth()
-            .clickable { navController?.navigate("sleep_mood_details") },
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White,
-        shadowElevation = 4.dp
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Recent Logs",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColors.textPrimary
-                )
-                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            if (logs.isEmpty()) {
-                Text(
-                    text = "No logs yet. Start tracking to see your trends!",
-                    color = Color.Gray,
-                    fontSize = 14.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)
-                )
-            } else {
-                logs.take(3).forEach { log ->
-                    SleepLogItem(
-                        date = log.date,
-                        time = "${((log.hours * 10).toInt() / 10f)}h",
-                        status = log.status,
-                        emoji = log.moodEmoji,
-                        statusColor = log.statusColor
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SleepMoodTrendCard(
-
-    title: String,
-    icon: ImageVector,
-    color: Color,
-    dataPoints: List<Float>,
-    showFill: Boolean,
-    markerValue: String? = null
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White,
-        shadowElevation = 4.dp
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = title, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
-                }
-                Surface(
-                    color = ThemeColors.background,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "Last 7 Days",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 10.sp,
-                        color = Color.Gray
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Box(modifier = Modifier.height(140.dp).fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                    repeat(4) {
-                        HorizontalDivider(color = ThemeColors.background, thickness = 1.dp)
-                    }
-                }
-                
-                SleepMoodLineChart(dataPoints = dataPoints, color = color, showFill = showFill)
-                
-                if (markerValue != null) {
-                    Surface(
-                        modifier = Modifier.align(Alignment.TopCenter).offset(x = 10.dp, y = 10.dp),
-                        color = Color(0xFF1E1B4B),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = markerValue,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach { day ->
-                    Text(text = day, fontSize = 10.sp, color = Color.Gray)
-                }
-            }
-        }
-    }
-}
+// RecentSleepLogsCard and SleepMoodTrendCard removed.
+//
+// Both were confirmed to have zero callers anywhere in the codebase. They were
+// also the last remaining sources of fabricated presentation in Sleep & Mood:
+//  - RecentSleepLogsCard was the sole navigate() caller for the retired
+//    sleep_mood_details route.
+//  - SleepMoodTrendCard hardcoded a "Last 7 Days" badge and a fixed
+//    Mon..Sun axis, both independent of whatever data was passed in.
+//
+// SleepLogItem was used only by RecentSleepLogsCard and is removed with it.
+// SleepMoodLineChart is KEPT — it has a live caller in SleepMoodAnalyticsScreen.
 
 @Composable
 fun SleepMoodLineChart(dataPoints: List<Float>, color: Color, showFill: Boolean) {
@@ -234,46 +115,6 @@ fun SleepMoodLineChart(dataPoints: List<Float>, color: Color, showFill: Boolean)
             val y = height - (value * height)
             drawCircle(Color.White, radius = 5.dp.toPx(), center = Offset(x, y))
             drawCircle(color, radius = 4.dp.toPx(), center = Offset(x, y), style = Stroke(width = 2.dp.toPx()))
-        }
-    }
-}
-
-@Composable
-fun SleepLogItem(date: String, time: String, status: String, emoji: String, statusColor: Color) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = ThemeColors.background
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = CircleShape,
-                color = Color.White,
-                shadowElevation = 1.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(text = emoji, fontSize = 20.sp)
-                }
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = date, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = time, fontSize = 13.sp, color = Color.Gray)
-                    Text(text = " • ", color = Color.Gray)
-                    Text(text = status, fontSize = 13.sp, color = statusColor, fontWeight = FontWeight.Medium)
-                }
-            }
-            Icon(
-                if (status == "Excellent") Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingFlat,
-                contentDescription = null,
-                tint = if (status == "Excellent") Color(0xFF22C55E) else Color(0xFFEAB308),
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }
@@ -340,17 +181,25 @@ fun SleepMoodBottomNavigation(navController: NavController, currentRoute: String
                 label = "Home", 
                 onClick = { navController.navigate("dashboard") }
             )
+            // "Health" is the Sleep & Mood HOME entry (sleep_mood), matching the
+            // Dashboard -> Home -> Analysis -> History flow. It previously jumped
+            // straight to sleep_mood_dashboard, which made Analysis look like a
+            // second, competing home page.
             BottomNavItem(
-                icon = Icons.Default.MonitorHeart, 
-                label = "Health", 
-                isSelected = currentRoute == "sleep_mood_dashboard" || currentRoute == "sleep_mood" || currentRoute == "sleep_mood_logger",
-                selectedColor = Color(0xFF4F46E5), 
-                onClick = { if (currentRoute != "sleep_mood_dashboard") navController.navigate("sleep_mood_dashboard") }
+                icon = Icons.Default.MonitorHeart,
+                label = "Health",
+                isSelected = currentRoute == "sleep_mood" || currentRoute == "sleep_mood_dashboard",
+                selectedColor = Color(0xFF4F46E5),
+                onClick = { if (currentRoute != "sleep_mood") navController.navigate("sleep_mood") }
             )
+            // Previously a dead button with an empty onClick. Points at the real
+            // Sleep History screen — no new route, no new screen.
             BottomNavItem(
-                icon = Icons.Default.QueryStats, 
-                label = "Trends", 
-                onClick = {}
+                icon = Icons.Default.QueryStats,
+                label = "Trends",
+                isSelected = currentRoute == "sleep_mood_analytics",
+                selectedColor = Color(0xFF4F46E5),
+                onClick = { if (currentRoute != "sleep_mood_analytics") navController.navigate("sleep_mood_analytics") }
             )
             BottomNavItem(
                 icon = Icons.Default.Person, 

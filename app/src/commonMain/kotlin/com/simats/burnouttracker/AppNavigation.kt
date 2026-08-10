@@ -75,12 +75,19 @@ fun AppNavigation(initialRoute: String? = null) {
             composable("sleep_mood_dashboard") {
                 SleepMoodDashboardScreen(navController)
             }
-            composable("sleep_mood_logger") {
-                SleepMoodLoggerScreen(navController)
-            }
-            composable("sleep_mood_details") {
-                SleepMoodDetailsScreen(navController)
-            }
+            // Routes "sleep_mood_logger" and "sleep_mood_details" retired.
+            //
+            // Neither had any navigate() caller, so neither was reachable:
+            //  - sleep_mood_logger was superseded by the manual-entry fallback
+            //    that now lives inside SleepMoodScreen (sleep_mood). Manual
+            //    logging is unaffected by this removal.
+            //  - sleep_mood_details rendered only the fabricated literals
+            //    "Average Sleep: 7.5 hrs" and "Dominant Mood: Happy", and its
+            //    sole entry point (RecentSleepLogsCard) was itself never called.
+            //
+            // Unregistering here is the smallest safe cleanup: it guarantees no
+            // reachable route can render fabricated sleep data, without deleting
+            // files or disturbing any live navigation.
             composable("sleep_mood_analytics") {
                 SleepMoodAnalyticsScreen(navController)
             }

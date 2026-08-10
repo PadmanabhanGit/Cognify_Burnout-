@@ -4,6 +4,8 @@ import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import com.simats.burnouttracker.data.database.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.*
 import java.text.SimpleDateFormat
 
@@ -12,6 +14,27 @@ class SleepMonitoringEngine(private val context: Context) {
     private val sleepDao = SleepDatabase.getDatabase(context).sleepDao()
 
     companion object {
+        /**
+         * Process-wide serialization for night analysis.
+         *
+         * The duplicate-date guard below (getSessionByDate -> return) and the
+         * insert at the end of analyzeNightLocked() are separated by the whole
+         * analysis body. Without this lock, two coroutines analysing the same
+         * date could BOTH pass the guard before either inserted, producing two
+         * identical rows for one night — the confirmed cause of the observed
+         * "Aug 9 x6" history.
+         *
+         * This lives in the companion object, not on an instance, because there
+         * is more than one SleepMonitoringEngine in the process: SleepWorker
+         * constructs its own (SleepWorker.kt), separately from the one held by
+         * the AndroidSleepRepository singleton. An instance-level lock would not
+         * serialize those two against each other.
+         *
+         * It guards only ordering. It does not read, alter, or reinterpret any
+         * detection input or scoring output.
+         */
+        private val analysisMutex = Mutex()
+
         // Night window: 21:00 the previous evening → 09:00 on the morning of the sleep date.
         private const val NIGHT_START_HOUR = 21
         private const val NIGHT_END_HOUR = 9
@@ -111,8 +134,16 @@ class SleepMonitoringEngine(private val context: Context) {
      * sustained activity → awake. Brief interruptions stay inside the session.
      *
      * Produces no session at all rather than guessing.
+     *
+     * Serialized process-wide via [analysisMutex] so that the duplicate-date
+     * guard inside is actually effective under concurrent callers. The analysis
+     * itself is unchanged and lives in analyzeNightLocked().
      */
-    suspend fun analyzeNight(date: Date) {
+    suspend fun analyzeNight(date: Date) = analysisMutex.withLock {
+        analyzeNightLocked(date)
+    }
+
+    private suspend fun analyzeNightLocked(date: Date) {
         // ── Window: previous evening 21:00 → morning 09:00 ───────────────────
         val morning = Calendar.getInstance()
         morning.time = date

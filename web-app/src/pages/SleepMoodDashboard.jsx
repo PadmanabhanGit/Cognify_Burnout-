@@ -7,7 +7,6 @@ import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import WarningIcon from '@mui/icons-material/Warning';
 import NightlightIcon from '@mui/icons-material/Nightlight';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
-import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import api from '../services/api';
 
@@ -105,8 +104,8 @@ export default function SleepMoodDashboard() {
           <ArrowBackIcon style={{ color: 'white' }} />
         </div>
         <div style={{ marginTop: '24px' }}>
-          <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>Sleep Monitoring</div>
-          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Scientific analysis of your night rest</div>
+          <div style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>Sleep Analysis</div>
+          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Detailed breakdown of your automatically detected sleep</div>
         </div>
       </div>
 
@@ -121,12 +120,17 @@ export default function SleepMoodDashboard() {
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 fill="none" stroke="#F3F4F6" strokeWidth="3"
               />
-              <path
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none" stroke={getQualityColor(displayQuality)} strokeWidth="3"
-                strokeDasharray={`${displayQuality ?? 0}, 100`}
-                strokeLinecap="round"
-              />
+              {/* Progress arc is drawn ONLY when a real quality value exists.
+                  No `?? 0` fallback: an unavailable night must render as no arc
+                  at all, never as a 0% reading that looks like a measurement. */}
+              {displayQuality !== null && (
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none" stroke={getQualityColor(displayQuality)} strokeWidth="3"
+                  strokeDasharray={`${displayQuality}, 100`}
+                  strokeLinecap="round"
+                />
+              )}
             </svg>
             <div style={{ position: 'absolute', textAlign: 'center' }}>
               <div style={{ fontSize: '28px', fontWeight: 800, color: '#1F2937' }}>
@@ -158,9 +162,11 @@ export default function SleepMoodDashboard() {
         <div className="white-card" style={{ padding: '24px' }}>
           {available ? (
             <>
-              {/* No monitoring-window start is persisted, so no time is shown here.
-                  The previous "10:00 PM" was a hardcoded literal. */}
-              <TimelineItem time="--:--" title="Monitoring Started" icon={<RadioButtonCheckedIcon />} color="#6366F1" />
+              {/* "Monitoring Started" row removed entirely, matching Android's
+                  SleepMoodDashboardScreen. No monitoring-window start timestamp
+                  is persisted anywhere in the data model, so the row had nothing
+                  real to represent — it was a hardcoded "10:00 PM", then an empty
+                  "--:--" placeholder. The timeline now contains only real events. */}
               <TimelineItem
                 time={sleepStartDisplay}
                 title="Sleep Started"
@@ -190,7 +196,7 @@ export default function SleepMoodDashboard() {
           onClick={() => navigate('/sleep/analytics')}
           style={{ width: '100%', height: '56px', backgroundColor: '#4F46E5', color: 'white', borderRadius: '16px', fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', border: 'none', cursor: 'pointer' }}
         >
-          View Full Analytics
+          View Sleep History
           <ArrowForwardIcon style={{ marginLeft: '8px' }} />
         </button>
 

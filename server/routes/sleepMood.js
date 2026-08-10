@@ -3,7 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
-const { selectCanonicalSleepLog, sortByRecencyDesc, hasValidDetectedSleep } = require('../utils/sleepSelection');
+const { selectCanonicalSleepLog, sortByRecencyDesc, hasValidDetectedSleep, isAutomaticSource } = require('../utils/sleepSelection');
 
 // @route   POST api/sleep-mood/log
 router.post('/log', auth, async (req, res) => {
@@ -22,23 +22,51 @@ router.post('/log', auth, async (req, res) => {
     : null;
   const source = requestedSource || (hasValidDetectedSleep(req.body) ? 'automatic' : 'manual');
 
+  const payload = {
+    userId,
+    date: logDate,
+    updatedAt: timestamp,
+    sleepDuration: sleepDuration ?? null,
+    sleepQuality: sleepQuality ?? null,
+    mood: mood ?? null,
+    moodScore: moodScore ?? null,
+    notes: notes ?? null,
+    sleepStart: req.body.sleepStart ?? null,
+    sleepEnd: req.body.sleepEnd ?? null,
+    awakeningCount: req.body.awakeningCount ?? null,
+    disturbanceScore: req.body.disturbanceScore ?? null,
+    source,
+  };
+
   try {
-    const docRef = await db.collection('sleepMoodLogs').add({
-      userId,
-      date: logDate,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      sleepDuration: sleepDuration ?? null,
-      sleepQuality: sleepQuality ?? null,
-      mood: mood ?? null,
-      moodScore: moodScore ?? null,
-      notes: notes ?? null,
-      sleepStart: req.body.sleepStart ?? null,
-      sleepEnd: req.body.sleepEnd ?? null,
-      awakeningCount: req.body.awakeningCount ?? null,
-      disturbanceScore: req.body.disturbanceScore ?? null,
-      source,
-    });
+    let docRef;
+
+    if (source === 'automatic') {
+      // ── Idempotent automatic writes ──────────────────────────────────────
+      // One detected night = one document. The identity is (userId, sleep
+      // date, automatic), so a re-analysis of the same night updates the same
+      // record instead of appending another one. Before this, `.add()` created
+      // a new document on every call, and because SleepMonitoringEngine POSTs
+      // once per Room insert, the Room duplicate race replicated itself into
+      // Firestore.
+      //
+      // Deliberately NOT applied to manual logs: a user may legitimately log
+      // mood more than once in a day, and collapsing those onto one id would
+      // silently destroy entries. Manual logs keep `.add()` exactly as before.
+      const docId = `${userId}_${logDate}_automatic`;
+      docRef = db.collection('sleepMoodLogs').doc(docId);
+
+      // createdAt is preserved on re-write so the record keeps the timestamp of
+      // the night it was first detected — sleepSelection.js's recencyOf() reads
+      // createdAt first, so overwriting it would reshuffle canonical selection.
+      const existing = await docRef.get();
+      await docRef.set(
+        { ...payload, createdAt: existing.exists ? (existing.data().createdAt || timestamp) : timestamp },
+        { merge: true }
+      );
+    } else {
+      docRef = await db.collection('sleepMoodLogs').add({ ...payload, createdAt: timestamp });
+    }
 
     const doc = await docRef.get();
     res.json({ success: true, log: { id: doc.id, ...doc.data() } });
@@ -92,12 +120,58 @@ router.get('/trends/sleep', auth, async (req, res) => {
       .where('userId', '==', userId)
       .get();
 
-    const trends = snapshot.docs
-      .map(d => { const data = d.data(); return { date: normalizeDateValue(data.date || data.createdAt), sleepDuration: data.sleepDuration, sleepQuality: data.sleepQuality }; })
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, days);
+    const allLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    res.json({ success: true, trends });
+    // ── 1. Automatic detected sleep only ────────────────────────────────────
+    // Same predicate the canonical selector uses, so Web history and the Web
+    // Sleep Analysis page can never disagree about what counts as a real night.
+    // Manual mood/sleep entries are excluded here and can never become
+    // automatic history.
+    const detected = allLogs.filter(log => isAutomaticSource(log) && hasValidDetectedSleep(log));
+
+    // ── 2. A real trailing date window ──────────────────────────────────────
+    // Previously this sorted ASCENDING and then sliced, so `days=30` returned
+    // the OLDEST 30 records ever recorded and labelled them "30-Day". `days` is
+    // now an actual calendar window ending today, inclusive.
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - (days - 1));
+    const cutoffDate = normalizeDateValue(cutoff);
+
+    const inWindow = detected.filter(log => {
+      const d = normalizeDateValue(log.date || log.createdAt);
+      return typeof d === 'string' && d >= cutoffDate;
+    });
+
+    // ── 3. One entry per DISTINCT night ─────────────────────────────────────
+    // Duplicate automatic documents for the same night (written before the
+    // deterministic-id fix) must not become separate trend points. Newest write
+    // wins per date; nothing is averaged or invented.
+    const byDate = new Map();
+    for (const log of sortByRecencyDesc(inWindow)) {
+      const d = normalizeDateValue(log.date || log.createdAt);
+      if (!byDate.has(d)) {
+        byDate.set(d, {
+          date: d,
+          // Never coerced to 0 — a missing metric stays null so the client can
+          // render an honest gap instead of a measured zero.
+          sleepQuality: log.sleepQuality ?? null,
+          sleepDuration: log.sleepDuration ?? null,
+        });
+      }
+    }
+
+    // Chronological (oldest -> newest) for left-to-right plotting.
+    const trends = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+
+    res.json({
+      success: true,
+      trends,
+      windowDays: days,
+      // Distinct real nights actually found — the client must label from this,
+      // never from `days`.
+      nightCount: trends.length,
+    });
   } catch (err) {
     console.error('Error fetching trends:', err.message);
     res.status(500).json({ success: false });

@@ -25,15 +25,17 @@ import com.simats.burnouttracker.data.rememberSleepRepository
 import com.simats.burnouttracker.ui.SleepViewModel
 
 /**
+ * Sleep History / Analytics — historical DISTINCT detected nights.
+ *
  * Real data available here: SleepDao.getRecentSessions() returns the most
- * recent real Room `sleep_sessions` rows, `ORDER BY sleepStart DESC LIMIT 7`
- * — the same query SleepMoodDashboardScreen's session list is built from.
- * There is no 30-day (or any longer) query anywhere in the app, and adding
- * one is out of scope for this pass (would mean touching SleepDao.kt beyond
- * the minimum), so this screen only ever claims what it can actually prove:
- * "last N real nights," where N is however many real sessions exist, up to
- * that 7-row cap — never a fixed "7-Day"/"30-Day" label independent of what
- * was actually detected.
+ * recent real Room `sleep_sessions` ROWS, `ORDER BY sleepStart DESC LIMIT 7`.
+ * Rows are not nights. Phase 1 fixed the concurrency race that created
+ * duplicate rows per date and added a self-healing cleanup, but this screen
+ * must not depend on that cleanup having already run — six duplicate rows for
+ * one night must never be able to render as six chart points or inflate the
+ * average. Everything below is therefore computed from [distinctNights], never
+ * from the raw row list, and every count/label is the number of distinct real
+ * dates actually detected — never a fixed "7-Day"/"30-Day" claim.
  */
 @Composable
 fun SleepMoodAnalyticsScreen(navController: NavController) {
@@ -43,14 +45,26 @@ fun SleepMoodAnalyticsScreen(navController: NavController) {
 
     LaunchedEffect(Unit) { viewModel.refreshData() }
 
-    // Chronological (oldest -> newest) for left-to-right charting; DAO already
-    // returns newest-first.
-    val chronological = remember(sessions) { sessions.reversed() }
-    val hasAnySessions = sessions.isNotEmpty()
-    val hasTrendHistory = sessions.size >= 2
+    // ── One entry per real detected night, chronological (oldest -> newest) ──
+    // Grouped by the engine's own `date` label (the wake-morning date it
+    // recorded the night under). Where a date still has more than one row, the
+    // highest id wins — the most recently written analysis for that night —
+    // rather than silently averaging rows together or picking arbitrarily.
+    val distinctNights = remember(sessions) {
+        sessions
+            .groupBy { it.date }
+            .mapNotNull { (_, rowsForDate) -> rowsForDate.maxByOrNull { it.id } }
+            .sortedBy { it.date }
+    }
 
-    val averageQuality = if (hasAnySessions) {
-        sessions.map { it.sleepQuality }.average().let { kotlin.math.round(it).toInt() }
+    val nightCount = distinctNights.size
+    val hasAnyNights = nightCount >= 1
+    val hasTrendHistory = nightCount >= 2
+
+    // Averaged across distinct nights, so a night recorded twice cannot be
+    // double-weighted. Null (not 0) when nothing real exists.
+    val averageQuality = if (hasAnyNights) {
+        distinctNights.map { it.sleepQuality }.average().let { kotlin.math.round(it).toInt() }
     } else null
 
     val headerGradient = Brush.verticalGradient(
@@ -76,7 +90,7 @@ fun SleepMoodAnalyticsScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Back", tint = Color.White)
                     }
-                    Text("Sleep Analytics", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("Sleep History", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -85,9 +99,10 @@ fun SleepMoodAnalyticsScreen(navController: NavController) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Average Quality — a single real stat, honestly labeled with the
-                // actual number of real detected nights it covers. No "30-Day Avg":
-                // no 30-day (or any multi-week) data source exists anywhere in this
-                // app, so that label would always have been false precision.
+                // actual number of DISTINCT detected nights it covers. No
+                // "30-Day Avg": no 30-day (or any multi-week) data source exists
+                // anywhere in this app, so that label would always have been
+                // false precision.
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
@@ -103,7 +118,11 @@ fun SleepMoodAnalyticsScreen(navController: NavController) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("No detected sleep sessions yet", fontSize = 14.sp, color = Color.Gray, textAlign = TextAlign.Center)
                         } else {
-                            Text("Average Quality — Last ${sessions.size} Night${if (sessions.size == 1) "" else "s"}", fontSize = 12.sp, color = Color.Gray)
+                            Text(
+                                text = if (nightCount == 1) "Quality — 1 night" else "Average Quality — Last $nightCount Nights",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("$averageQuality%", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4F46E5))
                         }
@@ -134,7 +153,7 @@ fun SleepMoodAnalyticsScreen(navController: NavController) {
                             if (hasTrendHistory) {
                                 Surface(color = ThemeColors.background, shape = RoundedCornerShape(8.dp)) {
                                     Text(
-                                        text = "Last ${chronological.size} nights",
+                                        text = "Last $nightCount nights",
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         fontSize = 10.sp,
                                         color = Color.Gray
@@ -147,8 +166,8 @@ fun SleepMoodAnalyticsScreen(navController: NavController) {
 
                         if (!hasTrendHistory) {
                             Text(
-                                text = if (hasAnySessions)
-                                    "Only one detected sleep session so far — a trend needs at least two real nights."
+                                text = if (hasAnyNights)
+                                    "Only one detected night so far — a trend needs at least two distinct nights."
                                 else
                                     "No detected sleep sessions yet. A trend will appear once the automatic sleep monitor has recorded a few nights.",
                                 fontSize = 13.sp,
@@ -162,17 +181,19 @@ fun SleepMoodAnalyticsScreen(navController: NavController) {
                                     }
                                 }
                                 SleepMoodLineChart(
-                                    dataPoints = chronological.map { it.sleepQuality / 100f },
+                                    dataPoints = distinctNights.map { it.sleepQuality / 100f },
                                     color = Color(0xFF4F46E5),
                                     showFill = true
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                // Real dates for the real points actually plotted above
-                                // — never a fixed Mon..Sun row, which would silently
-                                // imply a full unbroken week regardless of gaps.
-                                chronological.forEach { session ->
+                                // One label per plotted point, taken from the real
+                                // session date — never a fixed Mon..Sun row, which
+                                // would imply a full unbroken week regardless of gaps,
+                                // and never a repeated date, since the points are
+                                // distinct nights.
+                                distinctNights.forEach { session ->
                                     Text(text = shortDateLabel(session.date), fontSize = 9.sp, color = Color.Gray)
                                 }
                             }

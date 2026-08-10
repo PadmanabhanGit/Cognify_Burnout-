@@ -6,6 +6,8 @@ import com.simats.burnouttracker.data.models.*
 import com.simats.burnouttracker.utils.SleepMonitoringEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.*
 
 class AndroidSleepRepository(private val context: Context) : SleepRepository {
@@ -33,13 +35,58 @@ class AndroidSleepRepository(private val context: Context) : SleepRepository {
         return dao.getUsageLogsForSession(sessionId).map { it.toData() }
     }
 
+    /**
+     * Single-flight refresh.
+     *
+     * Three screens each build their own SleepViewModel and each fire
+     * refreshData() from a LaunchedEffect(Unit) — SleepMoodScreen,
+     * SleepMoodDashboardScreen and SleepMoodAnalyticsScreen. Because the
+     * "dashboard" route is navigated without launchSingleTop, moving between
+     * them re-composes and re-fires repeatedly, so a single user session can
+     * queue many overlapping full 3-day rescans.
+     *
+     * [refreshInFlight] makes concurrent callers return immediately instead of
+     * queueing behind the lock, so a burst of navigation results in exactly one
+     * scan rather than one per screen entry. Correctness does not depend on
+     * this — SleepMonitoringEngine.analysisMutex already makes duplicate
+     * inserts impossible — this only removes the redundant work.
+     */
     override suspend fun refreshSleepData() {
-        // Refresh last 3 days to be sure
-        val cal = Calendar.getInstance()
-        for (i in 0..2) {
-            engine.analyzeNight(cal.time)
-            cal.add(Calendar.DAY_OF_YEAR, -1)
+        if (refreshInFlight) return
+        refreshMutex.withLock {
+            if (refreshInFlight) return
+            refreshInFlight = true
+            try {
+                // Self-healing cleanup of rows created before the concurrency
+                // fix existed. Only removes rows proven field-for-field
+                // identical to the one retained for the same date; anything
+                // that differs is left alone and reported below.
+                val removed = dao.deleteExactDuplicateSessions()
+                if (removed > 0) {
+                    println("[SLEEP] Removed $removed redundant duplicate sleep session row(s).")
+                }
+                val remaining = dao.countRedundantSessionRows()
+                if (remaining > 0) {
+                    println("[SLEEP] $remaining duplicate-date row(s) remain with DIFFERING values; left untouched for manual review.")
+                }
+
+                // Refresh last 3 days to be sure — unchanged.
+                val cal = Calendar.getInstance()
+                for (i in 0..2) {
+                    engine.analyzeNight(cal.time)
+                    cal.add(Calendar.DAY_OF_YEAR, -1)
+                }
+            } finally {
+                refreshInFlight = false
+            }
         }
+    }
+
+    companion object {
+        private val refreshMutex = Mutex()
+
+        @Volatile
+        private var refreshInFlight = false
     }
 
     private fun SleepSession.toData() = SleepSessionData(

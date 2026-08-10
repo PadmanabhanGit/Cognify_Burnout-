@@ -65,12 +65,17 @@ fun SleepMoodDetailsScreen(navController: NavController) {
             }
 
             Column(modifier = Modifier.padding(24.dp)) {
+                // RETIRED SCREEN — no longer registered in AppNavigation.kt and
+                // unreachable. It previously rendered two fabricated literals
+                // ("Average Sleep: 7.5 hrs", "Dominant Mood: Happy") that were
+                // never backed by any data source. Those are removed here so no
+                // fabricated sleep value exists anywhere in the codebase, even
+                // in dead code. Real sleep history lives on sleep_mood_analytics.
                 Text(text = "Summary", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = "Average Sleep: 7.5 hrs")
-                        Text(text = "Dominant Mood: Happy")
+                        Text(text = "This screen has been retired. See Sleep History for real detected nights.")
                     }
                 }
             }

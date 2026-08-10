@@ -268,7 +268,7 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5))
                 ) {
-                    Text("View Full Analytics", fontWeight = FontWeight.Bold)
+                    Text("View Sleep History", fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(Icons.Default.ArrowForward, contentDescription = null)
                 }
