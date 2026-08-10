@@ -48,6 +48,15 @@ fun DashboardScreen(navController: NavController) {
     var riskLevel by remember { mutableStateOf(getRiskLevelName(riskScore)) }
     var currentDate by remember { mutableStateOf(formatDashboardDate()) }
     var activeTimerSeconds by remember { mutableLongStateOf(0L) }
+
+    // True once GET /api/dashboard has confirmed a canonical persisted
+    // productivity score for today (productivityLogs/{userId}_{IST-date} —
+    // the same document ProductivityScreen/GET /api/productivity/today read).
+    // While false, the local ProductivityPredictor may still compute a
+    // candidate (it's still useful before a canonical record exists for
+    // today), but once true, that candidate must never overwrite the real
+    // persisted value again this session.
+    var isProductivityScoreCanonical by remember { mutableStateOf(false) }
     
     LaunchedEffect(AppData.activeSessionName, AppData.sessionStartTime) {
         while(AppData.activeSessionName != null) {
@@ -82,9 +91,14 @@ fun DashboardScreen(navController: NavController) {
                 riskScore = prediction
                 riskLevel = getRiskLevelName(prediction)
                 
-                // Calculate dynamic Productivity Score
-                val newProdScore = ProductivityPredictor.calculate(realFeatures, prediction, AppData.lastSleepLogged)
-                AppData.productivityScore = newProdScore
+                // Calculate a candidate Productivity Score. Only applied when
+                // today's canonical persisted score isn't already known — once
+                // the GET below confirms a real value, this local recompute
+                // must not silently replace it (see isProductivityScoreCanonical).
+                if (!isProductivityScoreCanonical) {
+                    val newProdScore = ProductivityPredictor.calculate(realFeatures, prediction, AppData.lastSleepLogged)
+                    AppData.productivityScore = newProdScore
+                }
                 
                 // Update dynamic productivity metrics for mini-cards
                 // Use a standard 8-hour goal for the goal hit rate
@@ -154,6 +168,18 @@ fun DashboardScreen(navController: NavController) {
                         AppData.userFullName = fName
                     }
                 }
+            }
+            // Canonical productivity score for today, from the same
+            // productivityLogs/{userId}_{IST-date} document ProductivityScreen
+            // reads via GET /api/productivity/today. When present, it becomes
+            // authoritative for the rest of this session (see the predictor
+            // guard above) — a null here just means no canonical record exists
+            // yet; it must never be treated as "productivity is 0" and must
+            // never fall back to a stale prior-day value (none is read here).
+            val canonicalProductivity = response.dashboard?.quickStats?.lastProductivityScore
+            if (response.success && canonicalProductivity != null) {
+                AppData.productivityScore = canonicalProductivity
+                isProductivityScoreCanonical = true
             }
             delay(30000) // Refresh every 30 seconds for "real-time" feel
         }
@@ -314,10 +340,12 @@ fun DashboardScreen(navController: NavController) {
                     // Previously "+${(AppData.productivityScore % 15) + 5}%" — a
                     // fabricated week-over-week change with no real weekly-history
                     // source behind it (no such data exists on Android or the
-                    // backend). Shows the real current score instead, matching
-                    // Web Dashboard.jsx's equivalent card exactly
-                    // (`${productivityScore}%`) rather than inventing a trend.
-                    trailing = "${AppData.productivityScore}%",
+                    // backend). Shows the real canonical score when it's known;
+                    // matches Web Dashboard.jsx's own fallback text ('View') for
+                    // the same "not confirmed yet" case rather than showing an
+                    // unconfirmed local predictor candidate as if it were the
+                    // persisted score.
+                    trailing = if (isProductivityScoreCanonical) "${AppData.productivityScore}%" else "View",
                     color = Color(0xFFDCFCE7),
                     iconColor = Color(0xFF10B981),
                     onClick = { navController.navigate("productivity") },

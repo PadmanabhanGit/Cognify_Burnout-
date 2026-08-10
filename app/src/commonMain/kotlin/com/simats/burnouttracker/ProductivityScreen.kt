@@ -53,28 +53,54 @@ fun ProductivityScreen(navController: NavController) {
     var weeklyDays by remember { mutableStateOf<List<ProductivityWeeklyDay>>(emptyList()) }
     var weeklyLoaded by remember { mutableStateOf(false) }
 
-    // Single fetch on mount — no polling. Posts today's locally-computed score
-    // (existing behavior, unchanged), then reads back the persisted canonical
-    // record so the UI reflects what the backend actually stored, not the
-    // possibly-stale in-memory AppData value.
+    // Single fetch on mount — no polling.
+    //
+    // Checks for today's canonical record FIRST. If one already exists,
+    // it is displayed as-is and NOT re-posted: AppData.productivityScore is a
+    // shared value that Android Dashboard's local predictor loop also writes
+    // to whenever the Dashboard screen is open, so blindly POSTing it here on
+    // every visit could silently overwrite an already-correct persisted score
+    // with an unrelated Dashboard-driven recomputation. Only when no record
+    // exists yet for today does this screen establish one (existing behavior,
+    // preserved for the first-visit-of-the-day case).
     LaunchedEffect(Unit) {
-        try {
-            ApiClient.logProductivity(
-                ProductivityLogRequest(
-                    productivityScore = AppData.productivityScore,
-                    focusHours = AppData.peakFocusHours.toDouble()
-                )
-            )
-        } catch (e: Exception) {
-            // POST failure doesn't block reading back whatever is already persisted.
-        }
-
-        val todayResponse = ApiClient.getProductivityToday()
-        if (todayResponse.success) {
-            todayLog = todayResponse.log
+        val existing = ApiClient.getProductivityToday()
+        if (existing.success && existing.log != null) {
+            todayLog = existing.log
             loadState = LoadState.LOADED
+        } else if (AppData.hasData) {
+            // A legitimate local predictor candidate exists. AppData.hasData is
+            // set (DashboardScreen.kt) only after ProductivityPredictor.calculate(...)
+            // has actually run this session inside the Usage Stats permission
+            // branch — it is never set merely because Dashboard opened, so it
+            // reliably distinguishes a real candidate from AppData.productivityScore's
+            // untouched default. Safe to seed today's first record with it.
+            try {
+                ApiClient.logProductivity(
+                    ProductivityLogRequest(
+                        productivityScore = AppData.productivityScore,
+                        focusHours = AppData.peakFocusHours.toDouble()
+                    )
+                )
+            } catch (e: Exception) {
+                // POST failure doesn't block reading back whatever is already persisted.
+            }
+
+            val afterPost = ApiClient.getProductivityToday()
+            if (afterPost.success) {
+                todayLog = afterPost.log
+                loadState = LoadState.LOADED
+            } else {
+                loadState = LoadState.ERROR
+            }
         } else {
-            loadState = LoadState.ERROR
+            // No canonical record for today, and no legitimate candidate was
+            // ever computed this session (e.g. Usage Stats permission isn't
+            // granted, so DashboardScreen's predictor never ran). Do NOT post
+            // AppData.productivityScore's untouched default (0) as if it were a
+            // real score. Leave todayLog null so the existing "NO DATA TODAY
+            // YET" state below renders honestly instead.
+            loadState = LoadState.LOADED
         }
 
         val weeklyResponse = ApiClient.getProductivityWeekly()
