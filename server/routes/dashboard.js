@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
-const { computeBurnoutRisk } = require('../services/burnoutService');
 const { getLocalDateString } = require('../utils/dateUtils');
 
 // ─── IST helpers (must match study.js exactly) ────────────────────────────────
@@ -91,19 +90,20 @@ router.get('/', auth, async (req, res) => {
     const todayStudySeconds = (completedTodayStudyMinutes * 60) + activeStudySeconds;
     const todayStudyMinutes = Math.floor(todayStudySeconds / 60);
 
+    // ── Burnout: persisted Android assessment ONLY ───────────────────────────
+    // Previously this fell back to computeBurnoutRisk() when no document existed,
+    // which produced a score from a completely different algorithm (typically
+    // 45 / "Moderate") that silently disagreed with the Android app. The fallback
+    // is removed: if Android has not persisted an assessment, we report it as
+    // unavailable and let the client render an explicit empty state.
     const burnoutSnap = await db.collection('burnoutAssessments')
       .where('userId', '==', userId)
       .orderBy('date', 'desc')
       .limit(1)
       .get();
-    let burnout = null;
-    if (burnoutSnap.docs.length > 0) {
-      burnout = burnoutSnap.docs[0].data();
-    } else {
-      burnout = await computeBurnoutRisk(userId, today);
-    }
 
-    if (!burnout.warnings) burnout.warnings = [];
+    const burnout = burnoutSnap.docs.length > 0 ? burnoutSnap.docs[0].data() : null;
+    const burnoutAvailable = burnout !== null;
 
     const usageSnap = await db.collection('appUsage')
       .where('userId', '==', userId)
@@ -144,16 +144,25 @@ router.get('/', auth, async (req, res) => {
           todayAppUsageSeconds
         },
         burnoutAlert: {
-          riskScore: burnout.riskScore,
-          riskLevel: burnout.riskLevel,
-          topWarning: burnout.warnings[0] || 'No significant risk factors detected today.',
-          warnings: burnout.warnings || [],
-          factors: burnout.factors || []
+          // available=false means "Android has not synced an assessment yet".
+          // All value fields are null in that case — never a substituted number.
+          available: burnoutAvailable,
+          riskScore: burnoutAvailable ? burnout.riskScore : null,
+          riskLevel: burnoutAvailable ? burnout.riskLevel : null,
+          assessment: burnoutAvailable ? (burnout.assessment ?? null) : null,
+          topWarning: burnoutAvailable ? ((burnout.warnings || [])[0] ?? null) : null,
+          warnings: burnoutAvailable ? (burnout.warnings || []) : [],
+          factors: burnoutAvailable ? (burnout.factors || []) : [],
+          wellbeing: burnoutAvailable ? (burnout.wellbeing ?? null) : null,
+          date: burnoutAvailable ? (burnout.date ?? null) : null
         },
         featureCards: {
           study: { weeklyHours: weeklyStudyHours, sessionCount },
           sleep: { lastDuration: lastSleep?.sleepDuration ?? null, lastQuality: lastSleep?.sleepQuality ?? null },
-          burnout: { riskScore: burnout.riskScore, riskLevel: burnout.riskLevel },
+          burnout: {
+            riskScore: burnoutAvailable ? burnout.riskScore : null,
+            riskLevel: burnoutAvailable ? burnout.riskLevel : null
+          },
           productivity: { score: lastProd?.productivityScore ?? null }
         }
       }

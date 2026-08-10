@@ -269,7 +269,22 @@ data class BurnoutAssessmentRequest(
     val factors: List<BurnoutFactor>? = null,
     val wellbeingDimensions: WellbeingDimensions? = null,
     val warnings: List<String>? = null,
-    val recommendations: List<String>? = null
+    val recommendations: List<String>? = null,
+    // Assessment sentence shown on the Android Burnout screen (burnoutAssessmentText).
+    val assessment: String? = null,
+    // The six axes of the Android "Wellbeing Analysis" radar (WellbeingGenerator output).
+    val wellbeing: BurnoutWellbeing? = null
+)
+
+/** Android's WellbeingMetrics, flattened for transport. Values are 0-100. */
+@Serializable
+data class BurnoutWellbeing(
+    val focus: Int,
+    val stress: Int,
+    val mood: Int,
+    val energy: Int,
+    val sleep: Int,
+    val study: Int
 )
 
 @Serializable

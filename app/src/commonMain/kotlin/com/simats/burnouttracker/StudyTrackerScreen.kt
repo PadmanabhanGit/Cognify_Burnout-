@@ -26,6 +26,7 @@ import androidx.navigation.NavController
 import com.simats.burnouttracker.data.api.ApiClient
 import com.simats.burnouttracker.data.models.StartSessionRequest
 import com.simats.burnouttracker.utils.AppData
+import com.simats.burnouttracker.utils.PlatformSettings
 import com.simats.burnouttracker.utils.rememberPlatformSettings
 import com.simats.burnouttracker.utils.rememberTimerHelper
 import com.simats.burnouttracker.utils.getCurrentTimeMillis
@@ -44,6 +45,24 @@ import com.simats.burnouttracker.data.models.OfflineSessionRequest
 fun StudyTrackerScreen(navController: NavController) {
     val settings = rememberPlatformSettings("study_tracker")
     val actionPlanSettings = rememberPlatformSettings("action_plan")
+
+    // Restore an in-flight session from disk BEFORE the first composition reads
+    // AppData.activeSessionName. Previously activeSessionId / sessionStartTime were
+    // in-memory only, so a process restart lost the session id and left the Firestore
+    // document stranded as isActive:true forever (excluded from every total).
+    remember {
+        if (AppData.activeSessionName == null) {
+            val savedName = settings.getString("activeSessionName", null)
+            val savedStart = settings.getString("sessionStartTime", null)?.toLongOrNull()
+            if (!savedName.isNullOrBlank() && savedStart != null) {
+                AppData.activeSessionName = savedName
+                AppData.sessionStartTime = savedStart
+                AppData.activeSessionId = settings.getString("activeSessionId", null)
+            }
+        }
+        true
+    }
+
     var isTimerRunning by remember { mutableStateOf(AppData.activeSessionName != null) }
     var elapsedTimeSeconds by remember { mutableLongStateOf(0L) }
     var showSessionPrompt by remember { mutableStateOf(false) }
@@ -53,80 +72,31 @@ fun StudyTrackerScreen(navController: NavController) {
     val timerHelper = rememberTimerHelper()
 
     LaunchedEffect(Unit) {
-        // 1. Immediately load local cache to prevent empty states on redeploys
+        // ── Study synchronization lifecycle ───────────────────────────────────
+        // Firestore is the single source of truth. The local Settings cache is a
+        // display buffer only — it is never allowed to outrank the backend.
+        //
+        // Order matters and is strictly sequential (this block is a suspending
+        // coroutine, each call is awaited before the next begins):
+        //
+        //   1. paint last-known values so the screen isn't blank
+        //   2. flush queued offline sessions  → Firestore becomes complete
+        //   3. read /api/study/stats/weekly   → reflects step 2
+        //   4. adopt those values verbatim    → stale local values corrected
+        //
+        // Previously step 3 ran before step 2, and step 2 was a detached
+        // scope.launch with no re-read afterwards, so the fetch always saw
+        // pre-flush data and required a second screen visit to reconcile.
+
+        // 1. Provisional: last known values, replaced below.
         AppData.studyTodayHours = settings.getString("studyTodayHours", "0.0")?.toFloatOrNull() ?: 0f
         AppData.studyWeekHours = settings.getString("studyWeekHours", "0.0")?.toFloatOrNull() ?: 0f
-        
-        // 2. Fetch from backend to sync across platforms
-        try {
-            val response = ApiClient.getStudyWeeklyStats()
-            if (response.success && response.stats != null) {
-                val stats = response.stats
-                
-                // Only overwrite if backend has more or equal data (prevents overwriting local unsynced data)
-                val backendWeek = stats.totalHours.toFloat()
-                if (backendWeek >= AppData.studyWeekHours) {
-                    AppData.studyWeekHours = backendWeek
-                    settings.putString("studyWeekHours", backendWeek.toString())
-                }
-                
-                val todayMins = stats.todayMinutes ?: 0
-                val backendToday = (todayMins / 60f)
-                
-                if (backendToday >= AppData.studyTodayHours) {
-                    AppData.studyTodayHours = backendToday
-                    settings.putString("studyTodayHours", backendToday.toString())
-                }
-                
-                AppData.weeklyStudyData.clear()
-                for (i in 0..6) AppData.weeklyStudyData.add(0f) 
-                
-                val dayMap = stats.dailyTotals ?: stats.dailyBreakdown ?: emptyMap()
-                AppData.weeklyStudyData[0] = (dayMap["Mon"] ?: 0) / 60f
-                AppData.weeklyStudyData[1] = (dayMap["Tue"] ?: 0) / 60f
-                AppData.weeklyStudyData[2] = (dayMap["Wed"] ?: 0) / 60f
-                AppData.weeklyStudyData[3] = (dayMap["Thu"] ?: 0) / 60f
-                AppData.weeklyStudyData[4] = (dayMap["Fri"] ?: 0) / 60f
-                AppData.weeklyStudyData[5] = (dayMap["Sat"] ?: 0) / 60f
-                AppData.weeklyStudyData[6] = (dayMap["Sun"] ?: 0) / 60f
-                
-                stats.subjectBreakdown?.let { breakdown ->
-                    breakdown.forEach { (subject, mins) ->
-                        AppData.studyBreakdown[subject] = (mins / 60f)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
 
-        // 3. Process Offline Queue
-        scope.launch {
-            try {
-                val pendingJson = settings.getString("pending_sessions", "[]") ?: "[]"
-                val pendingQueue = try {
-                    Json.decodeFromString<List<OfflineSessionRequest>>(pendingJson).toMutableList()
-                } catch (e: Exception) {
-                    mutableListOf<OfflineSessionRequest>()
-                }
-                
-                if (pendingQueue.isNotEmpty()) {
-                    val syncedIndices = mutableListOf<Int>()
-                    for ((index, request) in pendingQueue.withIndex()) {
-                        val resp = ApiClient.logOfflineSession(request)
-                        if (resp.success) {
-                            syncedIndices.add(index)
-                        }
-                    }
-                    
-                    // Remove synced and save remaining
-                    syncedIndices.sortedDescending().forEach { pendingQueue.removeAt(it) }
-                    settings.putString("pending_sessions", Json.encodeToString(pendingQueue))
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        // 2. Flush FIRST and await completion.
+        flushPendingStudySessions(settings)
+
+        // 3 + 4. Read canonical Firestore-derived totals and adopt them verbatim.
+        adoptCanonicalStudyStats(settings)
     }
 
     LaunchedEffect(isTimerRunning, AppData.sessionStartTime) {
@@ -157,18 +127,25 @@ fun StudyTrackerScreen(navController: NavController) {
                     enabled = sessionNameInput.isNotBlank(),
                     onClick = {
                         val name = sessionNameInput
+                        val startedAt = getCurrentTimeMillis()
                         AppData.activeSessionName = name
-                        AppData.sessionStartTime = getCurrentTimeMillis()
+                        AppData.sessionStartTime = startedAt
                         isTimerRunning = true
                         showSessionPrompt = false
                         timerHelper.startTimer(name)
-                        
+
+                        // Persist ownership so a process restart resumes this session
+                        // instead of orphaning its Firestore document.
+                        settings.putString("activeSessionName", name)
+                        settings.putString("sessionStartTime", startedAt.toString())
+
                         // Start session on backend
                         scope.launch {
                             try {
                                 val response = ApiClient.startStudySession(StartSessionRequest(subject = name))
                                 if (response.success && response.session != null) {
                                     AppData.activeSessionId = response.session.id
+                                    settings.putString("activeSessionId", response.session.id)
                                 }
                             } catch (e: Exception) {}
                         }
@@ -292,23 +269,48 @@ fun StudyTrackerScreen(navController: NavController) {
                                     val hours = elapsedTimeSeconds / 3600f
                                     val minutes = (elapsedTimeSeconds / 60).toInt()
                                     val sessionName = AppData.activeSessionName ?: "Unknown"
-                                    val sessionStartIso = AppData.sessionStartTime?.let { 
-                                        Instant.fromEpochMilliseconds(it).toString() 
+                                    val stoppedSessionId = AppData.activeSessionId
+                                    val sessionStartIso = AppData.sessionStartTime?.let {
+                                        Instant.fromEpochMilliseconds(it).toString()
                                     } ?: Clock.System.now().toString()
 
-                                    // Stop session on backend or queue for offline sync
+                                    // Release session ownership immediately, in memory AND on disk,
+                                    // so the timer stops and a restart cannot resume a finished session.
+                                    AppData.activeSessionName = null
+                                    AppData.activeSessionId = null
+                                    AppData.sessionStartTime = null
+                                    settings.remove("activeSessionName")
+                                    settings.remove("activeSessionId")
+                                    settings.remove("sessionStartTime")
+                                    elapsedTimeSeconds = 0
+                                    sessionNameInput = ""
+
+                                    // Update BurnoutFeatures for prediction (unchanged behaviour)
+                                    AppData.currentFeatures = AppData.currentFeatures.copy(
+                                        productivityHours = AppData.currentFeatures.productivityHours + hours,
+                                        totalScreenTime = AppData.currentFeatures.totalScreenTime + hours
+                                    )
+                                    AppData.studyMonthHours += hours
+
+                                    // Stop on backend, then reconcile against Firestore.
+                                    // The local totals are NO LONGER incremented unconditionally —
+                                    // that was what let Android drift above Firestore permanently.
                                     scope.launch {
                                         var syncSuccess = false
                                         try {
-                                            val sessionId = AppData.activeSessionId
-                                            if (sessionId != null) {
-                                                val resp = ApiClient.stopStudySession(sessionId)
+                                            if (stoppedSessionId != null) {
+                                                val resp = ApiClient.stopStudySession(stoppedSessionId)
                                                 syncSuccess = resp.success
                                             }
                                         } catch (e: Exception) {}
 
-                                        if (!syncSuccess) {
-                                            // Queue offline
+                                        if (syncSuccess) {
+                                            // Firestore now holds the authoritative duration.
+                                            // Re-read it rather than trusting our local arithmetic.
+                                            flushPendingStudySessions(settings)
+                                            adoptCanonicalStudyStats(settings)
+                                        } else {
+                                            // Queue offline using the existing mechanism.
                                             try {
                                                 val pendingJson = settings.getString("pending_sessions", "[]") ?: "[]"
                                                 val pendingQueue = try {
@@ -319,41 +321,24 @@ fun StudyTrackerScreen(navController: NavController) {
                                                 pendingQueue.add(OfflineSessionRequest(subject = sessionName, duration = minutes, startTime = sessionStartIso))
                                                 settings.putString("pending_sessions", Json.encodeToString(pendingQueue))
                                             } catch (e: Exception) {}
+
+                                            // PROVISIONAL local values — shown only while the write is
+                                            // unsynced so the screen isn't blank. Overwritten wholesale
+                                            // by adoptCanonicalStudyStats() once the queue flushes.
+                                            AppData.studyTodayHours += hours
+                                            AppData.studyWeekHours += hours
+                                            AppData.studyBreakdown[sessionName] = (AppData.studyBreakdown[sessionName] ?: 0f) + hours
+                                            settings.putString("studyTodayHours", AppData.studyTodayHours.toString())
+                                            settings.putString("studyWeekHours", AppData.studyWeekHours.toString())
+
+                                            val localDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                                            val currentDay = localDate.dayOfWeek.ordinal
+                                            if (currentDay in 0..6 && currentDay < AppData.weeklyStudyData.size) {
+                                                AppData.weeklyStudyData[currentDay] += hours
+                                            }
+                                            AppData.monthlyStudyTrend[3] = (AppData.studyWeekHours / 40f).coerceIn(0f, 1f)
                                         }
                                     }
-
-                                    AppData.studyTodayHours += hours
-                                    AppData.studyWeekHours += hours
-                                    AppData.studyMonthHours += hours
-                                    AppData.studyBreakdown[sessionName] = (AppData.studyBreakdown[sessionName] ?: 0f) + hours
-                                    
-                                    // Save robustly to local cache
-                                    settings.putString("studyTodayHours", AppData.studyTodayHours.toString())
-                                    settings.putString("studyWeekHours", AppData.studyWeekHours.toString())
-                                    
-                                    // Update BurnoutFeatures for prediction
-                                    AppData.currentFeatures = AppData.currentFeatures.copy(
-                                        productivityHours = AppData.currentFeatures.productivityHours + hours,
-                                        totalScreenTime = AppData.currentFeatures.totalScreenTime + hours
-                                    )
-                                    
-                                    // Update graph data (Mon-Sun index)
-                                    val localDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                                    val currentDay = localDate.dayOfWeek.ordinal
-                                    if (currentDay in 0..6) {
-                                        AppData.weeklyStudyData[currentDay] += hours
-                                    }
-                                    
-                                    // Update monthly trend (Week 4)
-                                    val currentWeekIndex = 3
-                                    val newTrendValue = (AppData.studyWeekHours / 40f).coerceIn(0f, 1f)
-                                    AppData.monthlyStudyTrend[currentWeekIndex] = newTrendValue
-                                    
-                                    AppData.activeSessionName = null
-                                    AppData.activeSessionId = null
-                                    AppData.sessionStartTime = null
-                                    elapsedTimeSeconds = 0
-                                    sessionNameInput = ""
                                 } else {
                                     showSessionPrompt = true
                                 }
@@ -442,6 +427,82 @@ fun SessionStatItem(label: String, value: String, color: Color, textColor: Color
             Text(text = label, fontSize = 12.sp, color = textColor.copy(alpha = 0.7f))
             Text(text = value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = textColor)
         }
+    }
+}
+
+/**
+ * Push every queued offline session to Firestore via the backend.
+ *
+ * Suspends until the queue has been fully attempted, so callers can safely read
+ * canonical stats immediately afterwards and know the read reflects the flush.
+ * Entries that fail remain queued for the next attempt.
+ */
+private suspend fun flushPendingStudySessions(settings: PlatformSettings) {
+    try {
+        val pendingJson = settings.getString("pending_sessions", "[]") ?: "[]"
+        val pendingQueue = try {
+            Json.decodeFromString<List<OfflineSessionRequest>>(pendingJson).toMutableList()
+        } catch (e: Exception) {
+            mutableListOf<OfflineSessionRequest>()
+        }
+        if (pendingQueue.isEmpty()) return
+
+        val syncedIndices = mutableListOf<Int>()
+        for ((index, request) in pendingQueue.withIndex()) {
+            val resp = ApiClient.logOfflineSession(request)
+            if (resp.success) syncedIndices.add(index)
+        }
+        syncedIndices.sortedDescending().forEach { pendingQueue.removeAt(it) }
+        settings.putString("pending_sessions", Json.encodeToString(pendingQueue))
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+/**
+ * Read /api/study/stats/weekly and adopt the Firestore-derived totals VERBATIM.
+ *
+ * Assignment is unconditional in both directions. There is deliberately NO
+ * `backend >= local` guard: a stale local cache that sits above Firestore must be
+ * corrected DOWNWARD, otherwise Android can never converge on the shared truth.
+ *
+ * Returns true when canonical values were adopted. On failure the previous
+ * provisional values are left untouched rather than being zeroed.
+ */
+private suspend fun adoptCanonicalStudyStats(settings: PlatformSettings): Boolean {
+    return try {
+        val response = ApiClient.getStudyWeeklyStats()
+        val stats = response.stats
+        if (!response.success || stats == null) return false
+
+        // totalMinutes / todayMinutes are the precise integer fields; totalHours is
+        // pre-rounded to 1dp by the backend and would lose precision here.
+        val backendTodayHours = (stats.todayMinutes ?: 0) / 60f
+        val backendWeekHours = stats.totalMinutes / 60f
+
+        AppData.studyTodayHours = backendTodayHours
+        AppData.studyWeekHours = backendWeekHours
+        settings.putString("studyTodayHours", backendTodayHours.toString())
+        settings.putString("studyWeekHours", backendWeekHours.toString())
+
+        // Mon–Sun, rebuilt from backend dailyBreakdown (already IST calendar days).
+        val dayMap = stats.dailyTotals ?: stats.dailyBreakdown ?: emptyMap()
+        AppData.weeklyStudyData.clear()
+        listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach { day ->
+            AppData.weeklyStudyData.add((dayMap[day] ?: 0) / 60f)
+        }
+
+        // Replace, don't merge — a subject removed upstream must disappear here too.
+        AppData.studyBreakdown.clear()
+        stats.subjectBreakdown?.forEach { (subject, mins) ->
+            AppData.studyBreakdown[subject] = mins / 60f
+        }
+
+        AppData.monthlyStudyTrend[3] = (backendWeekHours / 40f).coerceIn(0f, 1f)
+        true
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
     }
 }
 

@@ -166,11 +166,7 @@ fun RiskGaugeCard(score: Int, level: String) {
         else -> Color(0xFFD1FAE5)
     }
 
-    val assessmentText = when {
-        score > 75 -> "Your burnout risk is high. Immediate action and rest are recommended to prevent escalation."
-        score > 40 -> "Your burnout risk is moderate. Pay attention to your stress levels and ensure you're taking enough breaks."
-        else -> "Your burnout risk is low. You're maintaining a great balance! Keep up your healthy routines."
-    }
+    val assessmentText = burnoutAssessmentText(score.toFloat())
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -228,9 +224,7 @@ fun WarningCard(riskScore: Float) {
                 Text(text = "Warning Indicators", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             }
             Spacer(modifier = Modifier.height(16.dp))
-            WarningItem("Increased study hours (>15%)")
-            WarningItem("Sleep deficit detected")
-            if (riskScore > 60) WarningItem("Elevated stress levels")
+            burnoutWarningIndicators(riskScore).forEach { WarningItem(it) }
         }
     }
 }
@@ -329,6 +323,29 @@ private fun getRiskLevelText(score: Float): String = when {
     score > 75 -> "HIGH"
     score > 40 -> "MODERATE"
     else -> "LOW"
+}
+
+/**
+ * The assessment sentence rendered by RiskGaugeCard.
+ *
+ * Extracted verbatim from that composable so it has exactly ONE definition:
+ * the Android UI renders it and DashboardScreen persists it. The rule itself is
+ * unchanged — this is not a new algorithm.
+ */
+internal fun burnoutAssessmentText(score: Float): String = when {
+    score > 75 -> "Your burnout risk is high. Immediate action and rest are recommended to prevent escalation."
+    score > 40 -> "Your burnout risk is moderate. Pay attention to your stress levels and ensure you're taking enough breaks."
+    else -> "Your burnout risk is low. You're maintaining a great balance! Keep up your healthy routines."
+}
+
+/**
+ * The warning indicators rendered by WarningCard, in display order.
+ * Extracted verbatim for the same reason as burnoutAssessmentText.
+ */
+internal fun burnoutWarningIndicators(score: Float): List<String> {
+    val indicators = mutableListOf("Increased study hours (>15%)", "Sleep deficit detected")
+    if (score > 60) indicators.add("Elevated stress levels")
+    return indicators
 }
 
 data class FactorItem(val name: String, val value: Int, val color: Color, val icon: ImageVector)

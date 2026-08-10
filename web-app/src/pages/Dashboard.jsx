@@ -8,10 +8,12 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import WarningIcon from '@mui/icons-material/Warning';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 
 import FeatureCard from '../components/FeatureCard';
 import SummaryCard from '../components/SummaryCard';
-import BurnoutAlertBox from '../components/BurnoutAlertBox';
 import BottomNavigation from '../components/BottomNavigation';
 import api from '../services/api';
 import { auth } from '../firebase';
@@ -66,10 +68,27 @@ export default function Dashboard() {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</div>;
   }
 
-  // Map data exactly from the backend response, providing safe fallbacks
-  const alertScore = dashboardData?.burnoutAlert?.riskScore ?? 0;
-  const alertLevel = dashboardData?.burnoutAlert?.riskLevel ?? 'Low';
-  
+  // Burnout comes from the assessment Android persisted to Firestore. There is no
+  // fallback: when `available` is false the alert renders an explicit unavailable
+  // state rather than a substituted score (which previously read as a real "Low").
+  const burnoutAlert = dashboardData?.burnoutAlert ?? null;
+  const burnoutAvailable = !error && burnoutAlert?.available === true
+    && Number.isFinite(Number(burnoutAlert?.riskScore));
+  const alertScore = burnoutAvailable ? Number(burnoutAlert.riskScore) : null;
+  const alertLevel = burnoutAvailable ? burnoutAlert.riskLevel : null;
+  // Descriptive text comes from the persisted Android assessment — never derived
+  // from riskScore thresholds on the Web.
+  const alertAssessment = burnoutAvailable ? (burnoutAlert.assessment ?? null) : null;
+  const alertTopWarning = burnoutAvailable ? (burnoutAlert.topWarning ?? null) : null;
+  // Severity styling keys off the PERSISTED risk level string, not a local threshold.
+  const alertLevelKey = String(alertLevel ?? '').trim().toLowerCase();
+  const alertClass = alertLevelKey === 'high' || alertLevelKey === 'critical'
+    ? 'burnout-alert-high'
+    : alertLevelKey === 'moderate'
+      ? 'burnout-alert-moderate'
+      : 'burnout-alert-low';
+  const AlertIcon = alertLevelKey === 'low' ? CheckCircleIcon : WarningIcon;
+
   const formatDuration = (seconds) => {
     const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
     if (safeSeconds < 3600) {
@@ -161,7 +180,47 @@ export default function Dashboard() {
       </div>
 
       <div className="desktop-padding" style={{ padding: '0 24px', marginTop: '-30px' }}>
-        <BurnoutAlertBox riskLevel={alertLevel} riskScore={alertScore} onClick={() => navigate('/burnout')} />
+        {burnoutAvailable ? (
+          <div
+            onClick={() => navigate('/burnout')}
+            style={{ width: '100%', borderRadius: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', overflow: 'hidden', cursor: 'pointer', marginBottom: '16px' }}
+          >
+            <div className={alertClass} style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.2)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <AlertIcon style={{ color: 'white', fontSize: '22px' }} />
+                </div>
+                <div style={{ marginLeft: '16px', flex: 1 }}>
+                  <div style={{ color: 'white', fontWeight: 700, fontSize: '18px' }}>Burnout Alert</div>
+                  <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px' }}>
+                    Risk Level: {alertLevel} · {alertScore}%
+                  </div>
+                </div>
+                <KeyboardArrowRightIcon style={{ color: 'white' }} />
+              </div>
+              {alertAssessment && (
+                <div style={{ marginTop: '20px', color: 'white', fontSize: '14px', lineHeight: '20px' }}>
+                  {alertAssessment}
+                </div>
+              )}
+              {alertTopWarning && (
+                <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', padding: '10px 12px', color: 'white', fontSize: '13px', fontWeight: 500 }}>
+                  {alertTopWarning}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div
+            onClick={() => navigate('/burnout')}
+            style={{ width: '100%', borderRadius: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', overflow: 'hidden', cursor: 'pointer', marginBottom: '16px', background: '#E5E7EB', padding: '20px' }}
+          >
+            <div style={{ fontWeight: 700, fontSize: '18px', color: '#374151' }}>Burnout Alert</div>
+            <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '8px' }}>
+              Assessment unavailable — open the Android app to sync your latest burnout reading.
+            </div>
+          </div>
+        )}
 
         <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '16px', marginBottom: '16px' }}>Features</div>
 

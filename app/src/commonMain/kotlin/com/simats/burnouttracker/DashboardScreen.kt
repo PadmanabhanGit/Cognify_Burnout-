@@ -95,18 +95,44 @@ fun DashboardScreen(navController: NavController) {
                 // Cache today's study hours locally to prevent reset on restart
                 studySettings.putString("studyTodayHours", AppData.studyTodayHours.toString())
                 
-                // Sync prediction to backend
+                // ── Persist Android's calculated burnout result ──────────────────
+                // Android is authoritative. Everything below is READ from the existing
+                // Android calculation (TFLite prediction → InsightGenerator →
+                // WellbeingGenerator) — nothing is recalculated here, and nothing is
+                // recalculated on the backend or on the Web.
+                val insights = InsightGenerator.generate(realFeatures, prediction)
+                val wellbeing = WellbeingGenerator.generate(prediction, insights)
+
                 try {
-                    ApiClient.saveBurnoutAssessment(
+                    val assessmentResponse = ApiClient.saveBurnoutAssessment(
                         com.simats.burnouttracker.data.models.BurnoutAssessmentRequest(
                             riskScore = prediction.toInt(),
                             riskLevel = riskLevel.lowercase(),
-                            warnings = if (prediction > 40) listOf("Elevated stress levels detected") else emptyList(),
-                            recommendations = if (prediction > 40) listOf("Take a short break", "Practice mindfulness") else emptyList()
+                            assessment = burnoutAssessmentText(prediction),
+                            warnings = burnoutWarningIndicators(prediction),
+                            factors = listOf(
+                                com.simats.burnouttracker.data.models.BurnoutFactor("Study Hours", insights.studyLoad),
+                                com.simats.burnouttracker.data.models.BurnoutFactor("Sleep Quality", insights.sleepQuality),
+                                com.simats.burnouttracker.data.models.BurnoutFactor("Stress Level", insights.stressLevel),
+                                com.simats.burnouttracker.data.models.BurnoutFactor("Recovery Time", insights.recoveryTime)
+                            ),
+                            wellbeing = com.simats.burnouttracker.data.models.BurnoutWellbeing(
+                                focus = wellbeing.focus,
+                                stress = wellbeing.stress,
+                                mood = wellbeing.mood,
+                                energy = wellbeing.energy,
+                                sleep = wellbeing.sleep,
+                                study = wellbeing.studyLoad
+                            ),
+                            recommendations = RecommendationEngine.generate(prediction).map { it.title }
                         )
                     )
+                    if (!assessmentResponse.success) {
+                        println("[BURNOUT SYNC] POST /api/burnout/assessment rejected: ${assessmentResponse.message ?: "no message"}")
+                    }
                 } catch (e: Exception) {
-                    // Fail silently
+                    println("[BURNOUT SYNC] POST /api/burnout/assessment failed: ${e::class.simpleName}: ${e.message}")
+                    e.printStackTrace()
                 }
 
                 // Add a mock log if empty
