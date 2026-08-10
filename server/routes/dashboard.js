@@ -53,12 +53,14 @@ router.get('/', auth, async (req, res) => {
     const lastSleep = sortByRecencyDesc(allSleepLogs)[0] || null;   // mood source (unchanged)
     const canonicalSleep = selectCanonicalSleepLog(allSleepLogs);   // sleep source (canonical)
 
-    const prodSnap = await db.collection('productivityLogs')
-      .where('userId', '==', userId)
-      .orderBy('date', 'desc')
-      .limit(1)
-      .get();
-    const lastProd = prodSnap.docs.length > 0 ? prodSnap.docs[0].data() : null;
+    // Canonical current-IST-day productivity record — the SAME document
+    // GET /api/productivity/today reads (productivityLogs/{userId}_{today}),
+    // so the Dashboard card and the Productivity page can never disagree.
+    // Previously this was `.orderBy('date','desc').limit(1)`, which returned
+    // the most recent record from ANY day — so on a day with no productivity
+    // log yet, the Dashboard silently showed a stale older score as current.
+    const prodDoc = await db.collection('productivityLogs').doc(`${userId}_${today}`).get();
+    const lastProd = prodDoc.exists ? prodDoc.data() : null;
 
     // Fetch this-week sessions using the same IST Monday boundary as study.js
     const weekStartISO = getWeekStartISO();
