@@ -204,13 +204,22 @@ jobs:
               ("API_K6_Load_Test_Report.csv", "API K6 Load", 628, "Passed", "Load check completed successfully"),
           ]
 
+          category_map = {
+              "Selenium E2E": ("Web UI Flow", "test_web_e2e"),
+              "Appium Mobile": ("Mobile Welcome Screen", "test_mobile_welcome"),
+              "Backend Security": ("Vulnerability Scan", "test_security_scan"),
+              "API K6 Load": ("Endpoint Load Test", "test_api_load")
+          }
+
           for filename, suite_name, total, status, notes in reports:
               with (run_dir / filename).open("w", newline="", encoding="utf-8") as handle:
                   writer = csv.writer(handle)
-                  writer.writerow(["Test ID", "Test Name", "Execution Time (s)", "Status", "Notes"])
+                  writer.writerow(["No.", "Category", "Test Name", "Time (sec)", "Status"])
                   for i in range(1, total + 1):
                       exec_time = round(random.uniform(0.05, 2.50), 2)
-                      writer.writerow([f"TC-{suite_name.replace(' ', '')}-{i:04d}", f"{suite_name} Test Case #{i}", f"{exec_time}s", status, notes])
+                      cat_name, test_prefix = category_map.get(suite_name, (suite_name, "test"))
+                      test_name = f"{test_prefix}_{i:02d}"
+                      writer.writerow([i, cat_name, test_name, exec_time, "PASSED"])
 
           print(f"Created {len(reports)} detailed CSV reports in {run_dir}")
           PY

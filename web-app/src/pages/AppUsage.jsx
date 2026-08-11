@@ -9,6 +9,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import api from '../services/api';
+import { bucketUsageSeconds } from '../utils/appUsage';
 
 import BottomNavigation from '../components/BottomNavigation';
 
@@ -17,7 +18,6 @@ export default function AppUsage() {
   const [usage, setUsage] = useState([]);
   const [topApps, setTopApps] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeSeconds, setActiveSeconds] = useState(0);
   const [error, setError] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
@@ -28,7 +28,6 @@ export default function AppUsage() {
         if (res.data.success) {
           setUsage(res.data.usage || []);
           setTopApps(res.data.topApps || []);
-          setActiveSeconds(0); // Reset optimistic ticks on fresh data
           setLastSyncedAt(Date.now());
           setError(false);
         } else {
@@ -45,48 +44,24 @@ export default function AppUsage() {
     fetchUsage(); // initial fetch
   }, []);
 
-  // Optimistic UI Ticking
-  useEffect(() => {
-    if (loading) return;
-    const tickId = setInterval(() => {
-      setActiveSeconds(prev => prev + 1);
-    }, 1000);
-    return () => clearInterval(tickId);
-  }, [loading]);
+  // Optimistic "activeSeconds" ticker removed.
+  //
+  // It ran a 1 Hz setInterval from page load and added the result to the
+  // Productivity bucket, and again to the Cognify/BurnOutTracker row in the app
+  // list — so the same fabricated seconds were counted twice, and the page's
+  // Total App Usage grew by one second per second simply because the tab stayed
+  // open. None of it came from UsageStats; it was time spent looking at the
+  // report being reported as time spent using apps.
+  //
+  // Everything below is now exactly what GET /api/usage/today returned.
 
-  // Normalize categories from backend — classifier may return "Entertainment", "Others", etc.
-  const normalizeCategory = (cat) => {
-    if (!cat) return 'Others';
-    const c = cat.toLowerCase();
-    if (c.includes('social')) return 'Social Media';
-    if (c.includes('gaming') || c.includes('game')) return 'Gaming';
-    if (c.includes('stream') || c.includes('entertainment') || c.includes('video') || c.includes('media')) return 'Streaming';
-    if (c.includes('product') || c.includes('work') || c.includes('study') || c.includes('edu')) return 'Productivity';
-    return 'Others';
-  };
-
-  // The current API preserves seconds; older records fall back to stored minutes.
-  const buckets = { 'Social Media': 0, 'Gaming': 0, 'Streaming': 0, 'Productivity': 0 };
-  usage.forEach(u => {
-    const norm = normalizeCategory(u.category);
-    if (norm in buckets) {
-      buckets[norm] += Number(u.durationSeconds ?? (u.duration || 0) * 60);
-    }
-  });
-
-  // Apply optimistic ticking to Productivity
-  buckets['Productivity'] += activeSeconds;
+  // Category bucketing lives in ../utils/appUsage so this page and the Dashboard
+  // share ONE definition of "Total App Usage" instead of each deriving its own.
+  const buckets = bucketUsageSeconds(usage);
 
   const totalSeconds = Object.values(buckets).reduce((a, b) => a + b, 0);
 
-  const optimisticTopApps = topApps.map(app => {
-    const isCognify = app.name.toLowerCase().includes('cognify') || app.name.toLowerCase().includes('burnout') || (app.packageName && app.packageName.includes('simats'));
-    if (isCognify) {
-      return { ...app, durationSeconds: (app.durationSeconds ?? (app.duration || 0) * 60) + activeSeconds };
-    }
-    return app;
-  });
-  
+
   const formatDuration = (totalSeconds) => {
     const safeSeconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
     const h = Math.floor(safeSeconds / 3600);
@@ -161,10 +136,10 @@ export default function AppUsage() {
           <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Top Used Apps Today</div>
           {loading ? (
             <div>Syncing...</div>
-          ) : optimisticTopApps.length === 0 ? (
+          ) : topApps.length === 0 ? (
             <div style={{ color: '#6B7280', fontSize: '14px' }}>No specific apps recorded today.</div>
           ) : (
-            optimisticTopApps.map((item, index) => {
+            topApps.map((item, index) => {
               return (
                 <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
                   <div style={{ width: '100%', maxWidth: '300px', display: 'flex', alignItems: 'center' }}>

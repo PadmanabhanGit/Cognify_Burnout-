@@ -26,7 +26,28 @@ interface SleepDao {
     @Query("SELECT * FROM app_usage_logs WHERE sessionId = :sessionId")
     suspend fun getUsageLogsForSession(sessionId: Long): List<AppUsageLog>
 
-    @Query("SELECT * FROM sleep_sessions ORDER BY sleepStart DESC LIMIT 7")
+    /**
+     * Rows belonging to the 7 most recent distinct sleep DATES.
+     *
+     * Previously `ORDER BY sleepStart DESC LIMIT 7` — a cap on ROWS being used to
+     * derive NIGHTS. That is the same rows-vs-nights confusion already fixed in
+     * the UI: whenever a date carries more than one row, the cap is consumed by
+     * duplicates and genuinely older nights fall out of the window entirely, so
+     * Sleep History could show fewer nights than the device actually holds while
+     * the web (which windows by date) showed more.
+     *
+     * The inner query groups by date first, so the limit now counts nights. Row
+     * ordering is unchanged (`sleepStart DESC`), so every existing consumer that
+     * reads `firstOrNull()` or filters by today behaves exactly as before; only
+     * the tail of the list can grow. No row is created, altered or removed.
+     */
+    @Query("""
+        SELECT * FROM sleep_sessions
+        WHERE date IN (
+            SELECT date FROM sleep_sessions GROUP BY date ORDER BY date DESC LIMIT 7
+        )
+        ORDER BY sleepStart DESC
+    """)
     fun getRecentSessions(): Flow<List<SleepSession>>
 
     /**

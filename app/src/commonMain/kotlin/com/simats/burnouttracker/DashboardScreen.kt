@@ -390,8 +390,15 @@ fun DashboardScreen(navController: NavController) {
                     icon = Icons.Default.BarChart,
                     title = "App Usage",
                     subtitle = "Leisure time impact",
-                    trailing = formatDisplayTime(((AppData.currentFeatures.socialHours + AppData.currentFeatures.gamingHours + AppData.currentFeatures.streamingHours) * 3600).toLong()),
-                    progress = ((AppData.currentFeatures.socialHours + AppData.currentFeatures.gamingHours + AppData.currentFeatures.streamingHours) / 10f).coerceIn(0f, 1f),
+                    // Was: (socialHours + gamingHours + streamingHours) — entertainment
+                    // only, with Productivity excluded, which is why this card read
+                    // "1.9H" while the App Usage screen's own "Total App Usage" read
+                    // ~4h. It now reads the SAME field that screen displays,
+                    // AppData.currentFeatures.totalScreenTime
+                    // (EntertainmentAppUsageScreen.kt, formatHours(features.totalScreenTime)),
+                    // so there is one total, not two. No new calculation is introduced.
+                    trailing = formatCompactUsage((AppData.currentFeatures.totalScreenTime * 3600).toLong()),
+                    progress = (AppData.currentFeatures.totalScreenTime / 10f).coerceIn(0f, 1f),
                     color = Color(0xFFF5F3FF),
                     iconColor = Color(0xFF8B5CF6),
                     onClick = { navController.navigate("entertainment_usage") },
@@ -547,6 +554,27 @@ fun FeatureCard(
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.LightGray)
         }
     }
+}
+
+/**
+ * Compact App Usage format: "H.MM", where the digits after the dot are MINUTES,
+ * not a decimal fraction of an hour.
+ *
+ *   4h 10m 40s -> "4.11H"   (40s rounds 10m up to 11m)
+ *   1h 30m 00s -> "1.30H"
+ *          45m -> "45m"     (under an hour, minutes only)
+ *
+ * Seconds are rounded to the nearest minute BEFORE splitting, so the total is
+ * never truncated on its way to the display. Used only by the App Usage card;
+ * formatDisplayTime below is unchanged and still serves the other cards.
+ */
+private fun formatCompactUsage(totalSeconds: Long): String {
+    if (totalSeconds <= 0L) return "0m"
+    val totalMinutes = (totalSeconds + 30L) / 60L   // integer round-half-up
+    if (totalMinutes < 60L) return "${totalMinutes}m"
+    val h = totalMinutes / 60L
+    val m = totalMinutes % 60L
+    return "$h.${m.toString().padStart(2, '0')}H"
 }
 
 private fun formatDisplayTime(seconds: Long): String {

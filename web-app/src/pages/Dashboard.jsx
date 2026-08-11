@@ -19,6 +19,7 @@ import api from '../services/api';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { sumUsageSeconds, formatCompactUsage } from '../utils/appUsage';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -27,6 +28,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  // Raw per-category rows from GET /api/usage/today — the same payload /usage
+  // consumes. Totalled below with the shared helper.
+  const [usageRows, setUsageRows] = useState([]);
 
   const firstName = dashboardData?.user?.firstName || auth.currentUser?.email?.split('@')[0] || "Student";
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
@@ -73,8 +77,29 @@ export default function Dashboard() {
         }
       };
 
+      // Total App Usage, from the SAME endpoint /usage reads.
+      //
+      // /api/dashboard's quickStats.todayAppUsageSeconds is NOT the total: the
+      // backend sums only categories matching Social/Gaming/Stream/Entertainment
+      // (server/routes/dashboard.js), deliberately excluding Productivity — which
+      // is why this card read "1.9H" while /usage read ~4h. Rather than change
+      // that backend field (other consumers may rely on its leisure-only
+      // meaning), the Dashboard now reads the same per-category rows /usage does
+      // and totals them with the shared helper, so there is one definition of
+      // "Total App Usage" on the web.
+      const fetchUsageTotal = async () => {
+        try {
+          const res = await api.get('/api/usage/today');
+          setUsageRows(res.data.success ? (res.data.usage || []) : []);
+        } catch (err) {
+          console.error('Failed to load app usage total', err);
+          setUsageRows([]);
+        }
+      };
+
       fetchDashboard();
       fetchWeeklyStudy();
+      fetchUsageTotal();
     });
 
     return () => unsubscribe();
@@ -138,8 +163,11 @@ export default function Dashboard() {
 
 
 
-  const appUsageSeconds = Number(quickStats.todayAppUsageSeconds ?? (quickStats.todayAppUsageMinutes || 0) * 60);
-  const appUsageDisplay = error ? '--' : formatDuration(appUsageSeconds);
+  // Total App Usage = Social Media + Gaming + Streaming + Productivity, computed
+  // by the shared helper from the same rows /usage renders. Replaces
+  // quickStats.todayAppUsageSeconds, which is a leisure-only subset.
+  const appUsageSeconds = sumUsageSeconds(usageRows);
+  const appUsageDisplay = error ? '--' : formatCompactUsage(appUsageSeconds);
   const appUsageProgress = error ? 0 : Math.min(appUsageSeconds / (10 * 60 * 60), 1);
   // Same canonical detected-sleep record as the Sleep page (see
   // server/utils/sleepSelection.js). null means Android has not synced one —

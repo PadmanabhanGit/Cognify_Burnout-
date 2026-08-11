@@ -52,35 +52,30 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
     val predictor = rememberBurnoutPredictor()
     val scope = rememberCoroutineScope()
     
-    var activeSessionSeconds by remember { mutableStateOf(0L) }
-
-    // Real-time ticking logic
-    LaunchedEffect(Unit) {
-        val startTime = System.currentTimeMillis()
-        while(true) {
-            delay(1000)
-            activeSessionSeconds = (System.currentTimeMillis() - startTime) / 1000
-        }
-    }
+    // The `activeSessionSeconds` 1 Hz ticker and its `addedHours` injection are
+    // removed.
+    //
+    // It measured wall-clock time since THIS SCREEN opened and added it to
+    // productivityHours, totalScreenTime and the app's own topApps row — time
+    // spent looking at the usage report, counted as time spent using apps. The
+    // comment justified it as bypassing "Android OS aggregation lag", but lag is
+    // not a licence to invent usage: the refresh below already re-reads
+    // UsageStats every 5 s, so real data is at most one cycle behind.
+    //
+    // This was NOT presentation-only. The inflated object was written to
+    // AppData.currentFeatures, which also feeds burnout prediction (below), the
+    // Android Dashboard card, and the topApps list that POST /api/usage/sync
+    // uploads to Firestore. Removing it stops fabricated seconds reaching any of
+    // those — without altering the burnout algorithm, the sync contract or the
+    // UsageStats collection itself; each simply receives measured data now.
 
     // Local data refresh logic (no network sync here)
     LaunchedEffect(Unit) {
         while(true) {
             if (usageHelper.hasUsageStatsPermission()) {
-                val rawFeatures = usageHelper.fetchDailyUsage()
-                
-                // Add current session time to bypass Android OS aggregation lag
-                val addedHours = activeSessionSeconds / 3600f
-                val realFeatures = rawFeatures.copy(
-                    productivityHours = rawFeatures.productivityHours + addedHours,
-                    totalScreenTime = rawFeatures.totalScreenTime + addedHours,
-                    topApps = rawFeatures.topApps.map {
-                        if (it.packageName.contains("simats")) {
-                            it.copy(hours = it.hours + addedHours)
-                        } else it
-                    }
-                )
-                
+                // Exactly what UsageStatsManager measured — no adjustment.
+                val realFeatures = usageHelper.fetchDailyUsage()
+
                 AppData.currentFeatures = realFeatures
                 AppData.predictedScore = predictor.predict(realFeatures)
             }
