@@ -42,48 +42,18 @@ export default function SleepMoodDashboard() {
     fetchLogs();
   }, []);
 
-  // ── Sleep history (same endpoint the Sleep History page uses) ──────────────
-  // One fetch, once, on mount. GET /trends/sleep already returns automatic-only,
-  // one-entry-per-distinct-night, chronological records inside a real trailing
-  // window — the identical source Android's Sleep History screen reads via Room.
-  // Nothing is fabricated here: nights the backend does not return simply do not
-  // appear, and the section renders honest states for 0 and 1 night.
-  const [historyNights, setHistoryNights] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
-  const [historyError, setHistoryError] = useState(false);
-
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const res = await api.get('/api/sleep-mood/trends/sleep?days=30');
-        if (res.data.success) {
-          const nights = (res.data.trends || []).filter(
-            (t) => typeof t.sleepQuality === 'number'
-          );
-          // Most recent 3 nights, kept chronological for left-to-right plotting.
-          setHistoryNights(nights.slice(-3));
-          setHistoryError(false);
-        } else {
-          setHistoryError(true);
-        }
-      } catch (err) {
-        console.error('Failed to load sleep history', err);
-        setHistoryError(true);
-      } finally {
-        setHistoryLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, []);
-
-  const historyCount = historyNights.length;
-  const historyAverage =
-    historyCount > 0
-      ? Math.round(
-          historyNights.reduce((sum, n) => sum + n.sleepQuality, 0) / historyCount
-        )
-      : null;
+  // Sleep History / Average Quality / Quality Trend deliberately do NOT live on
+  // this page. /sleep/analytics is the single canonical implementation.
+  //
+  // The duplicate here also produced a contradiction: it sliced the trend
+  // endpoint's response to the last 3 nights before averaging, while
+  // /sleep/analytics averages every night the endpoint returns. With four stored
+  // nights that is (0+75+75)/3 = 50% here versus (0+0+75+75)/4 = 37.5 -> 38%
+  // there — two different numbers for "average quality" from one dataset.
+  // Removing this section, rather than duplicating the calculation correctly,
+  // means there is only one average to keep right.
+  //
+  // The "View Sleep History" button below is retained as the route into it.
 
   const latestSession = error ? null : canonical;
   const available = latestSession !== null;
@@ -363,37 +333,9 @@ export default function SleepMoodDashboard() {
           )}
         </div>
 
-        {/* ── Sleep History / Quality Trend ─────────────────────────────────── */}
-        <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Sleep History</div>
-        <div className="white-card" style={{ padding: '20px' }}>
-          {historyLoading ? (
-            <div style={{ color: '#6B7280', fontSize: '14px' }}>Loading…</div>
-          ) : historyError ? (
-            <div style={{ color: '#EF4444', fontSize: '14px' }}>⚠️ Unable to load sleep history. Retry.</div>
-          ) : historyCount === 0 ? (
-            <div style={{ color: '#6B7280', fontSize: '14px' }}>No detected sleep sessions yet.</div>
-          ) : (
-            <>
-              <div style={{ fontSize: '12px', color: '#6B7280' }}>
-                {historyCount === 1
-                  ? 'Quality — 1 night'
-                  : `Average Quality — Last ${historyCount} Nights`}
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: '#4F46E5', marginTop: '4px' }}>
-                {historyAverage}%
-              </div>
-
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1F2937', marginTop: '18px' }}>Quality Trend</div>
-              {historyCount < 2 ? (
-                <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '8px' }}>
-                  Only one detected night so far — a trend needs at least two distinct nights.
-                </div>
-              ) : (
-                <QualityTrend nights={historyNights} />
-              )}
-            </>
-          )}
-        </div>
+        {/* Sleep History / Average Quality / Quality Trend removed from this page.
+            /sleep/analytics is the single canonical implementation; this button
+            is the route to it. */}
 
         <button
           onClick={() => navigate('/sleep/analytics')}
@@ -436,56 +378,6 @@ function DetailRow({ label, value, isLast = false }) {
   );
 }
 
-/**
- * Quality trend, drawn as inline SVG.
- *
- * Deliberately not Chart.js: this page has no charting dependency today and the
- * trend is a handful of points, so an inline <svg> keeps the page dependency-free
- * and renders identically at every viewport width (viewBox + preserveAspectRatio
- * scale it fluidly on mobile). Visually equivalent to Android's line+fill chart.
- *
- * Plots only the nights passed in. Missing dates are never interpolated or
- * zero-filled — they simply are not points.
- */
-function QualityTrend({ nights }) {
-  const W = 300, H = 90, PAD = 6;
-  const pts = nights.map((n, i) => {
-    const x = nights.length === 1 ? W / 2 : PAD + (i * (W - PAD * 2)) / (nights.length - 1);
-    const y = H - PAD - (Math.max(0, Math.min(100, n.sleepQuality)) / 100) * (H - PAD * 2);
-    return { x, y };
-  });
-  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const area = `${line} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
-
-  const shortDate = (iso) => {
-    const p = String(iso || '').split('-');
-    if (p.length !== 3) return iso;
-    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(p[1]) - 1];
-    return m ? `${m} ${Number(p[2]) || p[2]}` : iso;
-  };
-
-  return (
-    <div style={{ marginTop: '12px' }}>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '110px', display: 'block' }}>
-        {[0.25, 0.5, 0.75].map((f) => (
-          <line key={f} x1="0" y1={H * f} x2={W} y2={H * f} stroke="#F3F4F6" strokeWidth="1" />
-        ))}
-        <path d={area} fill="rgba(79, 70, 229, 0.12)" />
-        <path d={line} fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        {pts.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="3" fill="#FFFFFF" stroke="#4F46E5" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        ))}
-      </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-        {nights.map((n) => (
-          <div key={n.date} style={{ fontSize: '10px', color: '#6B7280' }}>
-            {shortDate(n.date)} · {n.sleepQuality}%
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function MetricCard({ label, value, icon, color }) {
   return (
