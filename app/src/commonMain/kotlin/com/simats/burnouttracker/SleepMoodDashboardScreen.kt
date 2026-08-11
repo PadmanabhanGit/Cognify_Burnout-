@@ -3,9 +3,9 @@ package com.simats.burnouttracker
 import com.simats.burnouttracker.ui.theme.ThemeColors
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +30,33 @@ import com.simats.burnouttracker.ui.SleepViewModel
 import com.simats.burnouttracker.utils.formatMinutes
 import com.simats.burnouttracker.utils.formatTimestamp
 
+/**
+ * SLEEP ANALYSIS (route `sleep_mood_dashboard`) — the EXPLANATION layer.
+ *
+ * Sleep & Mood Home already answers "how was my sleep last night?" with a large
+ * quality hero, four metric cards and a start/wake card. This screen must not
+ * repeat that, so none of those elements appear here. Instead it explains what
+ * the detected session actually CONTAINS:
+ *
+ *   1. Session Details — compact rows, including two facts Home cannot show:
+ *      time in bed, and how much of it was spent awake. Both are plain
+ *      arithmetic on sleepStart/sleepEnd/totalSleepMinutes.
+ *   2. Sleep Timeline — the visual centrepiece, built from real WakeEvent rows.
+ *   3. Sleep Quality — the engine's own score on a compact linear bar, never a
+ *      second circular hero and never recalculated here.
+ *   4. Disturbance — the engine's score plus the real per-category app activity
+ *      recorded during the session, read from the `app_usage_logs` rows the
+ *      engine itself wrote. No invented "disturbing factors".
+ *
+ * DATA SOURCES — every value below traces to one of:
+ *   session.date, session.sleepStart, session.sleepEnd,
+ *   session.totalSleepMinutes, session.awakeningCount, session.sleepQuality,
+ *   session.disturbanceScore,
+ *   wakeEvents[].timestamp / .appName / .category / .duration,
+ *   usageLogs[].startTime / .duration / .appName / .category
+ * Nothing else. No predictedScore, no AppData fallback, no hardcoded time,
+ * percentage, duration or count.
+ */
 @Composable
 fun SleepMoodDashboardScreen(navController: NavController) {
     val repository = rememberSleepRepository()
@@ -38,6 +66,11 @@ fun SleepMoodDashboardScreen(navController: NavController) {
     val available = latestSession != null
 
     val wakeEvents by viewModel.selectedWakeEvents.collectAsState()
+
+    // Real per-app records the engine persisted for this session. Already being
+    // loaded by selectSession() below — this screen is simply the first thing
+    // to actually read them.
+    val usageLogs by viewModel.selectedSessionLogs.collectAsState()
 
     val headerGradient = Brush.verticalGradient(
         colors = listOf(Color(0xFF4F46E5), Color(0xFF9333EA))
@@ -63,53 +96,65 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Header Section
+            // Compact header — deliberately shorter than Home's, so entering this
+            // screen reads as going deeper rather than sideways.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
-                    .background(headerGradient, RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-                    .padding(top = 40.dp, start = 24.dp, end = 24.dp)
+                    .background(headerGradient, RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                    .padding(top = 36.dp, bottom = 28.dp, start = 20.dp, end = 20.dp)
             ) {
-                Column {
-                    IconButton(onClick = { navController.popBackStack() }, modifier = Modifier.size(24.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { navController.popBackStack() }, modifier = Modifier.size(28.dp)) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                             contentDescription = "Back",
                             tint = Color.White
                         )
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = "Sleep Analysis",
-                        color = Color.White,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Detailed breakdown of your automatically detected sleep",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 14.sp
-                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Sleep Analysis",
+                            color = Color.White,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Details from your detected sleep session",
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
 
+            // Spacing only — no structural or data change.
+            //
+            // This Column previously used `.offset(y = (-16).dp)` to tuck its
+            // content up under the purple header, a pattern copied from screens
+            // whose first child is a white card. Here the first child is the
+            // "Session Details" SectionLabel: plain dark-grey text, drawn after
+            // the header and therefore ON TOP of it, which made the heading look
+            // cut off / hidden against the purple.
+            //
+            // Replacing the negative offset with real top padding keeps the
+            // heading fully inside the page body. Card styling, section order and
+            // every displayed value are untouched.
             Column(
                 modifier = Modifier
-                    .padding(horizontal = 24.dp)
-                    .offset(y = (-30).dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (!available) {
-                    // No automatic session at all — explicit unavailable state.
-                    // No gauge, no metric grid, no "--" scattered across a full
-                    // layout: the whole analysis section is unavailable, so it
-                    // says so once rather than showing an empty-looking dashboard.
+                    // No detected session — one honest statement, no zero-valued
+                    // metric cards, no previous session substituted in.
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(20.dp),
                         color = Color.White,
-                        shadowElevation = 8.dp
+                        shadowElevation = 4.dp
                     ) {
                         Column(
                             modifier = Modifier.padding(32.dp).fillMaxWidth(),
@@ -125,113 +170,55 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "No detected sleep session is available yet.",
+                                text = "This page analyses one automatically detected sleep session. None has been recorded yet, so there is nothing to break down.",
                                 fontSize = 13.sp,
                                 color = Color.Gray,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                textAlign = TextAlign.Center,
+                                lineHeight = 18.sp
                             )
                         }
                     }
                 } else {
                     val session = latestSession!!
 
-                    // Sleep Quality Score Card — session.sleepQuality is the engine's
-                    // own 0-100 score (100 - disturbanceScore, computed in
-                    // SleepMonitoringEngine.kt). Displayed as-is; no second formula.
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color.White,
-                        shadowElevation = 8.dp
-                    ) {
-                        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
-                                CircularProgressIndicator(
-                                    progress = { session.sleepQuality / 100f },
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = getQualityColor(session.sleepQuality),
-                                    strokeWidth = 10.dp,
-                                    trackColor = ThemeColors.background
-                                )
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "${session.sleepQuality}%",
-                                        fontSize = 32.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = ThemeColors.textPrimary
-                                    )
-                                    Text(
-                                        text = getQualityLevel(session.sleepQuality),
-                                        fontSize = 12.sp,
-                                        color = getQualityColor(session.sleepQuality),
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                    // Time actually spanned by the session, and how much of it the
+                    // engine did NOT count as sleep. Pure arithmetic on real
+                    // fields — and the one thing Home structurally cannot show,
+                    // since Home only reports the final totalSleepMinutes.
+                    val timeInBedMinutes = ((session.sleepEnd - session.sleepStart) / 60000L).toInt()
+                    val awakeMinutes = (timeInBedMinutes - session.totalSleepMinutes).coerceAtLeast(0)
 
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                MetricCard(
-                                    label = "Total Sleep",
-                                    value = formatMinutes(session.totalSleepMinutes),
-                                    icon = Icons.Default.Bedtime,
-                                    color = Color(0xFF6366F1),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                MetricCard(
-                                    label = "Awakenings",
-                                    value = "${session.awakeningCount}",
-                                    icon = Icons.Default.NotificationsActive,
-                                    color = Color(0xFFF59E0B),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                MetricCard(
-                                    label = "Disturbance",
-                                    value = "${session.disturbanceScore}",
-                                    icon = Icons.Default.Warning,
-                                    color = Color(0xFFEF4444),
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
-
-                    // Sleep Start & Wake Times
+                    // ── SECTION 1 — Session Details (compact rows) ───────────────
+                    SectionLabel("Session Details")
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
                         color = Color.White,
-                        shadowElevation = 4.dp
+                        shadowElevation = 2.dp
                     ) {
-                        Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            TimeInfo(label = "Sleep Start", time = formatTimestamp(session.sleepStart), icon = Icons.Default.Nightlight)
-                            VerticalDivider(modifier = Modifier.height(40.dp), thickness = 1.dp, color = ThemeColors.background)
-                            TimeInfo(label = "Wake Up", time = formatTimestamp(session.sleepEnd), icon = Icons.Default.WbSunny)
+                        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                            DetailRow(Icons.Default.CalendarToday, "Night of", sessionDateLabel(session.date))
+                            DetailRow(Icons.Default.Nightlight, "Detected sleep start", formatTimestamp(session.sleepStart))
+                            DetailRow(Icons.Default.WbSunny, "Detected wake time", formatTimestamp(session.sleepEnd))
+                            // Icons are restricted to ones already used elsewhere in
+                            // this codebase, so no unverified materialIconsExtended
+                            // symbol can break the build.
+                            DetailRow(Icons.Default.HourglassEmpty, "Time in bed", formatMinutes(timeInBedMinutes))
+                            DetailRow(Icons.Default.Bedtime, "Counted as sleep", formatMinutes(session.totalSleepMinutes))
+                            DetailRow(Icons.Default.HourglassEmpty, "Awake during session", formatMinutes(awakeMinutes))
+                            DetailRow(Icons.Default.NotificationsActive, "Awakenings detected", "${session.awakeningCount}", isLast = true)
                         }
                     }
 
-                    // Timeline Section — real sleepStart/sleepEnd and real WakeEvent
-                    // rows only (from Room wake_events, populated by the engine's
-                    // actual awakening detection). No "Monitoring Started" node:
-                    // there is no persisted monitoring-start timestamp anywhere in
-                    // the data model, so the previous hardcoded "10:00 PM" here had
-                    // nothing real to represent.
-                    Text(
-                        text = "Sleep Timeline",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ThemeColors.textPrimary,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-
+                    // ── SECTION 2 — Sleep Timeline (the focus of this page) ──────
+                    SectionLabel("Sleep Timeline")
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(20.dp),
                         color = Color.White,
-                        shadowElevation = 4.dp
+                        shadowElevation = 2.dp
                     ) {
-                        Column(modifier = Modifier.padding(24.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             TimelineItem(
                                 time = formatTimestamp(session.sleepStart),
                                 title = "Sleep Started",
@@ -240,14 +227,31 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                                 color = Color(0xFF4F46E5)
                             )
 
-                            wakeEvents.forEach { event ->
-                                TimelineItem(
-                                    time = formatTimestamp(event.timestamp),
-                                    title = "Awakening: ${event.appName}",
-                                    subtitle = "Duration: ${event.duration / 60000} mins (${event.category})",
-                                    icon = Icons.Default.NotificationsActive,
-                                    color = Color(0xFFF59E0B)
-                                )
+                            if (wakeEvents.isEmpty()) {
+                                // Explicit, not an empty gap and not a fake event.
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(start = 48.dp, bottom = 24.dp)
+                                ) {
+                                    Text(
+                                        text = "No detected awakenings during this session.",
+                                        fontSize = 13.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                            } else {
+                                wakeEvents.forEach { event ->
+                                    // Title/subtitle are assembled ONLY from the
+                                    // event's own persisted fields. No inferred
+                                    // cause, no "phone usage" narrative beyond the
+                                    // app name and category actually recorded.
+                                    TimelineItem(
+                                        time = formatTimestamp(event.timestamp),
+                                        title = "Awakening — ${event.appName}",
+                                        subtitle = "${formatMinutes((event.duration / 60000L).toInt())} · ${event.category}",
+                                        icon = Icons.Default.NotificationsActive,
+                                        color = Color(0xFFF59E0B)
+                                    )
+                                }
                             }
 
                             TimelineItem(
@@ -260,11 +264,150 @@ fun SleepMoodDashboardScreen(navController: NavController) {
                             )
                         }
                     }
+
+                    // ── SECTION 3 — Sleep Quality (compact bar, not a hero) ──────
+                    SectionLabel("Sleep Quality")
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        shadowElevation = 2.dp
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Text(
+                                    text = "${session.sleepQuality}%",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = getQualityColor(session.sleepQuality)
+                                )
+                                Text(
+                                    text = getQualityLevel(session.sleepQuality),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = getQualityColor(session.sleepQuality)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            LinearProgressIndicator(
+                                progress = { session.sleepQuality / 100f },
+                                modifier = Modifier.fillMaxWidth().height(8.dp),
+                                color = getQualityColor(session.sleepQuality),
+                                trackColor = ThemeColors.background,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                // States what the number IS, without inventing a
+                                // component breakdown the data model doesn't store.
+                                text = "Measured by the sleep monitor for this session. The engine does not persist a per-factor breakdown of this score, so it is shown as a single measured result.",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+
+                    // ── SECTION 4 — Disturbance ──────────────────────────────────
+                    SectionLabel("Disturbance")
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        shadowElevation = 2.dp
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Disturbance score",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = ThemeColors.textPrimary
+                                )
+                                Text(
+                                    text = "${session.disturbanceScore}",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFEF4444)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(color = ThemeColors.background, thickness = 1.dp)
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Real app activity the engine recorded inside this
+                            // session's boundaries, grouped by the category it
+                            // itself assigned. Descriptive only — no claim about
+                            // how many points any category contributed, because
+                            // that attribution is not persisted anywhere.
+                            val inSessionLogs = usageLogs.filter {
+                                it.startTime >= session.sleepStart && it.startTime <= session.sleepEnd
+                            }
+                            val categoryTotals = inSessionLogs
+                                .groupBy { it.category }
+                                .map { (category, logs) ->
+                                    Triple(category, logs.sumOf { it.duration } / 60000L, logs.size)
+                                }
+                                .filter { it.second > 0L }
+                                .sortedByDescending { it.second }
+
+                            if (categoryTotals.isEmpty()) {
+                                Text(
+                                    text = "No app activity was recorded inside this session, so detailed factor attribution is unavailable.",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    lineHeight = 16.sp
+                                )
+                            } else {
+                                Text(
+                                    text = "App activity recorded during this session",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ThemeColors.textPrimary
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                categoryTotals.forEach { (category, minutes, count) ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(8.dp)
+                                                    .background(categoryColor(category), CircleShape)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = category,
+                                                fontSize = 13.sp,
+                                                color = ThemeColors.textPrimary
+                                            )
+                                        }
+                                        Text(
+                                            text = "${formatMinutes(minutes.toInt())} · $count ${if (count == 1) "session" else "sessions"}",
+                                            fontSize = 12.sp,
+                                            color = Color.Gray
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Button(
                     onClick = { navController.navigate("sleep_mood_analytics") },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5))
                 ) {
@@ -280,15 +423,59 @@ fun SleepMoodDashboardScreen(navController: NavController) {
 }
 
 @Composable
-fun TimeInfo(label: String, time: String, icon: ImageVector) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(text = label, fontSize = 12.sp, color = Color.Gray)
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold,
+        color = ThemeColors.textSecondary,
+        modifier = Modifier.padding(top = 4.dp)
+    )
+}
+
+/** One compact label/value row. Replaces Home's large metric cards on this screen. */
+@Composable
+private fun DetailRow(icon: ImageVector, label: String, value: String, isLast: Boolean = false) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 13.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = label, fontSize = 13.sp, color = Color.Gray)
+            }
+            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
         }
-        Text(text = time, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
+        if (!isLast) {
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 46.dp, end = 18.dp),
+                color = ThemeColors.background,
+                thickness = 1.dp
+            )
+        }
     }
+}
+
+/** Colour per engine-assigned category. Presentation only — no data meaning. */
+private fun categoryColor(category: String): Color = when (category) {
+    "SOCIAL" -> Color(0xFFEF4444)
+    "VIDEO" -> Color(0xFFF59E0B)
+    "MESSAGING" -> Color(0xFF8B5CF6)
+    "PRODUCTIVITY" -> Color(0xFF3B82F6)
+    else -> Color(0xFF9CA3AF)
+}
+
+/** "2026-08-10" -> "Aug 10, 2026". Falls back to the raw string if unparseable. */
+private fun sessionDateLabel(isoDate: String): String {
+    val parts = isoDate.split("-")
+    if (parts.size != 3) return isoDate
+    val months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    val monthIndex = parts[1].toIntOrNull()?.minus(1) ?: return isoDate
+    if (monthIndex !in months.indices) return isoDate
+    return "${months[monthIndex]} ${parts[2].toIntOrNull() ?: parts[2]}, ${parts[0]}"
 }
 
 private fun getQualityLevel(score: Int): String = when {

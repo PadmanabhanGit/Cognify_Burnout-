@@ -43,7 +43,27 @@ fun DashboardScreen(navController: NavController) {
     val sleepRepository = rememberSleepRepository()
     val sleepSessions by sleepRepository.getRecentSessions().collectAsState(emptyList())
     val latestSleepSession = sleepSessions.firstOrNull()
-    
+
+    // ── Dashboard sleep summary: TODAY ONLY ──────────────────────────────────
+    // `latestSleepSession` above is the newest row of ANY date. Using it for the
+    // sleep summary meant that at 06:47 on Aug 11 — before today's night has
+    // been analysed — the Dashboard reported a previous day's session ("4.9H")
+    // while Sleep & Mood correctly said "Sleep analysis isn't ready yet". Two
+    // screens, two answers, from two different selections of the same table.
+    //
+    // These use the SAME predicate SleepMoodScreen uses (`it.date == today`), so
+    // the Dashboard and Sleep & Mood can no longer disagree. A missing session
+    // deliberately does NOT fall back to yesterday's — that is precisely the
+    // stale-data behaviour being removed.
+    //
+    // `latestSleepSession` is intentionally left in place for the
+    // AppData.lastSleepLogged write below: that value feeds BurnoutPredictor and
+    // ProductivityPredictor, and changing its semantics would alter burnout /
+    // productivity output, which is out of scope for this display fix.
+    val todayDate = remember { getLocalDateString() }
+    val todaySleepSession = sleepSessions.firstOrNull { it.date == todayDate }
+    val todayManualSleep = AppData.sleepLogs.firstOrNull { it.date == todayDate }
+
     var riskScore by remember { mutableStateOf(AppData.predictedScore) }
     var riskLevel by remember { mutableStateOf(getRiskLevelName(riskScore)) }
     var currentDate by remember { mutableStateOf(formatDashboardDate()) }
@@ -69,6 +89,24 @@ fun DashboardScreen(navController: NavController) {
         activeTimerSeconds = 0L
     }
     
+    // Run the existing sleep analysis once when the Dashboard opens.
+    //
+    // refreshSleepData() was previously only ever called from the three Sleep &
+    // Mood screens, so after the early-finalization change the engine could
+    // confirm a wake at ~06:01 but nothing would actually invoke it until the
+    // user navigated into Sleep & Mood — the Dashboard card would still read
+    // "Not analyzed yet" on app open. The daily 09:15 SleepWorker is also not a
+    // dependable early path: SleepWorker.doWork() returns immediately unless
+    // both AppData.allowAllNotif and AppData.studyPrompts are true.
+    //
+    // This is the existing mechanism, invoked once per screen entry — not
+    // polling. AndroidSleepRepository's single-flight guard collapses concurrent
+    // callers, and the engine's duplicate-date guard makes an already-analysed
+    // night a no-op, so this cannot produce extra work or extra rows.
+    LaunchedEffect(Unit) {
+        sleepRepository.refreshSleepData()
+    }
+
     LaunchedEffect(latestSleepSession) {
         latestSleepSession?.let {
             AppData.lastSleepLogged = it.totalSleepMinutes / 60f
@@ -256,10 +294,26 @@ fun DashboardScreen(navController: NavController) {
                             label = "Study Today",
                             modifier = Modifier.weight(1f)
                         )
+                        // Three distinct, honest states. The previous
+                        // `?: (AppData.lastSleepLogged * 60)` fallback is removed:
+                        // that global is written from the newest session of any
+                        // date and from manual entry, so it could surface an
+                        // unrelated number under a "Sleep" label with no way to
+                        // tell where it came from.
                         SummaryCard(
                             icon = Icons.Default.Bedtime,
-                            value = formatDisplayTime((latestSleepSession?.totalSleepMinutes ?: (AppData.lastSleepLogged * 60).toInt()) * 60L),
-                            label = "Sleep",
+                            value = when {
+                                todaySleepSession != null ->
+                                    formatDisplayTime(todaySleepSession.totalSleepMinutes * 60L)
+                                todayManualSleep != null ->
+                                    formatDisplayTime((todayManualSleep.hours * 3600f).toLong())
+                                else -> "--"
+                            },
+                            label = when {
+                                todaySleepSession != null -> "Sleep"
+                                todayManualSleep != null -> "Sleep · Manual"
+                                else -> "Not analyzed yet"
+                            },
                             modifier = Modifier.weight(1f)
                         )
                         SummaryCard(
@@ -313,8 +367,19 @@ fun DashboardScreen(navController: NavController) {
                     icon = Icons.Default.Bedtime,
                     title = "Sleep & Mood",
                     subtitle = "Wellness analysis",
-                    trailing = AppData.sleepLogs.firstOrNull()?.status ?: "Log Today",
-                    progress = (latestSleepSession?.sleepQuality?.toFloat() ?: 0f) / 100f,
+                    // Badge distinguishes automatic detection from a manual entry
+                    // instead of showing a mood status from any date.
+                    trailing = when {
+                        todaySleepSession != null -> "${todaySleepSession.sleepQuality}%"
+                        todayManualSleep != null -> "Manual"
+                        else -> "Log Today"
+                    },
+                    // Bar is today's REAL detected quality, or absent entirely.
+                    // It was previously `(latestSleepSession?.sleepQuality ?: 0f) / 100f`
+                    // — a stale session's quality, and on a genuinely empty state a
+                    // 0% bar that looked like a measured result rather than no data.
+                    // FeatureCard already omits the bar when progress is null.
+                    progress = todaySleepSession?.let { it.sleepQuality / 100f },
                     color = Color(0xFFEEF2FF),
                     iconColor = Color(0xFF6366F1),
                     onClick = { navController.navigate("sleep_mood") },

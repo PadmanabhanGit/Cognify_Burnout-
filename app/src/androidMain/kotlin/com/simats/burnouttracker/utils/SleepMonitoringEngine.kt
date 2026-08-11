@@ -158,10 +158,29 @@ class SleepMonitoringEngine(private val context: Context) {
         evening.set(Calendar.HOUR_OF_DAY, NIGHT_START_HOUR)
         val startTime = evening.timeInMillis
 
-        // Never finalise a night that has not finished yet. This makes the engine
-        // safe no matter who calls it (SleepWorker, refreshSleepData, manual).
-        if (System.currentTimeMillis() < endTime) {
-            println("[SLEEP] Window not complete yet (ends ${Date(endTime)}); skipping.")
+        // ── Upper bound for THIS pass: post-wake analysis ────────────────────
+        //
+        // The night window still officially closes at NIGHT_END_HOUR (09:00).
+        // Previously ANY call before that returned immediately, so a user who
+        // genuinely woke at 06:02 could not see their night until 09:00 even
+        // though the evidence for it already existed in UsageStats.
+        //
+        // An earlier pass is now permitted, bounded by the current time. This
+        // does NOT reintroduce any assumption: the clock never supplies a wake
+        // time. The cluster search below is unchanged and still has to find
+        // >= WAKE_CONFIRM_MS of sustained activity after EARLIEST_WAKE_HOUR,
+        // and `sleepEnd < 0` still means "no confirmed wake -> no session"
+        // (the safety fix). If the user has not actually become active yet,
+        // there is no cluster, and nothing is recorded — exactly as before.
+        //
+        // For yesterday and the day before (the other dates refreshSleepData()
+        // scans) endTime is already in the past, so effectiveEnd == endTime and
+        // their behaviour is bit-for-bit identical to before this change.
+        val now = System.currentTimeMillis()
+        val effectiveEnd = minOf(endTime, now)
+
+        if (effectiveEnd <= startTime) {
+            println("[SLEEP] Window has not started yet (starts ${Date(startTime)}); skipping.")
             return
         }
 
@@ -170,7 +189,7 @@ class SleepMonitoringEngine(private val context: Context) {
         val dateLabel = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
         if (sleepDao.getSessionByDate(dateLabel) != null) return
 
-        val events = usageStatsManager.queryEvents(startTime, endTime)
+        val events = usageStatsManager.queryEvents(startTime, effectiveEnd)
         val eventList = mutableListOf<UsageEvents.Event>()
         while (events.hasNextEvent()) {
             val event = UsageEvents.Event()
@@ -202,8 +221,10 @@ class SleepMonitoringEngine(private val context: Context) {
             }
         }
         // Trailing gap: last interaction of the night → window close.
+        // Bounded by effectiveEnd so an early pass cannot count time that has
+        // not elapsed yet as observed inactivity.
         val lastActivity = activity.last()
-        val trailing = endTime - lastActivity
+        val trailing = effectiveEnd - lastActivity
         if (trailing >= MIN_INACTIVITY_MS && isPlausibleBedtime(lastActivity) && trailing > gapLength) {
             gapFrom = lastActivity
             gapLength = trailing
@@ -376,8 +397,21 @@ class SleepMonitoringEngine(private val context: Context) {
         awakenings.forEach { sleepDao.insertWakeEvent(it.copy(sessionId = sessionId)) }
         usageLogs.forEach { sleepDao.insertUsageLog(it.copy(sessionId = sessionId)) }
 
-        // Sync to backend automatically
-        try {
+        // ── Sync to backend ──────────────────────────────────────────────────
+        //
+        // The SAME canonical `session` object that was just written to Room is
+        // sent here. There is no separate or simplified recalculation for sync,
+        // so date / sleepStart / sleepEnd / duration / quality / awakenings /
+        // disturbance / source are identical in Room and Firestore by
+        // construction.
+        //
+        // ApiClient.saveSleepMoodLog already catches its own transport errors
+        // and returns success=false, so the previous `try { … } catch {}` around
+        // it almost never fired — the real failure signal is the RETURN VALUE,
+        // which was being discarded. A failed POST therefore looked exactly like
+        // a successful one. The outer try/catch is kept only for anything the
+        // client itself might rethrow.
+        val syncResponse = try {
             com.simats.burnouttracker.data.api.ApiClient.saveSleepMoodLog(
                 com.simats.burnouttracker.data.models.SleepMoodLogRequest(
                     sleepDuration = session.totalSleepMinutes / 60.0,
@@ -394,6 +428,28 @@ class SleepMonitoringEngine(private val context: Context) {
             )
         } catch (e: Exception) {
             e.printStackTrace()
+            com.simats.burnouttracker.data.models.SleepMoodLogResponse(
+                success = false,
+                message = "${e::class.simpleName}: ${e.message}"
+            )
+        }
+
+        if (syncResponse.success) {
+            println("[SLEEP SYNC] ${session.date} synced to backend (source=automatic).")
+        } else {
+            // The Room session is already persisted above and is deliberately
+            // left intact — local data is never rolled back because a network
+            // call failed, and no placeholder/fake record is created.
+            //
+            // NOTE: there is NO retry mechanism for this POST. The duplicate-date
+            // guard near the top of this function means an already-analysed night
+            // is skipped entirely on subsequent passes, so a night that fails to
+            // sync here will NOT re-sync by itself. Reporting that plainly rather
+            // than inventing a retry queue, which is outside this task.
+            println(
+                "[SLEEP SYNC] FAILED for ${session.date}: ${syncResponse.message ?: "no message"}. " +
+                "Room session retained. No automatic retry exists — this night will not re-sync on its own."
+            )
         }
     }
 }

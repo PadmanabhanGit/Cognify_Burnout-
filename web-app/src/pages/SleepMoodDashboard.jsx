@@ -42,6 +42,49 @@ export default function SleepMoodDashboard() {
     fetchLogs();
   }, []);
 
+  // ── Sleep history (same endpoint the Sleep History page uses) ──────────────
+  // One fetch, once, on mount. GET /trends/sleep already returns automatic-only,
+  // one-entry-per-distinct-night, chronological records inside a real trailing
+  // window — the identical source Android's Sleep History screen reads via Room.
+  // Nothing is fabricated here: nights the backend does not return simply do not
+  // appear, and the section renders honest states for 0 and 1 night.
+  const [historyNights, setHistoryNights] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await api.get('/api/sleep-mood/trends/sleep?days=30');
+        if (res.data.success) {
+          const nights = (res.data.trends || []).filter(
+            (t) => typeof t.sleepQuality === 'number'
+          );
+          // Most recent 3 nights, kept chronological for left-to-right plotting.
+          setHistoryNights(nights.slice(-3));
+          setHistoryError(false);
+        } else {
+          setHistoryError(true);
+        }
+      } catch (err) {
+        console.error('Failed to load sleep history', err);
+        setHistoryError(true);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, []);
+
+  const historyCount = historyNights.length;
+  const historyAverage =
+    historyCount > 0
+      ? Math.round(
+          historyNights.reduce((sum, n) => sum + n.sleepQuality, 0) / historyCount
+        )
+      : null;
+
   const latestSession = error ? null : canonical;
   const available = latestSession !== null;
 
@@ -54,6 +97,45 @@ export default function SleepMoodDashboard() {
   const displayDisturbance = available ? toNumber(latestSession.disturbanceScore) : null;
   const awakeningCount = available ? toNumber(latestSession.awakeningCount) : null;
   const sleepDurationHours = available ? toNumber(latestSession.sleepDuration) : null;
+
+  // ── Derived session details — mirrors Android SleepMoodDashboardScreen ──────
+  // Android computes these from the same two persisted timestamps:
+  //   timeInBed = sleepEnd - sleepStart
+  //   awake     = timeInBed - countedAsSleep
+  // No independent sleep calculation happens here: the browser never inspects
+  // its own clock, and sleepStart/sleepEnd/sleepDuration all come straight from
+  // the record Android produced. Nulls stay null so older records that predate a
+  // field degrade to "--" instead of rendering a fabricated 0.
+  const sleepStartMs = available ? toNumber(latestSession.sleepStart) : null;
+  const sleepEndMs = available ? toNumber(latestSession.sleepEnd) : null;
+
+  const timeInBedMinutes =
+    sleepStartMs !== null && sleepEndMs !== null && sleepEndMs > sleepStartMs
+      ? Math.round((sleepEndMs - sleepStartMs) / 60000)
+      : null;
+  const countedAsSleepMinutes =
+    sleepDurationHours !== null ? Math.round(sleepDurationHours * 60) : null;
+  const awakeMinutes =
+    timeInBedMinutes !== null && countedAsSleepMinutes !== null
+      ? Math.max(0, timeInBedMinutes - countedAsSleepMinutes)
+      : null;
+
+  // "2026-08-11" -> "Aug 11, 2026". Parsed from parts, never `new Date(iso)`,
+  // which treats a bare date as UTC midnight and can render the previous day.
+  const sessionDateLabel = (isoDate) => {
+    const parts = String(isoDate || '').split('-');
+    if (parts.length !== 3) return isoDate || '--';
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mi = Number(parts[1]) - 1;
+    if (!(mi >= 0 && mi < 12)) return isoDate;
+    return `${months[mi]} ${Number(parts[2]) || parts[2]}, ${parts[0]}`;
+  };
+
+  const formatMinutes = (mins) => {
+    if (mins === null) return '--';
+    const h = Math.floor(mins / 60);
+    return h > 0 ? `${h}h ${mins % 60}m` : `${mins}m`;
+  };
 
   const getQualityColor = (score) => {
     if (score === null) return '#9CA3AF';
@@ -156,6 +238,30 @@ export default function SleepMoodDashboard() {
           <TimeInfo label="Wake Up" time={sleepEndDisplay} icon={<WbSunnyIcon />} />
         </div>
 
+        {/* ── Session Details — mirrors Android's compact detail rows ────────── */}
+        <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Session Details</div>
+        <div className="white-card" style={{ padding: '6px 0' }}>
+          {available ? (
+            <>
+              <DetailRow label="Night of" value={sessionDateLabel(latestSession.date)} />
+              <DetailRow label="Detected sleep start" value={sleepStartDisplay} />
+              <DetailRow label="Detected wake time" value={sleepEndDisplay} />
+              <DetailRow label="Time in bed" value={formatMinutes(timeInBedMinutes)} />
+              <DetailRow label="Counted as sleep" value={formatMinutes(countedAsSleepMinutes)} />
+              <DetailRow label="Awake during session" value={formatMinutes(awakeMinutes)} />
+              <DetailRow
+                label="Awakenings detected"
+                value={awakeningCount === null ? '--' : String(awakeningCount)}
+                isLast
+              />
+            </>
+          ) : (
+            <div style={{ padding: '18px', color: '#6B7280', fontSize: '14px' }}>
+              No detected sleep session yet.
+            </div>
+          )}
+        </div>
+
         {/* Timeline Section */}
         <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Sleep Timeline</div>
 
@@ -170,14 +276,33 @@ export default function SleepMoodDashboard() {
               <TimelineItem
                 time={sleepStartDisplay}
                 title="Sleep Started"
-                subtitle="Detected by the Android sleep monitor"
+                subtitle="Detected from a sustained inactivity gap"
                 icon={<BedtimeIcon />}
                 color="#4F46E5"
               />
+              {/* Individual WakeEvent rows are NOT synced to Firestore — the
+                  Android engine POSTs only the session summary, of which
+                  awakeningCount is the one awakening field that crosses the
+                  wire. So the count is stated honestly rather than inventing
+                  per-event rows. When the count is 0 (as tonight) the timeline
+                  is complete and this says so explicitly. */}
+              {awakeningCount !== null && awakeningCount > 0 ? (
+                <TimelineItem
+                  time="--"
+                  title={`${awakeningCount} awakening${awakeningCount === 1 ? '' : 's'} detected`}
+                  subtitle="Per-event times and apps are recorded on the device; only the count is synced."
+                  icon={<NotificationsActiveIcon />}
+                  color="#F59E0B"
+                />
+              ) : awakeningCount === 0 ? (
+                <div style={{ padding: '0 0 20px 48px', fontSize: '13px', color: '#6B7280' }}>
+                  No detected awakenings during this session.
+                </div>
+              ) : null}
               <TimelineItem
                 time={sleepEndDisplay}
                 title="Final Wake Up"
-                subtitle="Monitoring successfully completed"
+                subtitle="Detected from a sustained activity cluster"
                 icon={<WbSunnyIcon />}
                 color="#10B981"
                 isLast={true}
@@ -192,7 +317,85 @@ export default function SleepMoodDashboard() {
           )}
         </div>
 
-        <button 
+        {/* ── Sleep Quality — same stored value, no web-side recalculation ──── */}
+        <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Sleep Quality</div>
+        <div className="white-card" style={{ padding: '20px' }}>
+          {displayQuality === null ? (
+            <div style={{ color: '#6B7280', fontSize: '14px' }}>Sleep quality unavailable for this record.</div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <div style={{ fontSize: '24px', fontWeight: 700, color: getQualityColor(displayQuality) }}>{displayQuality}%</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: getQualityColor(displayQuality) }}>{getQualityLevel(displayQuality)}</div>
+              </div>
+              <div style={{ height: '8px', borderRadius: '4px', backgroundColor: '#F3F4F6', marginTop: '10px', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.max(0, Math.min(100, displayQuality))}%`, height: '100%', backgroundColor: getQualityColor(displayQuality), borderRadius: '4px' }} />
+              </div>
+              <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '12px', lineHeight: 1.4 }}>
+                Measured by the Android sleep monitor for this session. The engine does not persist a
+                per-factor breakdown of this score, so it is shown as a single measured result.
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Disturbance ───────────────────────────────────────────────────── */}
+        <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Disturbance</div>
+        <div className="white-card" style={{ padding: '20px' }}>
+          {displayDisturbance === null ? (
+            <div style={{ color: '#6B7280', fontSize: '14px' }}>Disturbance score unavailable for this record.</div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '14px', fontWeight: 500, color: '#1F2937' }}>Disturbance score</div>
+                <div style={{ fontSize: '22px', fontWeight: 700, color: '#EF4444' }}>{displayDisturbance}</div>
+              </div>
+              <div style={{ height: '1px', backgroundColor: '#F3F4F6', margin: '16px 0' }} />
+              <div style={{ fontSize: '12px', color: '#6B7280', lineHeight: 1.4 }}>
+                {/* Android can show a per-category breakdown because it reads the
+                    local app_usage_logs table. Those rows are not synced, so the
+                    web states the limitation instead of guessing at factors. */}
+                Per-app activity behind this score is recorded on the device and is not synced,
+                so detailed factor attribution is unavailable here. Open Sleep Analysis in the
+                Android app for the per-category breakdown.
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Sleep History / Quality Trend ─────────────────────────────────── */}
+        <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Sleep History</div>
+        <div className="white-card" style={{ padding: '20px' }}>
+          {historyLoading ? (
+            <div style={{ color: '#6B7280', fontSize: '14px' }}>Loading…</div>
+          ) : historyError ? (
+            <div style={{ color: '#EF4444', fontSize: '14px' }}>⚠️ Unable to load sleep history. Retry.</div>
+          ) : historyCount === 0 ? (
+            <div style={{ color: '#6B7280', fontSize: '14px' }}>No detected sleep sessions yet.</div>
+          ) : (
+            <>
+              <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                {historyCount === 1
+                  ? 'Quality — 1 night'
+                  : `Average Quality — Last ${historyCount} Nights`}
+              </div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: '#4F46E5', marginTop: '4px' }}>
+                {historyAverage}%
+              </div>
+
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#1F2937', marginTop: '18px' }}>Quality Trend</div>
+              {historyCount < 2 ? (
+                <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '8px' }}>
+                  Only one detected night so far — a trend needs at least two distinct nights.
+                </div>
+              ) : (
+                <QualityTrend nights={historyNights} />
+              )}
+            </>
+          )}
+        </div>
+
+        <button
           onClick={() => navigate('/sleep/analytics')}
           style={{ width: '100%', height: '56px', backgroundColor: '#4F46E5', color: 'white', borderRadius: '16px', fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', border: 'none', cursor: 'pointer' }}
         >
@@ -213,6 +416,73 @@ export default function SleepMoodDashboard() {
       >
         <AddIcon style={{ color: 'white' }} />
       </button>
+    </div>
+  );
+}
+
+/** One compact label/value row, matching Android's Session Details rows. */
+function DetailRow({ label, value, isLast = false }) {
+  return (
+    <div>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '13px 18px', gap: '12px'
+      }}>
+        <div style={{ fontSize: '13px', color: '#6B7280' }}>{label}</div>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1F2937', textAlign: 'right' }}>{value}</div>
+      </div>
+      {!isLast && <div style={{ height: '1px', backgroundColor: '#F3F4F6', margin: '0 18px' }} />}
+    </div>
+  );
+}
+
+/**
+ * Quality trend, drawn as inline SVG.
+ *
+ * Deliberately not Chart.js: this page has no charting dependency today and the
+ * trend is a handful of points, so an inline <svg> keeps the page dependency-free
+ * and renders identically at every viewport width (viewBox + preserveAspectRatio
+ * scale it fluidly on mobile). Visually equivalent to Android's line+fill chart.
+ *
+ * Plots only the nights passed in. Missing dates are never interpolated or
+ * zero-filled — they simply are not points.
+ */
+function QualityTrend({ nights }) {
+  const W = 300, H = 90, PAD = 6;
+  const pts = nights.map((n, i) => {
+    const x = nights.length === 1 ? W / 2 : PAD + (i * (W - PAD * 2)) / (nights.length - 1);
+    const y = H - PAD - (Math.max(0, Math.min(100, n.sleepQuality)) / 100) * (H - PAD * 2);
+    return { x, y };
+  });
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const area = `${line} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`;
+
+  const shortDate = (iso) => {
+    const p = String(iso || '').split('-');
+    if (p.length !== 3) return iso;
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(p[1]) - 1];
+    return m ? `${m} ${Number(p[2]) || p[2]}` : iso;
+  };
+
+  return (
+    <div style={{ marginTop: '12px' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '110px', display: 'block' }}>
+        {[0.25, 0.5, 0.75].map((f) => (
+          <line key={f} x1="0" y1={H * f} x2={W} y2={H * f} stroke="#F3F4F6" strokeWidth="1" />
+        ))}
+        <path d={area} fill="rgba(79, 70, 229, 0.12)" />
+        <path d={line} fill="none" stroke="#4F46E5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        {pts.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="3" fill="#FFFFFF" stroke="#4F46E5" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+        ))}
+      </svg>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+        {nights.map((n) => (
+          <div key={n.date} style={{ fontSize: '10px', color: '#6B7280' }}>
+            {shortDate(n.date)} · {n.sleepQuality}%
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
