@@ -6,6 +6,8 @@ import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import PersonIcon from '@mui/icons-material/Person';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../firebase';
 import api from '../services/api';
@@ -19,10 +21,22 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Password strength checks — computed live as user types
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  const isPasswordStrong = hasMinLength && hasUppercase && hasLowercase && hasDigit && hasSpecial;
+
   const handleSignUp = async (e) => {
     e.preventDefault();
     if (!name || !email || !password) {
       setError('Please fill in all fields');
+      return;
+    }
+    if (!isPasswordStrong) {
+      setError('Password does not meet all requirements below');
       return;
     }
     
@@ -48,6 +62,15 @@ export default function SignUp() {
     }
   };
 
+  const reqStyle = (met) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '11px',
+    color: met ? '#10B981' : '#6B7280',
+    marginBottom: '2px',
+  });
+
   return (
     <div className="login-bg desktop-padding" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh' }}>
       <div style={{ marginTop: '64px', width: '80px', height: '80px', background: 'rgba(255,255,255,0.2)', borderRadius: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -55,7 +78,7 @@ export default function SignUp() {
       </div>
       
       <div style={{ marginTop: '16px', color: 'white', fontSize: '36px', fontWeight: 700 }}>Cognify</div>
-      <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Mental Health & Burnout Detection</div>
+      <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Mental Health &amp; Burnout Detection</div>
       
       <div className="white-card-lg" style={{ marginTop: '32px', width: '90%', maxWidth: '500px', padding: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ fontSize: '32px', fontWeight: 700, color: '#1E293B' }}>Create Account</div>
@@ -64,6 +87,7 @@ export default function SignUp() {
         
         <form onSubmit={handleSignUp} style={{ width: '100%', marginTop: '32px' }}>
           
+          {/* Full Name */}
           <div style={{ width: '100%', marginBottom: '24px' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>Full Name</div>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px' }}>
@@ -78,7 +102,8 @@ export default function SignUp() {
             </div>
           </div>
 
-          <div style={{ width: '100%' }}>
+          {/* Email */}
+          <div style={{ width: '100%', marginBottom: '24px' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>Email Address</div>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px' }}>
               <MailRoundedIcon style={{ color: '#94A3B8', fontSize: '20px', marginRight: '8px' }} />
@@ -92,7 +117,8 @@ export default function SignUp() {
             </div>
           </div>
           
-          <div style={{ width: '100%', marginTop: '24px' }}>
+          {/* Password with strength indicator */}
+          <div style={{ width: '100%', marginBottom: '8px' }}>
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>Password</div>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px' }}>
               <LockRoundedIcon style={{ color: '#94A3B8', fontSize: '20px', marginRight: '8px' }} />
@@ -104,12 +130,52 @@ export default function SignUp() {
                 style={{ border: 'none', outline: 'none', width: '100%', fontSize: '16px', color: '#1E293B' }}
               />
               <div onClick={() => setPasswordVisible(!passwordVisible)} style={{ cursor: 'pointer', display: 'flex' }}>
-                {passwordVisible ? <VisibilityIcon style={{ color: '#94A3B8', fontSize: '20px' }} /> : <VisibilityOffIcon style={{ color: '#94A3B8', fontSize: '20px' }} />}
+                {passwordVisible
+                  ? <VisibilityIcon style={{ color: '#94A3B8', fontSize: '20px' }} />
+                  : <VisibilityOffIcon style={{ color: '#94A3B8', fontSize: '20px' }} />
+                }
               </div>
             </div>
+
+            {/* Real-time strength indicator — only shown when user has started typing */}
+            {password.length > 0 && (
+              <div style={{ marginTop: '10px', padding: '10px 12px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Password requirements:</div>
+                <div style={reqStyle(hasMinLength)}>
+                  {hasMinLength
+                    ? <CheckCircleIcon style={{ fontSize: '13px' }} />
+                    : <CancelIcon style={{ fontSize: '13px', color: '#EF4444' }} />}
+                  8+ characters
+                </div>
+                <div style={reqStyle(hasUppercase)}>
+                  {hasUppercase
+                    ? <CheckCircleIcon style={{ fontSize: '13px' }} />
+                    : <CancelIcon style={{ fontSize: '13px', color: '#EF4444' }} />}
+                  Uppercase letter (A-Z)
+                </div>
+                <div style={reqStyle(hasLowercase)}>
+                  {hasLowercase
+                    ? <CheckCircleIcon style={{ fontSize: '13px' }} />
+                    : <CancelIcon style={{ fontSize: '13px', color: '#EF4444' }} />}
+                  Lowercase letter (a-z)
+                </div>
+                <div style={reqStyle(hasDigit)}>
+                  {hasDigit
+                    ? <CheckCircleIcon style={{ fontSize: '13px' }} />
+                    : <CancelIcon style={{ fontSize: '13px', color: '#EF4444' }} />}
+                  Number (0-9)
+                </div>
+                <div style={reqStyle(hasSpecial)}>
+                  {hasSpecial
+                    ? <CheckCircleIcon style={{ fontSize: '13px' }} />
+                    : <CancelIcon style={{ fontSize: '13px', color: '#EF4444' }} />}
+                  Special character (!@#$...)
+                </div>
+              </div>
+            )}
           </div>
           
-          <button type="submit" disabled={isLoading} className="btn-primary" style={{ width: '100%', height: '60px', marginTop: '32px', fontSize: '18px' }}>
+          <button type="submit" disabled={isLoading} className="btn-primary" style={{ width: '100%', height: '60px', marginTop: '24px', fontSize: '18px' }}>
             {isLoading ? 'Loading...' : 'Sign Up'}
           </button>
         </form>

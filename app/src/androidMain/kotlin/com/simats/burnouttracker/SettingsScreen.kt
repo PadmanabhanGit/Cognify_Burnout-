@@ -389,7 +389,23 @@ fun SettingsScreen(navController: NavController) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { 
+                        .clickable {
+                            // ── User data isolation: wipe every user-scoped field ──
+                            // Must happen BEFORE signOut() so the next user who logs
+                            // in starts from a completely clean state. Device prefs
+                            // (dark mode, notification toggles) are left untouched.
+                            AppData.reset()
+                            prefs.edit().apply {
+                                remove("firstName")
+                                remove("fullName")
+                                remove("email")
+                                remove("studyTodayHours")
+                                remove("studyWeekHours")
+                                remove("activeSessionName")
+                                remove("activeSessionId")
+                                remove("activeSessionStart")
+                                remove("sessionStartTime")
+                            }.apply()
                             authService.signOut()
                             val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
                                 com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN

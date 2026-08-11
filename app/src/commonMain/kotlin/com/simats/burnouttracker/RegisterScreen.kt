@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,10 +24,12 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.layout.width
 
 import com.simats.burnouttracker.data.api.ApiClient
 import com.simats.burnouttracker.data.models.RegisterRequest
@@ -51,14 +54,28 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
     var agreeToTerms by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Password strength checks — computed as the user types
+    val hasMinLength = password.length >= 8
+    val hasUppercase = password.any { it.isUpperCase() }
+    val hasLowercase = password.any { it.isLowerCase() }
+    val hasDigit = password.any { it.isDigit() }
+    val hasSpecial = password.any { !it.isLetterOrDigit() }
+    val isPasswordStrong = hasMinLength && hasUppercase && hasLowercase && hasDigit && hasSpecial
 
     val handleSignUp = {
         scope.launch {
             if (fullName.isBlank() || email.isBlank() || password.isBlank()) {
                 errorMessage = "Please fill all fields"
+                return@launch
+            }
+            if (!isPasswordStrong) {
+                errorMessage = "Password does not meet the requirements below"
                 return@launch
             }
             if (!agreeToTerms) {
@@ -225,8 +242,16 @@ fun RegisterScreen(
                             onValueChange = { password = it },
                             placeholder = { Text("********", color = Color.LightGray) },
                             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.LightGray) },
-                            trailingIcon = { Icon(Icons.Default.Visibility, contentDescription = null, tint = Color.LightGray) },
-                            visualTransformation = PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                        tint = Color.LightGray
+                                    )
+                                }
+                            },
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth().testTag("passwordField"),
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -236,6 +261,19 @@ fun RegisterScreen(
                                 focusedBorderColor = Color(0xFF9333EA)
                             )
                         )
+                        // Strength indicator shown as user types
+                        if (password.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text("Password requirements:", fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                PasswordRequirement("8+ characters", hasMinLength)
+                                PasswordRequirement("Uppercase letter (A-Z)", hasUppercase)
+                                PasswordRequirement("Lowercase letter (a-z)", hasLowercase)
+                                PasswordRequirement("Number (0-9)", hasDigit)
+                                PasswordRequirement("Special character (!@#\$...)", hasSpecial)
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -254,8 +292,16 @@ fun RegisterScreen(
                             onValueChange = { confirmPassword = it },
                             placeholder = { Text("********", color = Color.LightGray) },
                             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.LightGray) },
-                            trailingIcon = { Icon(Icons.Default.Visibility, contentDescription = null, tint = Color.LightGray) },
-                            visualTransformation = PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                                    Icon(
+                                        imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
+                                        tint = Color.LightGray
+                                    )
+                                }
+                            },
+                            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth().testTag("confirmPasswordField"),
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -348,5 +394,22 @@ fun RegisterScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+private fun PasswordRequirement(label: String, satisfied: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 1.dp)
+    ) {
+        Text(
+            text = if (satisfied) "✓" else "✗",
+            fontSize = 12.sp,
+            color = if (satisfied) Color(0xFF10B981) else Color(0xFFEF4444),
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(label, fontSize = 11.sp, color = if (satisfied) Color(0xFF10B981) else Color(0xFF6B7280))
     }
 }

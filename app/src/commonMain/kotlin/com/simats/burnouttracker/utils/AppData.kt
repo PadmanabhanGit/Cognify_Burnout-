@@ -69,6 +69,39 @@ object AppData {
     var isSyncing by mutableStateOf(false)
     var lastSyncFailed by mutableStateOf(false)
     var lastSyncError by mutableStateOf("")
+
+    /** Call this on logout to wipe every user-scoped field before the next
+     *  user logs in. Device preferences (dark mode, notification toggles)
+     *  are intentionally left untouched — they are not user data. */
+    fun reset() {
+        currentFeatures = BurnoutFeatures(0f, 0f, 0f, 0f, 0f, 0f, 0, 0f)
+        predictedScore = 0f
+        lastSleepLogged = 0f
+        lastMoodLogged = "Neutral"
+        userFullName = null
+        productivityScore = 0
+        peakFocusHours = 4.2f
+        goalHitRate = 92
+        averageStartTime = "09:00"
+        userGlobalRanking = "Top 5%"
+        studyTodayHours = 0f
+        studyWeekHours = 0f
+        studyMonthHours = 0f
+        weeklyStudyData.replaceAll { 0f }
+        studyBreakdown.clear()
+        monthlyStudyTrend.replaceAll { 0f }
+        activeSessionName = null
+        activeSessionId = null
+        sessionStartTime = null
+        sleepLogs.clear()
+        sleepTrendPoints.clear()
+        moodTrendPoints.clear()
+        hasData = false
+        lastUpdatedTime = ""
+        isSyncing = false
+        lastSyncFailed = false
+        lastSyncError = ""
+    }
 }
 
 @Composable
