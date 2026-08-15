@@ -3,7 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
-const { selectCanonicalSleepLog, sortByRecencyDesc, hasValidDetectedSleep, isAutomaticSource } = require('../utils/sleepSelection');
+const { selectCanonicalSleepLog, sortByRecencyDesc, sortByNightDesc, hasValidDetectedSleep, isAutomaticSource } = require('../utils/sleepSelection');
 
 // @route   POST api/sleep-mood/log
 router.post('/log', auth, async (req, res) => {
@@ -147,8 +147,13 @@ router.get('/trends/sleep', auth, async (req, res) => {
     // Duplicate automatic documents for the same night (written before the
     // deterministic-id fix) must not become separate trend points. Newest write
     // wins per date; nothing is averaged or invented.
+    // sortByNightDesc, not sortByRecencyDesc: within one date both records
+    // describe the same night, so this falls through to its last-write tiebreak
+    // and the freshest write for that night wins. Ordering by createdAt picked
+    // the wrong one, because the automatic write path preserves createdAt across
+    // re-writes — a corrected night kept the rank of the first version of itself.
     const byDate = new Map();
-    for (const log of sortByRecencyDesc(inWindow)) {
+    for (const log of sortByNightDesc(inWindow)) {
       const d = normalizeDateValue(log.date || log.createdAt);
       if (!byDate.has(d)) {
         byDate.set(d, {

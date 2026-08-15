@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.text.SimpleDateFormat
 import java.util.*
 
 class AndroidSleepRepository(private val context: Context) : SleepRepository {
@@ -83,6 +84,21 @@ class AndroidSleepRepository(private val context: Context) : SleepRepository {
                 for (i in 0..2) {
                     engine.analyzeNight(cal.time)
                     cal.add(Calendar.DAY_OF_YEAR, -1)
+                }
+
+                // Re-send nights the backend never confirmed. analyzeNight above
+                // skips any night already in Room, so without this a night whose
+                // POST failed would stay on the phone forever and never reach the
+                // web app — the phone and the web would keep showing different
+                // numbers for the same account with nothing to reconcile them.
+                //
+                // `cal` has just been walked back across the same 3-day window,
+                // so it already sits on the oldest day of that window; the retry
+                // set is bounded to exactly the range this pass re-scanned.
+                val sinceDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
+                val resynced = engine.retryUnsyncedSessions(sinceDate)
+                if (resynced > 0) {
+                    println("[SLEEP] Re-synced $resynced previously unsynced night(s) to the backend.")
                 }
             } finally {
                 refreshInFlight = false

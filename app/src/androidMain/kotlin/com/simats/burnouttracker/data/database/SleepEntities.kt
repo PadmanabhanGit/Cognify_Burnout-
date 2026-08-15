@@ -32,7 +32,27 @@ data class SleepSession(
      * wake_events and app_usage_logs need no column of their own — they are
      * reachable only through their parent session's id, which is itself scoped.
      */
-    @ColumnInfo(defaultValue = "") val ownerUid: String = ""
+    @ColumnInfo(defaultValue = "") val ownerUid: String = "",
+    /**
+     * When this night was last accepted by the backend, or 0 if it never was.
+     *
+     * Sync used to be fire-once: SleepMonitoringEngine POSTed each night
+     * immediately after inserting it, and if that POST failed — no network, an
+     * expired token, the server down — nothing recorded the failure. The
+     * duplicate-date guard then skipped the night on every later scan, so the
+     * row stayed in Room forever and never reached Firestore. The web app,
+     * reading only Firestore, showed a different night's numbers than the phone.
+     *
+     * Persisting the outcome is what makes a retry possible: a row with
+     * syncedAt = 0 is a night the backend has not confirmed, and
+     * AndroidSleepRepository.refreshSleepData() re-sends those.
+     *
+     * 0 for rows written before this column existed. They are re-sent once, which
+     * is safe: automatic writes are keyed `${uid}_${date}_automatic` server-side
+     * and merge onto the same document, so a re-send reconciles that night rather
+     * than duplicating it.
+     */
+    @ColumnInfo(defaultValue = "0") val syncedAt: Long = 0
 )
 
 @Entity(

@@ -408,21 +408,33 @@ class SleepMonitoringEngine(private val context: Context) {
         awakenings.forEach { sleepDao.insertWakeEvent(it.copy(sessionId = sessionId)) }
         usageLogs.forEach { sleepDao.insertUsageLog(it.copy(sessionId = sessionId)) }
 
-        // ── Sync to backend ──────────────────────────────────────────────────
-        //
-        // The SAME canonical `session` object that was just written to Room is
-        // sent here. There is no separate or simplified recalculation for sync,
-        // so date / sleepStart / sleepEnd / duration / quality / awakenings /
-        // disturbance / source are identical in Room and Firestore by
-        // construction.
-        //
-        // ApiClient.saveSleepMoodLog already catches its own transport errors
-        // and returns success=false, so the previous `try { … } catch {}` around
-        // it almost never fired — the real failure signal is the RETURN VALUE,
-        // which was being discarded. A failed POST therefore looked exactly like
-        // a successful one. The outer try/catch is kept only for anything the
-        // client itself might rethrow.
-        val syncResponse = try {
+        // Sync the night that was just written. The outcome is persisted, so a
+        // failure here is retried later rather than lost — see [syncSession].
+        syncSession(session.copy(id = sessionId))
+    }
+
+    /**
+     * Sends one detected night to the backend and records whether it landed.
+     *
+     * The SAME canonical `session` object held in Room is sent here. There is no
+     * separate or simplified recalculation for sync, so date / sleepStart /
+     * sleepEnd / duration / quality / awakenings / disturbance / source are
+     * identical in Room and Firestore by construction.
+     *
+     * ApiClient.saveSleepMoodLog already catches its own transport errors and
+     * returns success=false, so the real failure signal is the RETURN VALUE. The
+     * outer try/catch is kept only for anything the client itself might rethrow.
+     *
+     * On success the row's [SleepSession.syncedAt] is stamped, which is what
+     * takes it out of the retry set. On failure the row is left at 0 and
+     * retained — local data is never rolled back because a network call failed,
+     * and no placeholder record is created. [retryUnsyncedSessions] picks it up
+     * on a later refresh.
+     *
+     * @return true when the backend accepted the night.
+     */
+    suspend fun syncSession(session: SleepSession): Boolean {
+        val response = try {
             com.simats.burnouttracker.data.api.ApiClient.saveSleepMoodLog(
                 com.simats.burnouttracker.data.models.SleepMoodLogRequest(
                     sleepDuration = session.totalSleepMinutes / 60.0,
@@ -445,22 +457,52 @@ class SleepMonitoringEngine(private val context: Context) {
             )
         }
 
-        if (syncResponse.success) {
+        if (response.success) {
+            sleepDao.markSessionSynced(session.id, System.currentTimeMillis())
             println("[SLEEP SYNC] ${session.date} synced to backend (source=automatic).")
         } else {
-            // The Room session is already persisted above and is deliberately
-            // left intact — local data is never rolled back because a network
-            // call failed, and no placeholder/fake record is created.
-            //
-            // NOTE: there is NO retry mechanism for this POST. The duplicate-date
-            // guard near the top of this function means an already-analysed night
-            // is skipped entirely on subsequent passes, so a night that fails to
-            // sync here will NOT re-sync by itself. Reporting that plainly rather
-            // than inventing a retry queue, which is outside this task.
             println(
-                "[SLEEP SYNC] FAILED for ${session.date}: ${syncResponse.message ?: "no message"}. " +
-                "Room session retained. No automatic retry exists — this night will not re-sync on its own."
+                "[SLEEP SYNC] FAILED for ${session.date}: ${response.message ?: "no message"}. " +
+                "Room session retained, left unsynced; it will be retried on a later refresh."
             )
         }
+        return response.success
+    }
+
+    /**
+     * Re-sends nights this account holds locally that the backend never
+     * confirmed, within [sinceDate] (`yyyy-MM-dd`) onwards.
+     *
+     * This is the half of sync that was missing. Detection already skips nights
+     * already present in Room, so a night whose POST failed was never revisited
+     * — it stayed on the phone and never appeared on the web. Retrying from the
+     * stored row (rather than re-analysing) means the resent values are exactly
+     * the ones Room holds, so a successful retry makes web agree with the phone
+     * by construction.
+     *
+     * Safe to run on every refresh: the server keys automatic writes by
+     * (user, date) and merges, so a retry updates that night's document instead
+     * of adding another.
+     *
+     * @return how many nights were accepted by the backend on this pass.
+     */
+    suspend fun retryUnsyncedSessions(sinceDate: String): Int {
+        val ownerUid = AccountScope.activeUid(context)
+        val pending = sleepDao.getUnsyncedSessions(ownerUid, sinceDate)
+        if (pending.isEmpty()) return 0
+
+        println("[SLEEP SYNC] ${pending.size} unsynced night(s) since $sinceDate; retrying.")
+        var synced = 0
+        for (session in pending) {
+            // The session belongs to the account that was active when it was
+            // read. If the user signs out mid-retry the remaining nights are
+            // simply left pending rather than sent under a new identity.
+            if (AccountScope.activeUid(context) != ownerUid) {
+                println("[SLEEP SYNC] Account changed mid-retry; ${pending.size - synced} night(s) left pending.")
+                break
+            }
+            if (syncSession(session)) synced++
+        }
+        return synced
     }
 }

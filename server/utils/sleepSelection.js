@@ -65,15 +65,78 @@ function sortByRecencyDesc(logs) {
 }
 
 /**
- * The newest record that actually contains detected sleep.
+ * WHICH NIGHT this record describes, as an epoch-ms key.
+ *
+ * Distinct from [recencyOf], which answers "when was this row WRITTEN". The two
+ * are not interchangeable, and conflating them is what made Android and Web
+ * disagree about the same account's most recent sleep:
+ *
+ *   - Android picks the latest night with `ORDER BY sleepStart DESC`
+ *     (SleepDao.getAllSessions) — it ranks by the night itself.
+ *   - Canonical selection here used to rank by createdAt. That is write order,
+ *     which does not track night order. A night detected late (a backfill, a
+ *     re-analysis, a phone that was offline and synced days afterwards) gets a
+ *     createdAt newer than a night that actually happened later.
+ *
+ * The deterministic-id write in routes/sleepMood.js makes this strictly worse
+ * rather than better: re-writing `${userId}_${date}_automatic` deliberately
+ * PRESERVES the original createdAt, so a corrected duration keeps the rank of
+ * the first time that night was ever seen. The record's ordering key therefore
+ * stops tracking its content entirely.
+ *
+ * `sleepEnd` is the honest key — it is the moment the night ended, written by
+ * SleepMonitoringEngine from the same session object Room holds, so ordering by
+ * it reproduces Android's `sleepStart DESC` ranking for the detected records
+ * canonical selection considers. `date` is the fallback for records that
+ * somehow lack it; parsed as local midnight to stay consistent with
+ * normalizeDateValue's local-date convention elsewhere.
+ */
+function nightOf(log) {
+  if (!log) return 0;
+  const end = Number(log.sleepEnd);
+  if (Number.isFinite(end) && end > 0) return end;
+  const d = new Date(`${log.date}T00:00:00`).getTime();
+  return Number.isFinite(d) ? d : 0;
+}
+
+/**
+ * The most recent time this record was WRITTEN.
+ *
+ * Not the same as [recencyOf], which reads createdAt first and so reports when
+ * a record was first created. That is the wrong key for "which of these two is
+ * fresher": the automatic write path preserves createdAt across re-writes, so a
+ * corrected record and the original it replaced report an identical recencyOf.
+ * Taking the max of both timestamps makes a correction visibly newer.
+ */
+function lastWriteOf(log) {
+  if (!log) return 0;
+  const created = new Date(log.createdAt || 0).getTime();
+  const updated = new Date(log.updatedAt || 0).getTime();
+  return Math.max(Number.isFinite(created) ? created : 0, Number.isFinite(updated) ? updated : 0);
+}
+
+/**
+ * Newest NIGHT first, breaking ties on last write so that when two records
+ * describe the same night — a legacy duplicate and the deterministic-id
+ * document, say — the most recently written one wins.
+ */
+function sortByNightDesc(logs) {
+  return [...logs].sort((a, b) => (nightOf(b) - nightOf(a)) || (lastWriteOf(b) - lastWriteOf(a)));
+}
+
+/**
+ * The most recent NIGHT that actually contains detected sleep.
  * Returns null when Android has not synced one — callers must render an
  * explicit unavailable state rather than substituting a manual log.
+ *
+ * Ordered by [nightOf], not [recencyOf], so this returns the same night the
+ * Android app shows as latest. See [nightOf] for why write time was wrong.
  */
 function selectCanonicalSleepLog(logs) {
   if (!Array.isArray(logs)) return null;
   const detected = logs.filter(log => isAutomaticSource(log) && hasValidDetectedSleep(log));
   if (detected.length === 0) return null;
-  return sortByRecencyDesc(detected)[0];
+  return sortByNightDesc(detected)[0];
 }
 
 module.exports = {
@@ -81,5 +144,8 @@ module.exports = {
   isAutomaticSource,
   recencyOf,
   sortByRecencyDesc,
+  lastWriteOf,
+  nightOf,
+  sortByNightDesc,
   selectCanonicalSleepLog,
 };

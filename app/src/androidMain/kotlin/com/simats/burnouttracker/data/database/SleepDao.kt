@@ -140,4 +140,33 @@ interface SleepDao {
      */
     @Query("SELECT COUNT(*) - COUNT(DISTINCT date) FROM sleep_sessions WHERE ownerUid = :ownerUid")
     suspend fun countRedundantSessionRows(ownerUid: String): Int
+
+    /**
+     * Records that the backend has accepted this night, so it is not re-sent.
+     *
+     * Written only after a POST that actually returned success — a transport
+     * failure must leave [SleepSession.syncedAt] at 0, because the point of the
+     * column is to remember what did NOT get through.
+     */
+    @Query("UPDATE sleep_sessions SET syncedAt = :syncedAt WHERE id = :id")
+    suspend fun markSessionSynced(id: Long, syncedAt: Long)
+
+    /**
+     * Nights this account holds locally that the backend has never confirmed,
+     * limited to those on or after [sinceDate] (a `yyyy-MM-dd` label).
+     *
+     * Bounded on purpose. Every unsynced night in history would otherwise be
+     * re-sent on the first refresh after upgrading, which for a long-installed
+     * device is a burst of writes to fix nights nobody is looking at. The window
+     * matches the one refreshSleepData() already re-scans, so retries stay
+     * proportional to the work that pass was already doing.
+     *
+     * Oldest first, so a partial success still advances chronologically.
+     */
+    @Query("""
+        SELECT * FROM sleep_sessions
+        WHERE ownerUid = :ownerUid AND syncedAt = 0 AND date >= :sinceDate
+        ORDER BY date ASC
+    """)
+    suspend fun getUnsyncedSessions(ownerUid: String, sinceDate: String): List<SleepSession>
 }

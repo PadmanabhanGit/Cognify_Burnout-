@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SleepSession::class, WakeEvent::class, AppUsageLog::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class SleepDatabase : RoomDatabase() {
@@ -39,13 +39,33 @@ abstract class SleepDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v2 → v3: sleep_sessions gains [SleepSession.syncedAt].
+         *
+         * Existing rows default to 0, meaning "the backend has never confirmed
+         * this night". That is the honest value: nothing was ever recorded about
+         * whether those POSTs succeeded, so the app cannot claim they did. The
+         * consequence is that nights already in Room are re-sent once, which
+         * reconciles any night that silently failed to sync — the reason the web
+         * app could disagree with the phone. Re-sending is idempotent server-side
+         * (deterministic automatic document id + merge), so it corrects rather
+         * than duplicates.
+         *
+         * No row is deleted and no detection value is altered.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sleep_sessions ADD COLUMN syncedAt INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): SleepDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     SleepDatabase::class.java,
                     "sleep_database"
-                ).addMigrations(MIGRATION_1_2).build()
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
                 INSTANCE = instance
                 instance
             }
