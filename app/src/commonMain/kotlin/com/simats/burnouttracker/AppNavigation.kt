@@ -1,12 +1,60 @@
 package com.simats.burnouttracker
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.simats.burnouttracker.ui.theme.BurnOutTrackerTheme
 import com.simats.burnouttracker.utils.*
+
+/**
+ * Gate for every screen that renders user-specific values.
+ *
+ * Two things it guarantees, both of which were previously unenforced:
+ *
+ *  1. Nothing renders until [UserSession.isReady]. Session start-up resets the
+ *     previous account's in-memory state and reloads this account's own, and
+ *     those steps are not instantaneous. Without the gate the first frame after
+ *     an account switch paints whatever the outgoing user left in [AppData] —
+ *     which is precisely the reported symptom of B seeing A's dashboard.
+ *
+ *  2. A signed-out session never renders user content at all; it redirects.
+ *     Reaching a user-scoped route with no identity has no correct output, and
+ *     falling back to the last values in memory is the wrong answer.
+ *
+ * Keyed reads of [UserSession.uid] and [UserSession.isReady] are Compose state,
+ * so a session transition recomposes this automatically.
+ */
+@Composable
+private fun UserScoped(
+    navController: NavHostController,
+    content: @Composable () -> Unit
+) {
+    val uid = UserSession.uid
+    val isReady = UserSession.isReady
+
+    LaunchedEffect(uid) {
+        if (uid == null) {
+            navController.navigate("login") { popUpTo(0) { inclusive = true } }
+        }
+    }
+
+    if (uid != null && isReady) {
+        content()
+    } else {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    }
+}
 
 @Composable
 fun AppNavigation(initialRoute: String? = null) {
@@ -52,28 +100,28 @@ fun AppNavigation(initialRoute: String? = null) {
                 )
             }
             composable("dashboard") {
-                DashboardScreen(navController)
+                UserScoped(navController) { DashboardScreen(navController) }
             }
             composable("study_tracker") {
-                StudyTrackerScreen(navController)
+                UserScoped(navController) { StudyTrackerScreen(navController) }
             }
             composable("study_tracker_details") {
-                StudyTrackerDetailsScreen(navController)
+                UserScoped(navController) { StudyTrackerDetailsScreen(navController) }
             }
             composable("burnout_risk") {
-                BurnoutRiskScreen(navController)
+                UserScoped(navController) { BurnoutRiskScreen(navController) }
             }
             composable("weekly_report") {
-                WeeklyReportScreen(navController)
+                UserScoped(navController) { WeeklyReportScreen(navController) }
             }
             composable("productivity") {
-                ProductivityScreen(navController)
+                UserScoped(navController) { ProductivityScreen(navController) }
             }
             composable("sleep_mood") {
-                SleepMoodScreen(navController)
+                UserScoped(navController) { SleepMoodScreen(navController) }
             }
             composable("sleep_mood_dashboard") {
-                SleepMoodDashboardScreen(navController)
+                UserScoped(navController) { SleepMoodDashboardScreen(navController) }
             }
             // Routes "sleep_mood_logger" and "sleep_mood_details" retired.
             //
@@ -89,16 +137,16 @@ fun AppNavigation(initialRoute: String? = null) {
             // reachable route can render fabricated sleep data, without deleting
             // files or disturbing any live navigation.
             composable("sleep_mood_analytics") {
-                SleepMoodAnalyticsScreen(navController)
+                UserScoped(navController) { SleepMoodAnalyticsScreen(navController) }
             }
             composable("generalized_action_plan") {
-                GeneralizedActionPlanScreen(navController)
+                UserScoped(navController) { GeneralizedActionPlanScreen(navController) }
             }
             composable("calendar") {
-                CalendarScreen(navController)
+                UserScoped(navController) { CalendarScreen(navController) }
             }
             composable("entertainment_usage") {
-                EntertainmentAppUsageScreen(navController)
+                UserScoped(navController) { EntertainmentAppUsageScreen(navController) }
             }
 
             // ── Platform-Specific Screens ─────────────────────────────────────

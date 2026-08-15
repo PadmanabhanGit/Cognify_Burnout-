@@ -16,11 +16,14 @@ class AppBlockerService : AccessibilityService() {
             val packageName = event.packageName?.toString() ?: return
             
             // Fast check if limits are enabled
-            val prefs = getSharedPreferences("action_plan", Context.MODE_PRIVATE)
+            // Scoped to the active account, so one user's app limits are never
+            // enforced against another's session.
+            val prefs = com.simats.burnouttracker.utils.PrefStores.open(this, "action_plan")
             val limitSocial = prefs.getBoolean("limit_social", false)
             val limitStreaming = prefs.getBoolean("limit_streaming", false)
+            val limitGaming = prefs.getBoolean("limit_gaming", false)
 
-            if (!limitSocial && !limitStreaming) return
+            if (!limitSocial && !limitStreaming && !limitGaming) return
 
             val pm = packageManager
             val appName = try {
@@ -49,6 +52,15 @@ class AppBlockerService : AccessibilityService() {
                 if (helper.hasUsageStatsPermission()) {
                     val stats = helper.fetchDailyUsage()
                     if (stats.streamingHours * 60 > streamingLimitMins) {
+                        isBlocked = true
+                    }
+                }
+            } else if (category == "Gaming" && limitGaming) {
+                val gamingLimitMins = prefs.getInt("gaming_limit", 60)
+                val helper = UsageStatsHelper(this)
+                if (helper.hasUsageStatsPermission()) {
+                    val stats = helper.fetchDailyUsage()
+                    if (stats.gamingHours * 60 > gamingLimitMins) {
                         isBlocked = true
                     }
                 }

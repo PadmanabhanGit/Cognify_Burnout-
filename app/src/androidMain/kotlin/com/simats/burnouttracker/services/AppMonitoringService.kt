@@ -87,7 +87,10 @@ class AppMonitoringService : Service() {
      * Save app usage log to local storage
      */
     private fun saveAppUsageLog(packageName: String, duration: Long) {
-        val sharedPref = getSharedPreferences("app_monitoring", Context.MODE_PRIVATE)
+        // Scoped to the active account. Night-usage capture previously wrote to
+        // a single device-wide file with no owner, so whoever signed in next
+        // inherited the log.
+        val sharedPref = com.simats.burnouttracker.utils.PrefStores.open(this, "app_monitoring")
         val existingJson = sharedPref.getString("night_apps", "[]") ?: "[]"
 
         try {

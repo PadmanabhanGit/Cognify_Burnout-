@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SleepSession::class, WakeEvent::class, AppUsageLog::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class SleepDatabase : RoomDatabase() {
@@ -17,13 +19,33 @@ abstract class SleepDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: SleepDatabase? = null
 
+        /**
+         * v1 → v2: sleep_sessions gains [SleepSession.ownerUid].
+         *
+         * Existing rows are left unowned (""). Attributing them here — to
+         * whichever account happened to be active when the database was first
+         * opened after the upgrade — would hand one user's nights to another,
+         * because the database can be opened for the first time long after the
+         * upgrade, with a different account signed in. Ownership of pre-existing
+         * rows is decided in exactly one place instead: AccountScope claims them
+         * for the account that was already signed in when this build first ran,
+         * and for no one else.
+         *
+         * No row is deleted and no detection value is altered.
+         */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sleep_sessions ADD COLUMN ownerUid TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getDatabase(context: Context): SleepDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     SleepDatabase::class.java,
                     "sleep_database"
-                ).build()
+                ).addMigrations(MIGRATION_1_2).build()
                 INSTANCE = instance
                 instance
             }

@@ -55,7 +55,11 @@ actual class UsageStatsHelper(private val context: Context) {
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
-        val startTime = calendar.timeInMillis
+        // Account isolation: never read usage recorded before the active account
+        // existed on this device. The OS UsageStats database itself is untouched
+        // — only this query's lower bound moves. For migrated/existing accounts
+        // the clamp is 0, so the window stays exactly at midnight as before.
+        val startTime = AccountScope.clampWindowStart(context, calendar.timeInMillis)
 
         val aggregatedStats = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
         
@@ -168,8 +172,10 @@ actual class UsageStatsHelper(private val context: Context) {
         // Window: 10 PM Yesterday to 6 AM Today
         calendar.set(Calendar.HOUR_OF_DAY, 22)
         calendar.add(Calendar.DAY_OF_YEAR, -1)
-        val startTime = calendar.timeInMillis
-        
+        // Same account-isolation clamp as fetchDailyUsage above. Window shape and
+        // the 22:00–06:00 hours are unchanged.
+        val startTime = AccountScope.clampWindowStart(context, calendar.timeInMillis)
+
         calendar.add(Calendar.DAY_OF_YEAR, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 6)
         val endTime = calendar.timeInMillis

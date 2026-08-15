@@ -42,15 +42,21 @@ class ActionPlanReceiver : BroadcastReceiver() {
     }
 
     private fun checkEntertainmentLimits(context: Context) {
-        val prefs = context.getSharedPreferences("action_plan", Context.MODE_PRIVATE)
+        // Scoped to the active account — see PrefStores. This receiver is often
+        // started in a fresh process, which is why resolution keys on the
+        // persisted active uid rather than in-memory session state.
+        val prefs = com.simats.burnouttracker.utils.PrefStores.open(context, "action_plan")
         val limitSocial = prefs.getBoolean("limit_social", false)
         val socialLimitMins = prefs.getInt("social_limit", 60)
         
         val limitStreaming = prefs.getBoolean("limit_streaming", false)
         val streamingLimitMins = prefs.getInt("streaming_limit", 120)
 
-        // Fast fail if both are false
-        if (!limitSocial && !limitStreaming) return
+        val limitGaming = prefs.getBoolean("limit_gaming", false)
+        val gamingLimitMins = prefs.getInt("gaming_limit", 60)
+
+        // Fast fail if all are false
+        if (!limitSocial && !limitStreaming && !limitGaming) return
 
         val helper = com.simats.burnouttracker.utils.UsageStatsHelper(context)
         if (!helper.hasUsageStatsPermission()) return // Can't check limits without permission
@@ -68,6 +74,15 @@ class ActionPlanReceiver : BroadcastReceiver() {
             val streamingMins = (stats.streamingHours * 60).toInt()
             if (streamingMins > streamingLimitMins) {
                 sendNotification(context, 1002, "Give your eyes a rest 🌿", "You've been streaming for $streamingMins mins. A quick break will do wonders for your focus!")
+            }
+        }
+
+        // Gaming — same shape as Social and Streaming above, using the
+        // gamingHours the existing usage pipeline already produces.
+        if (limitGaming) {
+            val gamingMins = (stats.gamingHours * 60).toInt()
+            if (gamingMins > gamingLimitMins) {
+                sendNotification(context, 1003, "Time to step away 🎮", "You've been gaming for $gamingMins mins today. A short break helps you come back sharper.")
             }
         }
     }

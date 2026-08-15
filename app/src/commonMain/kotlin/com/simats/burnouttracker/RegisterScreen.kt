@@ -35,6 +35,8 @@ import com.simats.burnouttracker.data.api.ApiClient
 import com.simats.burnouttracker.data.models.RegisterRequest
 import com.simats.burnouttracker.utils.rememberAuthService
 import com.simats.burnouttracker.utils.rememberPlatformSettings
+import com.simats.burnouttracker.utils.beginUserSession
+import com.simats.burnouttracker.utils.platformSettings
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.text.ClickableText
@@ -91,9 +93,18 @@ fun RegisterScreen(
             try {
                 val result = authService.signUp(email, password, fullName)
                 if (result.success) {
-                    settings.putString("firstName", fullName.split(" ").firstOrNull() ?: "Student")
-                    settings.putString("fullName", fullName)
-                    settings.putString("email", email)
+                    // Establish the session before writing anything user-scoped:
+                    // `settings` was resolved while the previous account was
+                    // still active and points at that account's file. A brand
+                    // new account is the case where this matters most — without
+                    // it, the new user's details are written into the store of
+                    // whoever used the device last.
+                    authService.getCurrentUserUid()?.let { beginUserSession(it) }
+
+                    val scoped = platformSettings()
+                    scoped.putString("firstName", fullName.split(" ").firstOrNull() ?: "Student")
+                    scoped.putString("fullName", fullName)
+                    scoped.putString("email", email)
                     onSignUpClick()
                 } else {
                     errorMessage = result.message

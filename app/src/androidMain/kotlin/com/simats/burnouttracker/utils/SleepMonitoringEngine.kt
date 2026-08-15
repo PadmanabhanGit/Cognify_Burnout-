@@ -156,7 +156,13 @@ class SleepMonitoringEngine(private val context: Context) {
         val evening = morning.clone() as Calendar
         evening.add(Calendar.DAY_OF_YEAR, -1)
         evening.set(Calendar.HOUR_OF_DAY, NIGHT_START_HOUR)
-        val startTime = evening.timeInMillis
+        // Account isolation: a night that started before the active account
+        // existed on this device is not that account's data. Only the query's
+        // lower bound moves — NIGHT_START_HOUR, every threshold, the gap and
+        // cluster detection and the scoring formula are all unchanged. With a
+        // truncated window the existing guards simply find no qualifying gap or
+        // wake cluster and record nothing, which is the correct outcome.
+        val startTime = AccountScope.clampWindowStart(context, evening.timeInMillis)
 
         // ── Upper bound for THIS pass: post-wake analysis ────────────────────
         //
@@ -187,7 +193,9 @@ class SleepMonitoringEngine(private val context: Context) {
         // Skip nights already analysed — prevents duplicate Room rows and duplicate
         // Firestore POSTs when refreshSleepData() re-scans the last 3 days.
         val dateLabel = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
-        if (sleepDao.getSessionByDate(dateLabel) != null) return
+        // Scoped to the active account: another account's night for this date is
+        // not this account's night, and must not suppress its analysis.
+        if (sleepDao.getSessionByDate(dateLabel, AccountScope.activeUid(context)) != null) return
 
         val events = usageStatsManager.queryEvents(startTime, effectiveEnd)
         val eventList = mutableListOf<UsageEvents.Event>()
@@ -390,7 +398,10 @@ class SleepMonitoringEngine(private val context: Context) {
             totalSleepMinutes = Math.max(0, ((sleepEnd - sleepStart) / 60000).toInt() - (awakenings.sumOf { it.duration } / 60000).toInt()),
             awakeningCount = awakenings.size,
             sleepQuality = quality,
-            disturbanceScore = penalty
+            disturbanceScore = penalty,
+            // Ownership only. Every detection value above is produced exactly as
+            // before; this records which account the night was detected for.
+            ownerUid = AccountScope.activeUid(context)
         )
 
         val sessionId = sleepDao.insertSession(session)

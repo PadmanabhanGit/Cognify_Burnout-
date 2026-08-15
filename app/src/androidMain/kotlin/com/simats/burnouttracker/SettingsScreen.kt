@@ -41,6 +41,7 @@ import androidx.navigation.compose.rememberNavController
 import com.simats.burnouttracker.utils.rememberAuthService
 import com.simats.burnouttracker.utils.AppData
 import com.simats.burnouttracker.utils.NotificationHelper
+import com.simats.burnouttracker.utils.endUserSession
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -390,22 +391,21 @@ fun SettingsScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // ── User data isolation: wipe every user-scoped field ──
-                            // Must happen BEFORE signOut() so the next user who logs
-                            // in starts from a completely clean state. Device prefs
-                            // (dark mode, notification toggles) are left untouched.
-                            AppData.reset()
-                            prefs.edit().apply {
-                                remove("firstName")
-                                remove("fullName")
-                                remove("email")
-                                remove("studyTodayHours")
-                                remove("studyWeekHours")
-                                remove("activeSessionName")
-                                remove("activeSessionId")
-                                remove("activeSessionStart")
-                                remove("sessionStartTime")
-                            }.apply()
+                            // ── Session teardown ──────────────────────────────
+                            // Must complete BEFORE signOut(), because teardown
+                            // needs a valid identity to know what it is tearing
+                            // down. Stops background work, cancels this
+                            // account's alarms, and drops all in-memory state.
+                            //
+                            // This replaces a hand-written reset that removed
+                            // nine user keys from `prefs` — the DEVICE store.
+                            // Those keys live in the account's own file, so
+                            // every one of those removals was a no-op and the
+                            // previous user's name and study hours survived
+                            // sign-out. Nothing on disk is destroyed here: the
+                            // outgoing account's file stays intact and is found
+                            // again when they sign back in.
+                            endUserSession()
                             authService.signOut()
                             val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
                                 com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN

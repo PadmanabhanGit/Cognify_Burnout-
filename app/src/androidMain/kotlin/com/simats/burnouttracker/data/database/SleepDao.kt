@@ -14,11 +14,17 @@ interface SleepDao {
     @Insert
     suspend fun insertUsageLog(log: AppUsageLog)
 
-    @Query("SELECT * FROM sleep_sessions ORDER BY sleepStart DESC")
-    fun getAllSessions(): Flow<List<SleepSession>>
+    /**
+     * Every sleep_sessions query below takes the active account's [ownerUid] and
+     * filters on it. That filter — not deletion — is what keeps one account from
+     * seeing another's nights, so an account change no longer has to destroy the
+     * outgoing account's history. See [SleepSession.ownerUid].
+     */
+    @Query("SELECT * FROM sleep_sessions WHERE ownerUid = :ownerUid ORDER BY sleepStart DESC")
+    fun getAllSessions(ownerUid: String): Flow<List<SleepSession>>
 
-    @Query("SELECT * FROM sleep_sessions WHERE date = :date LIMIT 1")
-    suspend fun getSessionByDate(date: String): SleepSession?
+    @Query("SELECT * FROM sleep_sessions WHERE date = :date AND ownerUid = :ownerUid LIMIT 1")
+    suspend fun getSessionByDate(date: String, ownerUid: String): SleepSession?
 
     @Query("SELECT * FROM wake_events WHERE sessionId = :sessionId")
     suspend fun getWakeEventsForSession(sessionId: Long): List<WakeEvent>
@@ -40,15 +46,22 @@ interface SleepDao {
      * ordering is unchanged (`sleepStart DESC`), so every existing consumer that
      * reads `firstOrNull()` or filters by today behaves exactly as before; only
      * the tail of the list can grow. No row is created, altered or removed.
+     *
+     * Both the inner and outer query are scoped to [ownerUid], so "7 most recent
+     * nights" means seven of the ACTIVE account's nights — another account's
+     * dates can neither fill the window nor appear in the result.
      */
     @Query("""
         SELECT * FROM sleep_sessions
-        WHERE date IN (
-            SELECT date FROM sleep_sessions GROUP BY date ORDER BY date DESC LIMIT 7
-        )
+        WHERE ownerUid = :ownerUid
+          AND date IN (
+            SELECT date FROM sleep_sessions
+            WHERE ownerUid = :ownerUid
+            GROUP BY date ORDER BY date DESC LIMIT 7
+          )
         ORDER BY sleepStart DESC
     """)
-    fun getRecentSessions(): Flow<List<SleepSession>>
+    fun getRecentSessions(ownerUid: String): Flow<List<SleepSession>>
 
     /**
      * Removes ONLY redundant rows that are field-for-field identical to the
@@ -70,16 +83,26 @@ interface SleepDao {
      * touched, and no wake event is ever orphaned.
      *
      * Returns the number of rows removed.
+     *
+     * Scoped to [ownerUid]: duplicates are a per-account, per-date notion, so a
+     * night belonging to another account can never be the retained row for, or
+     * be deleted as a duplicate of, this account's night. Another account's own
+     * duplicates are cleaned the next time that account is the active one.
      */
     @Query("""
         DELETE FROM sleep_sessions
-        WHERE id IN (
+        WHERE ownerUid = :ownerUid
+          AND id IN (
             SELECT d.id
             FROM sleep_sessions d
-            JOIN (SELECT date AS grpDate, MIN(id) AS keepId FROM sleep_sessions GROUP BY date) g
-                ON d.date = g.grpDate
+            JOIN (
+                SELECT date AS grpDate, MIN(id) AS keepId FROM sleep_sessions
+                WHERE ownerUid = :ownerUid
+                GROUP BY date
+            ) g ON d.date = g.grpDate
             JOIN sleep_sessions k ON k.id = g.keepId
-            WHERE d.id <> g.keepId
+            WHERE d.ownerUid = :ownerUid
+              AND d.id <> g.keepId
               AND d.sleepStart = k.sleepStart
               AND d.sleepEnd = k.sleepEnd
               AND d.totalSleepMinutes = k.totalSleepMinutes
@@ -88,13 +111,33 @@ interface SleepDao {
               AND d.disturbanceScore = k.disturbanceScore
         )
     """)
-    suspend fun deleteExactDuplicateSessions(): Int
+    suspend fun deleteExactDuplicateSessions(ownerUid: String): Int
+
+    /**
+     * Attaches rows written before ownership existed to [ownerUid].
+     *
+     * Called once, by AccountScope, for the first account this device adopts —
+     * the account those nights were in fact recorded by. Anything already owned
+     * is left alone, so this can never move a night between accounts and is safe
+     * to re-run.
+     *
+     * This replaces the previous `deleteAllSessions()`, which AccountScope ran on
+     * every account change: it kept accounts apart only by destroying the
+     * outgoing account's nights permanently, so A → B → A left A with nothing.
+     * Isolation is now the ownerUid filter on every query.
+     */
+    @Query("UPDATE sleep_sessions SET ownerUid = :ownerUid WHERE ownerUid = ''")
+    suspend fun claimUnownedSessions(ownerUid: String): Int
 
     /**
      * How many rows remain beyond one-per-date. After
      * [deleteExactDuplicateSessions] runs, any non-zero result means duplicate
      * dates exist whose values DIFFER — reported, never auto-deleted.
+     *
+     * Scoped to [ownerUid] for the same reason as the delete above: without it,
+     * two accounts each holding one row for the same date would be counted as a
+     * duplicate pair.
      */
-    @Query("SELECT COUNT(*) - COUNT(DISTINCT date) FROM sleep_sessions")
-    suspend fun countRedundantSessionRows(): Int
+    @Query("SELECT COUNT(*) - COUNT(DISTINCT date) FROM sleep_sessions WHERE ownerUid = :ownerUid")
+    suspend fun countRedundantSessionRows(ownerUid: String): Int
 }

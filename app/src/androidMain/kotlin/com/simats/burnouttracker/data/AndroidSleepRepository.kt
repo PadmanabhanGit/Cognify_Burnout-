@@ -3,6 +3,7 @@ package com.simats.burnouttracker.data
 import android.content.Context
 import com.simats.burnouttracker.data.database.*
 import com.simats.burnouttracker.data.models.*
+import com.simats.burnouttracker.utils.AccountScope
 import com.simats.burnouttracker.utils.SleepMonitoringEngine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -15,8 +16,14 @@ class AndroidSleepRepository(private val context: Context) : SleepRepository {
     private val dao = database.sleepDao()
     private val engine = SleepMonitoringEngine(context)
 
+    /**
+     * Scoped to the account that is active when the Flow is built. Screens build
+     * it from composition, which happens after AccountScope has synced, and each
+     * new subscription re-reads the uid — so a switch cannot leave a screen
+     * serving the previous account's nights.
+     */
     override fun getRecentSessions(): Flow<List<SleepSessionData>> {
-        return dao.getRecentSessions().map { sessions ->
+        return dao.getRecentSessions(AccountScope.activeUid(context)).map { sessions ->
             sessions.map { it.toData() }
         }
     }
@@ -61,11 +68,12 @@ class AndroidSleepRepository(private val context: Context) : SleepRepository {
                 // fix existed. Only removes rows proven field-for-field
                 // identical to the one retained for the same date; anything
                 // that differs is left alone and reported below.
-                val removed = dao.deleteExactDuplicateSessions()
+                val ownerUid = AccountScope.activeUid(context)
+                val removed = dao.deleteExactDuplicateSessions(ownerUid)
                 if (removed > 0) {
                     println("[SLEEP] Removed $removed redundant duplicate sleep session row(s).")
                 }
-                val remaining = dao.countRedundantSessionRows()
+                val remaining = dao.countRedundantSessionRows(ownerUid)
                 if (remaining > 0) {
                     println("[SLEEP] $remaining duplicate-date row(s) remain with DIFFERING values; left untouched for manual review.")
                 }

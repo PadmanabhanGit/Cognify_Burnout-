@@ -34,6 +34,8 @@ import com.simats.burnouttracker.data.api.ApiClient
 import com.simats.burnouttracker.data.models.LoginRequest
 import com.simats.burnouttracker.utils.rememberAuthService
 import com.simats.burnouttracker.utils.rememberPlatformSettings
+import com.simats.burnouttracker.utils.beginUserSession
+import com.simats.burnouttracker.utils.platformSettings
 import com.simats.burnouttracker.utils.GoogleSignInButton
 
 @Composable
@@ -64,9 +66,18 @@ fun LoginScreen(
             errorMessage = null
             val result = authService.signIn(email, password)
             if (result.success) {
-                // Save user info to settings for Dashboard
+                // Establish the session BEFORE writing anything user-scoped.
+                //
+                // `settings` above was resolved at composition time, while the
+                // previous account was still the active one, so it points at
+                // THAT account's file. Writing this user's name through it is
+                // how one account's name ended up in another's store. Starting
+                // the session first re-points store resolution at this account;
+                // platformSettings() then resolves fresh against it.
+                authService.getCurrentUserUid()?.let { beginUserSession(it) }
+
                 val firstName = authService.getCurrentUserEmail()?.split("@")?.firstOrNull()?.replaceFirstChar { it.uppercase() } ?: "Student"
-                settings.putString("firstName", firstName)
+                platformSettings().putString("firstName", firstName)
                 onSignInClick()
             } else {
                 errorMessage = result.message
@@ -80,8 +91,11 @@ fun LoginScreen(
             isLoading = true
             val result = authService.signInWithGoogle(idToken)
             if (result.success) {
+                // Same ordering requirement as the email path above.
+                authService.getCurrentUserUid()?.let { beginUserSession(it) }
+
                 val firstName = authService.getCurrentUserEmail()?.split("@")?.firstOrNull()?.replaceFirstChar { it.uppercase() } ?: "Student"
-                settings.putString("firstName", firstName)
+                platformSettings().putString("firstName", firstName)
                 onSignInClick()
             } else {
                 errorMessage = result.message

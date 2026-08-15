@@ -46,6 +46,10 @@ class AndroidAuthService : AuthService {
         return auth.currentUser?.email
     }
 
+    override fun getCurrentUserUid(): String? {
+        return auth.currentUser?.uid
+    }
+
     override fun signOut() {
         auth.signOut()
     }
