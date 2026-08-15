@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.widget.RemoteViews
 import com.simats.burnouttracker.R
+import com.simats.burnouttracker.utils.PrefStores
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,7 +27,16 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
     )
     views.setOnClickPendingIntent(R.id.widget_month_text, pendingIntent)
 
-    val prefs = context.getSharedPreferences("burnout_history", Context.MODE_PRIVATE)
+    // Resolved through PrefStores, not opened by raw name: `burnout_history` is
+    // user-scoped, and CalendarScreen already reads it as such via
+    // rememberPlatformSettings. Opening the raw name here read the unscoped
+    // legacy file, so the home-screen widget kept rendering whichever account
+    // wrote that file first — the in-app calendar and the widget disagreed, and
+    // a second account saw the first account's burnout history on its home
+    // screen. Widgets run in a fresh process with no session established, which
+    // is exactly why PrefStores keys on the PERSISTED uid rather than
+    // UserSession.
+    val prefs = PrefStores.open(context, "burnout_history")
     val currentMonth = Calendar.getInstance()
     
     val monthFormat = SimpleDateFormat("MMMM, yyyy", Locale.getDefault())

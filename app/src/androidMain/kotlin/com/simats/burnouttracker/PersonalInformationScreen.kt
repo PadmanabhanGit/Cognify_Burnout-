@@ -239,8 +239,19 @@ fun PersonalInformationScreen(navController: NavController) {
                                     user.updateProfile(profileUpdates)
                                 }
                                 
-                                // Sync locally for immediate Dashboard update
-                                val prefs = context.getSharedPreferences("burnout_tracker_prefs", android.content.Context.MODE_PRIVATE)
+                                // Sync locally for immediate Dashboard update.
+                                //
+                                // Resolved through PrefStores rather than opened
+                                // by raw name: `burnout_tracker_prefs` is the
+                                // user-scoped DEFAULT store, so the raw handle
+                                // wrote into the unscoped legacy file. That file
+                                // is shared by every account on the device, which
+                                // made this save leak one person's name to the
+                                // next account — and it was not the file the
+                                // scoped readers consult, so the Dashboard it
+                                // meant to update never saw the new value either.
+                                val prefs = com.simats.burnouttracker.utils.PrefStores
+                                    .open(context, com.simats.burnouttracker.utils.PrefStores.DEFAULT)
                                 prefs.edit().putString("firstName", firstName).apply()
                                 
                                 navController.popBackStack()
