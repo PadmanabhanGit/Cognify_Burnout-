@@ -39,10 +39,18 @@ import kotlinx.coroutines.launch
  *
  * PRESERVING EXISTING ACCOUNTS
  * On the first run after this code ships, no active account is recorded. That
- * case is treated as MIGRATION, not an account switch: the current account is
- * adopted with a data start of 0 (no clamp at all) and nothing is cleared, so an
+ * case is treated as MIGRATION, not an account switch: nothing is cleared, so an
  * existing user's history is fully preserved. Clearing only ever happens on a
  * genuine uid change after an account has already been recorded.
+ *
+ * Being first to be adopted is NOT by itself grounds for an unclamped data start.
+ * Only an account Firebase had already persisted before this build ran can have
+ * written the history already on the device, so only that account is given one.
+ * An account that signs in during the session is clamped from the moment it
+ * appears, whether or not it happens to be the first this device sees. Without
+ * that distinction a newly created account became the single account on the
+ * device able to read the whole UsageStats history, and re-derived the previous
+ * user's nights as its own.
  */
 object AccountScope {
     private const val STORE = "account_scope"
@@ -107,14 +115,36 @@ object AccountScope {
         if (previous == uid) return // same account, nothing to do
 
         if (previous == null) {
-            // MIGRATION: first run after this feature shipped. Adopt the current
-            // account without clearing and without a clamp, so any existing user
-            // keeps all of their data.
+            // FIRST ADOPTION on this device. Two very different situations reach
+            // here, and they must not be treated alike:
+            //
+            //  - An account Firebase had ALREADY persisted before this build ran
+            //    (alreadySignedIn). The history in UsageStats is its own, so it
+            //    gets no clamp and keeps everything. This is the migration case.
+            //
+            //  - An account signing in DURING this session, on a device that had
+            //    not yet adopted anyone. The history in UsageStats is not its own
+            //    — it belongs to whoever used the phone before — so it is clamped
+            //    from now, exactly like any other new account.
+            //
+            // Granting 0 unconditionally is what broke isolation in practice: a
+            // freshly created account adopted first became the one account on the
+            // device with NO lower bound, so every UsageStats query it made saw
+            // the whole device history. SleepMonitoringEngine then re-derived the
+            // previous user's nights under the new uid — the same night appearing
+            // once per account with identical values — and the new account's
+            // dashboard showed a stranger's sleep and app usage as its own.
+            //
+            // The `alreadySignedIn` distinction was already being drawn just
+            // below for legacy rows and preference files; the clamp simply was
+            // not covered by it. Same rule, same reason, now applied to all three.
+            val dataStart = if (alreadySignedIn) 0L else System.currentTimeMillis()
+
             prefs.edit()
                 .putString(KEY_ACTIVE_UID, uid)
-                .putLong(KEY_DATA_START_PREFIX + uid, 0L)
+                .putLong(KEY_DATA_START_PREFIX + uid, dataStart)
                 .apply()
-            cachedDataStart = 0L
+            cachedDataStart = dataStart
             // Sleep sessions recorded before ownership existed belong to the
             // account that was already signed in when this build first ran —
             // adopt them for it, or the ownerUid filter would hide an existing
