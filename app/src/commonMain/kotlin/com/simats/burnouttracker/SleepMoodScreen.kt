@@ -136,7 +136,10 @@ fun SleepMoodScreen(navController: NavController) {
                             sleepQuality = null,
                             mood = moodNames[moodIndex],
                             moodScore = (10 - (moodIndex * 2)).coerceIn(1, 10),
-                            source = "manual"
+                            source = "manual",
+                            // Same reason as the manual-sleep save below: the
+                            // device's local date, not the server's.
+                            date = today
                         )
                     )
                 } catch (_: Exception) {
@@ -173,7 +176,15 @@ fun SleepMoodScreen(navController: NavController) {
                         sleepQuality = quality1to10,
                         mood = moodNames[moodIndex],
                         moodScore = (10 - (moodIndex * 2)).coerceIn(1, 10),
-                        source = "manual"
+                        source = "manual",
+                        // Send the DEVICE's local date, as the automatic path
+                        // already does. Omitting it made the server fall back to
+                        // normalizeDateValue(new Date()), which is server-local —
+                        // and Render runs in UTC while every read side of this app
+                        // keys on IST. An entry saved between 00:00 and 05:30 IST
+                        // was therefore filed under the previous day and could
+                        // never match the dashboard's "today".
+                        date = today
                     )
                 )
             } catch (_: Exception) {
