@@ -64,6 +64,21 @@ fun DashboardScreen(navController: NavController) {
     val todaySleepSession = sleepSessions.firstOrNull { it.date == todayDate }
     val todayManualSleep = AppData.sleepLogs.firstOrNull { it.date == todayDate }
 
+    /**
+     * Today's manual sleep entry as the BACKEND holds it, in hours.
+     *
+     * The card below already renders manual sleep and labels it "Sleep · Manual"
+     * — the display was never the problem. [AppData.sleepLogs] is in-memory and
+     * cleared by AppData.reset() on every account change, so it only ever held an
+     * entry logged during this same app session. After a restart or a re-login
+     * the entry was gone from the phone while still sitting in Firestore, and the
+     * card fell through to "Not analyzed yet".
+     *
+     * Loaded per account by the server's own uid filter; there is no uid
+     * parameter here to get wrong.
+     */
+    var backendManualSleepHours by remember { mutableStateOf<Float?>(null) }
+
     var riskScore by remember { mutableStateOf(AppData.predictedScore) }
     var riskLevel by remember { mutableStateOf(getRiskLevelName(riskScore)) }
     var currentDate by remember { mutableStateOf(formatDashboardDate()) }
@@ -207,6 +222,39 @@ fun DashboardScreen(navController: NavController) {
                     }
                 }
             }
+
+            // Adopt the account's last logged mood from the SAME field the web
+            // renders (quickStats.lastMood), so the two platforms cannot disagree.
+            //
+            // The Mood card read AppData.lastMoodLogged, which is in-memory, is
+            // reset to "Neutral" by AppData.reset() on every account change, and
+            // was never loaded back from anywhere. A mood logged on this phone
+            // therefore reached Firestore and showed on the web, while the Android
+            // card reverted to the neutral face on the next app start — the same
+            // write-only pattern manual sleep had.
+            //
+            // Only overwritten when the server actually has one: a null means no
+            // mood has been logged, and clobbering a mood just logged in this
+            // session with "Neutral" would reintroduce the bug in miniature.
+            response.dashboard?.quickStats?.lastMood
+                ?.takeIf { it.isNotBlank() }
+                ?.let { AppData.lastMoodLogged = it }
+
+            // Today's manual sleep, from the account's own records. Deliberately
+            // read from /logs rather than quickStats.lastSleepHours: that field is
+            // the CANONICAL detected night, which excludes manual entries by
+            // design and can be days old, so it can never surface today's manual
+            // value.
+            try {
+                val logs = ApiClient.getSleepMoodLogs(60)
+                if (logs.success) {
+                    backendManualSleepHours = logs.logs
+                        .firstOrNull { it.date == todayDate && it.source == "manual" && (it.sleepDuration ?: 0.0) > 0.0 }
+                        ?.sleepDuration?.toFloat()
+                }
+            } catch (e: Exception) {
+                println("[DASHBOARD] could not load today's manual sleep: ${e::class.simpleName}")
+            }
             // Canonical productivity score for today, from the same
             // productivityLogs/{userId}_{IST-date} document ProductivityScreen
             // reads via GET /api/productivity/today. When present, it becomes
@@ -307,11 +355,17 @@ fun DashboardScreen(navController: NavController) {
                                     formatDisplayTime(todaySleepSession.totalSleepMinutes * 60L)
                                 todayManualSleep != null ->
                                     formatDisplayTime((todayManualSleep.hours * 3600f).toLong())
+                                // Same value, but surviving a restart or re-login:
+                                // the in-memory list above is empty in a fresh
+                                // process even when the entry exists in Firestore.
+                                backendManualSleepHours != null ->
+                                    formatDisplayTime((backendManualSleepHours!! * 3600f).toLong())
                                 else -> "--"
                             },
                             label = when {
                                 todaySleepSession != null -> "Sleep"
                                 todayManualSleep != null -> "Sleep · Manual"
+                                backendManualSleepHours != null -> "Sleep · Manual"
                                 else -> "Not analyzed yet"
                             },
                             modifier = Modifier.weight(1f)

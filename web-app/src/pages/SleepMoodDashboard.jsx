@@ -122,6 +122,27 @@ export default function SleepMoodDashboard() {
     .filter(l => l && toNumber(l.sleepDuration) !== null)
     .map(l => ({ ...l, isManual: l.source === 'manual' }));
 
+  // Local calendar date, built from parts rather than toISOString(), which is UTC
+  // and would name the previous day for anyone east of UTC.
+  const todayIso = (() => {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  })();
+
+  // Today's MANUAL entry, and whether the canonical (detected) record is even
+  // from today.
+  //
+  // These matter because canonical is by definition the most recent DETECTED
+  // night, which can be days old. On a night the phone detected nothing and the
+  // user logged their sleep by hand, every panel below still described the older
+  // detected night — complete with "Detected sleep start" and "Detected wake
+  // time" — so the screen confidently presented a stale night as the current one
+  // and showed detection fields for a record that has none.
+  const todayManualEntry = sleepEntries.find(e => e.date === todayIso && e.isManual) || null;
+  const canonicalIsToday = available && latestSession.date === todayIso;
+  const showManualToday = todayManualEntry !== null && !canonicalIsToday;
+
   const formatMinutes = (mins) => {
     if (mins === null) return '--';
     const h = Math.floor(mins / 60);
@@ -229,8 +250,50 @@ export default function SleepMoodDashboard() {
           <TimeInfo label="Wake Up" time={sleepEndDisplay} icon={<WbSunnyIcon />} />
         </div>
 
+        {/* ── Today's manually recorded sleep ──────────────────────────────────
+            Shown ABOVE Session Details, and only when today has a manual entry
+            that no detected session supersedes. Manual records carry a duration
+            but no sleepStart/sleepEnd, so none of the detection rows below apply
+            to them — presenting them there would invent precision the record
+            does not have. */}
+        {showManualToday && (
+          <>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Today</div>
+            <div className="white-card" style={{ padding: '20px', borderLeft: '4px solid #F59E0B' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#1F2937' }}>
+                    {formatDurationHours(toNumber(todayManualEntry.sleepDuration))}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px' }}>
+                    Manually recorded for {sessionDateLabel(todayManualEntry.date)}
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '10px', fontWeight: 800, letterSpacing: '0.4px',
+                  padding: '4px 10px', borderRadius: '10px',
+                  backgroundColor: '#FEF3C7', color: '#B45309'
+                }}>
+                  MANUAL
+                </span>
+              </div>
+              <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '12px', lineHeight: 1.5 }}>
+                No sleep was automatically detected for this night, so start and wake
+                times, awakenings and disturbance are not available for it.
+              </div>
+            </div>
+          </>
+        )}
+
         {/* ── Session Details — mirrors Android's compact detail rows ────────── */}
-        <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Session Details</div>
+        <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>
+          {showManualToday ? 'Last Detected Session' : 'Session Details'}
+        </div>
+        {showManualToday && (
+          <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '-8px' }}>
+            Automatically detected on an earlier night — not today's entry.
+          </div>
+        )}
         <div className="white-card" style={{ padding: '6px 0' }}>
           {available ? (
             <>
