@@ -123,6 +123,29 @@ router.patch('/stop/:sessionId', auth, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
+    // ── Idempotent stop ──────────────────────────────────────────────────────
+    // A second stop for the same session returns the session AS IT ALREADY IS,
+    // without recomputing anything.
+    //
+    // Without this the endpoint actively corrupts on retry: `duration` below is
+    // derived from `startTime` to NOW, and `endTime`/`date` are overwritten
+    // unconditionally — so every repeat call stretched the session to the moment
+    // of the retry. A client that timed out after the server had already
+    // committed, or died between POST and response, or retried a queued stop,
+    // would inflate the recorded study time each time it tried again, and could
+    // move the session onto a different IST day.
+    //
+    // Retrying is now safe, which is what lets the client keep a durable pending
+    // stop and flush it whenever it can — the same guarantee the deterministic
+    // `${uid}_${date}_automatic` document id gives automatic sleep writes.
+    if (session.isActive === false) {
+      return res.json({
+        success: true,
+        alreadyStopped: true,
+        session: { id: doc.id, ...session },
+      });
+    }
+
     const duration = Math.round((new Date(endTime) - new Date(session.startTime)) / 60000);
     // Use IST date for the date field (matches Android's getLocalDateString() in IST)
     await docRef.update({
@@ -296,7 +319,23 @@ router.post('/log-offline', auth, async (req, res) => {
       }
     });
 
-    const docRef = db.collection('studySessions').doc();
+    // ── Deterministic identity for offline sessions ──────────────────────────
+    // Keyed by (user, exact start instant), because that pair IS the logical
+    // identity of a completed session — one person cannot begin two sessions at
+    // the same millisecond.
+    //
+    // Previously this was `.doc()` + `.add()`-style random ids, so every replay
+    // of the same queued entry created ANOTHER document: a flush that timed out
+    // after the server had committed, or a queue retried from two clients, or
+    // the same entry retried on the next app open, each silently duplicated the
+    // session and inflated the totals. The client now retries this queue
+    // deliberately, which makes that failure mode reachable rather than rare.
+    //
+    // With merge, a replay resolves to the SAME record — the same guarantee
+    // `${uid}_${date}_automatic` gives automatic sleep writes, and the reason
+    // retrying is safe at all.
+    const offlineDocId = `${userId}_${new Date(actualStartTime).getTime()}_offline`;
+    const docRef = db.collection('studySessions').doc(offlineDocId);
     batch.set(docRef, {
       userId,
       subject: subject || null,
@@ -308,7 +347,7 @@ router.post('/log-offline', auth, async (req, res) => {
       isActive: false,
       createdAt: actualStartTime,
       updatedAt: endTime,
-    });
+    }, { merge: true });
 
     await batch.commit();
     res.json({ success: true, message: 'Offline session logged' });
