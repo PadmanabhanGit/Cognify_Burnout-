@@ -53,6 +53,24 @@ router.get('/', auth, async (req, res) => {
     const lastSleep = sortByRecencyDesc(allSleepLogs)[0] || null;   // mood source (unchanged)
     const canonicalSleep = selectCanonicalSleepLog(allSleepLogs);   // sleep source (canonical)
 
+    // ── TODAY's sleep, whatever produced it ──────────────────────────────────
+    // Distinct from `canonicalSleep`, which is the most recent DETECTED night
+    // and therefore excludes manual entries and can be days old. Used for the
+    // Dashboard sleep card, whose rule is "today or nothing": a night the phone
+    // failed to detect and the user logged by hand must show that hand-entered
+    // value, and a day with no record at all must show an empty state rather
+    // than an older night's figure presented as current.
+    //
+    // Automatic wins over manual for the same date: once real detection lands,
+    // it supersedes the estimate the user typed in while waiting for it.
+    // Between two of the same kind, the most recently written wins.
+    const todaysLogs = allSleepLogs.filter(
+      l => l && l.date === today && Number(l.sleepDuration) > 0
+    );
+    const todaysAutomatic = sortByRecencyDesc(todaysLogs.filter(l => l.source !== 'manual'))[0] || null;
+    const todaysManual = sortByRecencyDesc(todaysLogs.filter(l => l.source === 'manual'))[0] || null;
+    const todaySleep = todaysAutomatic || todaysManual;
+
     // Canonical current-IST-day productivity record — the SAME document
     // GET /api/productivity/today reads (productivityLogs/{userId}_{today}),
     // so the Dashboard card and the Productivity page can never disagree.
@@ -153,6 +171,11 @@ router.get('/', auth, async (req, res) => {
           // authority on which night this is, and deriving it there would drift
           // from the record whenever the two disagree.
           lastSleepDate: canonicalSleep?.date ?? null,
+          // Today's sleep for the Dashboard card. null means "nothing recorded
+          // today", which the client must render as empty — NOT by falling back
+          // to lastSleepHours, which is an older night.
+          todaySleepHours: todaySleep?.sleepDuration ?? null,
+          todaySleepSource: todaySleep ? (todaySleep.source === 'manual' ? 'manual' : 'automatic') : null,
           lastMood: lastSleep?.mood ?? null,
           lastMoodScore: lastSleep?.moodScore ?? null,
           lastProductivityScore: lastProd?.productivityScore ?? null,

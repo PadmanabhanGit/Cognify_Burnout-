@@ -172,31 +172,26 @@ export default function Dashboard() {
   // Same canonical detected-sleep record as the Sleep page (see
   // server/utils/sleepSelection.js). null means Android has not synced one —
   // show '--' rather than '0m', which reads as "slept zero minutes".
-  const sleepHoursRaw = Number(quickStats.lastSleepHours);
+  // TODAY's sleep, or nothing. Deliberately NOT lastSleepHours, which is the
+  // most recent DETECTED night and can be days old — showing it here meant the
+  // card presented an Aug 15 figure on Aug 16 as though it were current, and a
+  // manual entry logged for today never appeared at all because canonical
+  // selection excludes manual records by design.
+  //
+  // Empty when today has no record, rather than falling back: the card's
+  // question is "how did you sleep last night", and yesterday's answer is not a
+  // worse answer to it, it is the wrong one.
+  const sleepHoursRaw = Number(quickStats.todaySleepHours);
   const sleepAvailable = !error && Number.isFinite(sleepHoursRaw);
   const sleepDurationMinutes = sleepAvailable ? Math.round(sleepHoursRaw * 60) : null;
   const sleepDisplay = sleepAvailable ? formatDuration(sleepDurationMinutes * 60) : '--';
+  const sleepIsManual = quickStats.todaySleepSource === 'manual';
 
-  // WHICH NIGHT the figure above belongs to. The canonical record is the most
-  // recent DETECTED night, which is not necessarily last night — a phone that
-  // detected nothing overnight leaves the previous night canonical. Without a
-  // date the card silently presents a two-day-old figure as current.
-  //
-  // Parsed from parts, never `new Date(iso)`: that treats a bare "2026-08-15" as
-  // UTC midnight and renders the previous day for anyone east of UTC, which for
-  // an IST user would label the Aug 15 night as Aug 14. Same approach as
-  // SleepMoodDashboard.sessionDateLabel.
-  const nightLabel = (isoDate) => {
-    const parts = String(isoDate || '').split('-');
-    if (parts.length !== 3) return null;
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const mi = Number(parts[1]) - 1;
-    if (!(mi >= 0 && mi < 12)) return null;
-    const day = Number(parts[2]);
-    if (!Number.isFinite(day)) return null;
-    return `Night of ${months[mi]} ${day}`;
-  };
-  const sleepNightLabel = sleepAvailable ? nightLabel(quickStats.lastSleepDate) : null;
+  // The "Night of <date>" label this card used to carry is gone deliberately:
+  // it existed only to disambiguate a figure that could be days old, and the
+  // card now shows today or nothing, so there is no ambiguity left to label.
+  // quickStats.lastSleepDate remains in the API for the Sleep page, which does
+  // still display the most recent detected night and therefore does need it.
   const moodScore = Number(dashboardData?.quickStats?.lastMoodScore ?? 0);
   const sleepQuality = Number(quickStats.lastSleepQuality);
   const sleepProgress = Number.isFinite(sleepQuality)
@@ -273,7 +268,7 @@ export default function Dashboard() {
               <BedtimeIcon style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }} />
               <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{sleepDisplay}</div>
               <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>
-                {sleepNightLabel || 'Sleep'}
+                {!sleepAvailable ? 'Sleep' : (sleepIsManual ? 'Sleep · Manual' : 'Sleep')}
               </div>
             </div>
             <div style={{ flex: 1, height: '110px', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
