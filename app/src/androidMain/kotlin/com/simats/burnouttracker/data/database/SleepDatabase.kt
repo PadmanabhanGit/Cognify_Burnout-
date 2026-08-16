@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [SleepSession::class, WakeEvent::class, AppUsageLog::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class SleepDatabase : RoomDatabase() {
@@ -59,13 +59,38 @@ abstract class SleepDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v3 → v4: sleep_sessions gains the sync state model — [SleepSession.syncState],
+         * [SleepSession.lastSyncError] and [SleepSession.lastSyncAttemptAt].
+         *
+         * State is DERIVED from the existing `syncedAt`, not defaulted. A blanket
+         * default of PENDING would mark every night the backend has already
+         * accepted as owing an upload, and the next refresh would re-POST the lot.
+         * `syncedAt > 0` is the app's existing record of "the server confirmed
+         * this", so it is exactly the right evidence: those rows become SYNCED and
+         * are never re-sent, and rows at 0 become PENDING, which is what the old
+         * two-state model already treated them as. Sync behaviour is therefore
+         * unchanged by this migration.
+         *
+         * No row is deleted, no detection value is altered, and no ownership is
+         * touched.
+         */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sleep_sessions ADD COLUMN syncState TEXT NOT NULL DEFAULT 'PENDING'")
+                db.execSQL("ALTER TABLE sleep_sessions ADD COLUMN lastSyncError TEXT")
+                db.execSQL("ALTER TABLE sleep_sessions ADD COLUMN lastSyncAttemptAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE sleep_sessions SET syncState = 'SYNCED' WHERE syncedAt > 0")
+            }
+        }
+
         fun getDatabase(context: Context): SleepDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     SleepDatabase::class.java,
                     "sleep_database"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
                 INSTANCE = instance
                 instance
             }

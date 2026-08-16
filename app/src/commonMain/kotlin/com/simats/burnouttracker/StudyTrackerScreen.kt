@@ -29,6 +29,11 @@ import com.simats.burnouttracker.utils.AppData
 import com.simats.burnouttracker.utils.PlatformSettings
 import com.simats.burnouttracker.utils.rememberPlatformSettings
 import com.simats.burnouttracker.utils.rememberTimerHelper
+import com.simats.burnouttracker.utils.FirebaseTokenProvider
+import com.simats.burnouttracker.data.StudySessionStore
+import com.simats.burnouttracker.data.models.ActiveStudySession
+import com.simats.burnouttracker.data.models.PendingStop
+import com.simats.burnouttracker.data.models.StudyStopLifecycle
 import com.simats.burnouttracker.utils.getCurrentTimeMillis
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -50,14 +55,26 @@ fun StudyTrackerScreen(navController: NavController) {
     // AppData.activeSessionName. Previously activeSessionId / sessionStartTime were
     // in-memory only, so a process restart lost the session id and left the Firestore
     // document stranded as isActive:true forever (excluded from every total).
+    // Crash / restart recovery. A persisted session is adopted only if the
+    // account now signed in actually owns it — otherwise it is left untouched
+    // for its owner rather than being resumed, stopped, or given an invented end
+    // time. Nothing here fabricates a duration: an unresolved session stays
+    // unresolved and visible.
     remember {
         if (AppData.activeSessionName == null) {
-            val savedName = settings.getString("activeSessionName", null)
-            val savedStart = settings.getString("sessionStartTime", null)?.toLongOrNull()
-            if (!savedName.isNullOrBlank() && savedStart != null) {
-                AppData.activeSessionName = savedName
-                AppData.sessionStartTime = savedStart
-                AppData.activeSessionId = settings.getString("activeSessionId", null)
+            val uid = FirebaseTokenProvider.currentUid()
+            val saved = StudySessionStore.readActive(settings, uid)
+            if (saved != null) {
+                when (StudyStopLifecycle.recoveryFor(saved, uid, stillRunning = true)) {
+                    StudyStopLifecycle.Recovery.RESUME -> {
+                        AppData.activeSessionName = saved.subject
+                        AppData.sessionStartTime = saved.startedAt
+                        AppData.activeSessionId = saved.sessionId
+                    }
+                    // Not ours, or unresolvable: do not adopt and do not touch it.
+                    StudyStopLifecycle.Recovery.IGNORE,
+                    StudyStopLifecycle.Recovery.HAND_OFF -> Unit
+                }
             }
         }
         true
@@ -92,7 +109,10 @@ fun StudyTrackerScreen(navController: NavController) {
         AppData.studyTodayHours = settings.getString("studyTodayHours", "0.0")?.toFloatOrNull() ?: 0f
         AppData.studyWeekHours = settings.getString("studyWeekHours", "0.0")?.toFloatOrNull() ?: 0f
 
-        // 2. Flush FIRST and await completion.
+        // 2. Flush FIRST and await completion. Promised-but-unconfirmed STOPS go
+        //    before the offline queue: a stop that never landed leaves the server
+        //    document isActive, and every total below excludes it until it does.
+        flushPendingStops(settings)
         flushPendingStudySessions(settings)
 
         // 3 + 4. Read canonical Firestore-derived totals and adopt them verbatim.
@@ -135,17 +155,32 @@ fun StudyTrackerScreen(navController: NavController) {
                         timerHelper.startTimer(name)
 
                         // Persist ownership so a process restart resumes this session
-                        // instead of orphaning its Firestore document.
-                        settings.putString("activeSessionName", name)
-                        settings.putString("sessionStartTime", startedAt.toString())
+                        // instead of orphaning its Firestore document. The OWNER uid
+                        // is recorded here, at the one moment it is unambiguous, so
+                        // every later stop can verify it rather than assuming whoever
+                        // is signed in at that point is the same person.
+                        val ownerUid = FirebaseTokenProvider.currentUid()
+                        StudySessionStore.writeActive(
+                            settings,
+                            ActiveStudySession(
+                                sessionId = null,
+                                ownerUid = ownerUid,
+                                subject = name,
+                                startedAt = startedAt
+                            )
+                        )
 
                         // Start session on backend
                         scope.launch {
                             try {
                                 val response = ApiClient.startStudySession(StartSessionRequest(subject = name))
-                                if (response.success && response.session != null) {
-                                    AppData.activeSessionId = response.session.id
-                                    settings.putString("activeSessionId", response.session.id)
+                                // The id is what lets this session be STOPPED later. Without it
+                                // the stop call is skipped and the server keeps the session open,
+                                // so a response that omits it must not be treated as a success.
+                                val sessionId = response.session?.id
+                                if (response.success && sessionId != null) {
+                                    AppData.activeSessionId = sessionId
+                                    StudySessionStore.attachSessionId(settings, sessionId)
                                 }
                             } catch (e: Exception) {}
                         }
@@ -270,20 +305,57 @@ fun StudyTrackerScreen(navController: NavController) {
                                     val minutes = (elapsedTimeSeconds / 60).toInt()
                                     val sessionName = AppData.activeSessionName ?: "Unknown"
                                     val stoppedSessionId = AppData.activeSessionId
-                                    val sessionStartIso = AppData.sessionStartTime?.let {
-                                        Instant.fromEpochMilliseconds(it).toString()
-                                    } ?: Clock.System.now().toString()
+                                    // Captured BEFORE anything is released, because the handoff
+                                    // and the offline fallback both need it after the clear.
+                                    val sessionStartedAt = AppData.sessionStartTime ?: getCurrentTimeMillis()
+                                    val sessionStartIso = Instant.fromEpochMilliseconds(sessionStartedAt).toString()
 
-                                    // Release session ownership immediately, in memory AND on disk,
-                                    // so the timer stops and a restart cannot resume a finished session.
-                                    AppData.activeSessionName = null
-                                    AppData.activeSessionId = null
-                                    AppData.sessionStartTime = null
-                                    settings.remove("activeSessionName")
-                                    settings.remove("activeSessionId")
-                                    settings.remove("sessionStartTime")
-                                    elapsedTimeSeconds = 0
-                                    sessionNameInput = ""
+                                    // ── Durable handoff, THEN release ──────────────────────
+                                    // The persisted session is not cleared until its stop
+                                    // exists somewhere durable. Previously these removes ran
+                                    // before the POST below resolved, so a failed stop had
+                                    // nothing left to retry with and the server document
+                                    // stayed isActive forever, excluded from every total.
+                                    //
+                                    // Ownership is verified first: if the account that started
+                                    // this session is not the one signed in now, no stop is
+                                    // sent and nothing is cleared — the session stays for its
+                                    // owner. That is the account-switch edge case.
+                                    val authUid = FirebaseTokenProvider.currentUid()
+                                    val persisted = StudySessionStore.readActive(settings, authUid)
+                                    val ownerUid = persisted?.ownerUid ?: authUid
+                                    val mayStop = StudyStopLifecycle.mayStop(ownerUid, authUid)
+
+                                    if (mayStop) {
+                                        if (stoppedSessionId != null) {
+                                            // Session id continuously present in durable state:
+                                            // active slot → pending stop, no gap between them.
+                                            StudySessionStore.handOffStop(
+                                                settings,
+                                                PendingStop(
+                                                    sessionId = stoppedSessionId,
+                                                    ownerUid = ownerUid,
+                                                    subject = sessionName,
+                                                    startedAt = sessionStartedAt,
+                                                    queuedAt = getCurrentTimeMillis()
+                                                )
+                                            )
+                                        } else {
+                                            // Never got a server id — nothing to stop server-side.
+                                            // It is finished through the offline queue below.
+                                            StudySessionStore.clearActive(settings)
+                                        }
+                                        AppData.activeSessionName = null
+                                        AppData.activeSessionId = null
+                                        AppData.sessionStartTime = null
+                                        elapsedTimeSeconds = 0
+                                        sessionNameInput = ""
+                                    } else {
+                                        println(
+                                            "[STUDY] stop refused: session owner=$ownerUid " +
+                                                "but authenticated=$authUid -> no request sent, session retained."
+                                        )
+                                    }
 
                                     // Update BurnoutFeatures for prediction (unchanged behaviour)
                                     AppData.currentFeatures = AppData.currentFeatures.copy(
@@ -296,20 +368,29 @@ fun StudyTrackerScreen(navController: NavController) {
                                     // The local totals are NO LONGER incremented unconditionally —
                                     // that was what let Android drift above Firestore permanently.
                                     scope.launch {
+                                        // Only the owner sends anything. When mayStop is false the
+                                        // session was left untouched above, so there is nothing to
+                                        // reconcile and nothing to queue.
                                         var syncSuccess = false
-                                        try {
-                                            if (stoppedSessionId != null) {
-                                                val resp = ApiClient.stopStudySession(stoppedSessionId)
-                                                syncSuccess = resp.success
+                                        if (mayStop) {
+                                            syncSuccess = if (stoppedSessionId != null) {
+                                                // Drives the durable record: STOPPING -> STOPPED on a
+                                                // confirmed response, STOPPING -> FAILED otherwise,
+                                                // with the reason persisted. Retrying is safe because
+                                                // the server now returns an already-stopped session
+                                                // unchanged instead of re-deriving its duration.
+                                                attemptPendingStop(settings, stoppedSessionId)
+                                            } else {
+                                                false
                                             }
-                                        } catch (e: Exception) {}
+                                        }
 
                                         if (syncSuccess) {
                                             // Firestore now holds the authoritative duration.
                                             // Re-read it rather than trusting our local arithmetic.
                                             flushPendingStudySessions(settings)
                                             adoptCanonicalStudyStats(settings)
-                                        } else {
+                                        } else if (mayStop) {
                                             // Queue offline using the existing mechanism.
                                             try {
                                                 val pendingJson = settings.getString("pending_sessions", "[]") ?: "[]"
@@ -427,6 +508,71 @@ fun SessionStatItem(label: String, value: String, color: Color, textColor: Color
             Text(text = label, fontSize = 12.sp, color = textColor.copy(alpha = 0.7f))
             Text(text = value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = textColor)
         }
+    }
+}
+
+/**
+ * Attempts one durable stop and records the outcome, returning whether the
+ * server confirmed it.
+ *
+ * The single place a stop request is issued, so the state transitions cannot be
+ * spelled differently at each call site. STOPPING is written BEFORE the request
+ * so a process killed mid-call leaves a retryable record rather than a silent
+ * gap; only a confirmed response removes the entry.
+ *
+ * Safe to call for a session already stopped on the server: /stop now returns
+ * the existing session unchanged with `alreadyStopped`, so a retry after a
+ * timeout confirms rather than re-deriving the duration.
+ */
+private suspend fun attemptPendingStop(settings: PlatformSettings, sessionId: String): Boolean {
+    val now = getCurrentTimeMillis()
+    StudySessionStore.readPendingStops(settings)
+        .firstOrNull { it.sessionId == sessionId }
+        ?.let { StudySessionStore.updateStop(settings, StudyStopLifecycle.beginStop(it, now)) }
+
+    val outcome = try {
+        val resp = ApiClient.stopStudySession(sessionId)
+        if (resp.success) null else (resp.message ?: "stop rejected by server")
+    } catch (e: Exception) {
+        "${e::class.simpleName}: ${e.message}"
+    }
+
+    return if (outcome == null) {
+        // Confirmed. STOPPED is terminal, so the record leaves the queue.
+        StudySessionStore.removeStop(settings, sessionId)
+        true
+    } else {
+        StudySessionStore.readPendingStops(settings)
+            .firstOrNull { it.sessionId == sessionId }
+            ?.let { StudySessionStore.updateStop(settings, StudyStopLifecycle.stopFailed(it, outcome, now)) }
+        println("[STUDY] stop FAILED for $sessionId: $outcome. Retained for retry.")
+        false
+    }
+}
+
+/**
+ * Retry every stop this account is allowed to retry.
+ *
+ * Ownership is re-checked per entry against the LIVE authenticated uid rather
+ * than assumed from the store that was opened — so signing in as a different
+ * account can never flush the previous one's queue, even in the window where
+ * store resolution and Firebase auth disagree.
+ */
+private suspend fun flushPendingStops(settings: PlatformSettings) {
+    val uid = FirebaseTokenProvider.currentUid()
+    if (uid.isBlank()) return
+    val retryable = StudySessionStore.retryableStops(settings, uid)
+    if (retryable.isEmpty()) return
+
+    println("[STUDY] ${retryable.size} pending stop(s) for this account; retrying.")
+    for (stop in retryable) {
+        // The account can change mid-flush; stop rather than send the remainder
+        // under whoever signed in next.
+        if (FirebaseTokenProvider.currentUid() != uid) {
+            println("[STUDY] account changed mid-flush; remaining stops left pending.")
+            return
+        }
+        attemptPendingStop(settings, stop.sessionId)
     }
 }
 

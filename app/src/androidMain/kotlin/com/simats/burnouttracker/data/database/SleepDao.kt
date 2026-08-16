@@ -3,6 +3,12 @@ package com.simats.burnouttracker.data.database
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
+/** Ownership of one night, with no sleep values attached. See [SleepDao.getOwnersForDates]. */
+data class SessionDateOwner(
+    val date: String,
+    val ownerUid: String
+)
+
 @Dao
 interface SleepDao {
     @Insert
@@ -25,6 +31,29 @@ interface SleepDao {
 
     @Query("SELECT * FROM sleep_sessions WHERE date = :date AND ownerUid = :ownerUid LIMIT 1")
     suspend fun getSessionByDate(date: String, ownerUid: String): SleepSession?
+
+    /**
+     * Who owns each of [dates], across ALL accounts.
+     *
+     * Deliberately NOT scoped to one account — it is the one query here that must
+     * see other accounts, because restore has to know that a date is already held
+     * by somebody else in order to leave that row alone and say so in the log.
+     * It returns ownership only, never sleep values, so it cannot become a route
+     * for one account to read another's history.
+     */
+    @Query("SELECT date, ownerUid FROM sleep_sessions WHERE date IN (:dates)")
+    suspend fun getOwnersForDates(dates: List<String>): List<SessionDateOwner>
+
+    /**
+     * The ACTIVE account's own rows for [dates], with the fields restore compares.
+     *
+     * Split from [getOwnersForDates] deliberately. That query spans all accounts
+     * and therefore returns ownership only; this one returns values and is
+     * scoped to a single [ownerUid]. Keeping them apart means no query in this
+     * DAO can hand one account another account's sleep values.
+     */
+    @Query("SELECT * FROM sleep_sessions WHERE ownerUid = :ownerUid AND date IN (:dates)")
+    suspend fun getSessionsForDates(ownerUid: String, dates: List<String>): List<SleepSession>
 
     @Query("SELECT * FROM wake_events WHERE sessionId = :sessionId")
     suspend fun getWakeEventsForSession(sessionId: Long): List<WakeEvent>
@@ -142,18 +171,96 @@ interface SleepDao {
     suspend fun countRedundantSessionRows(ownerUid: String): Int
 
     /**
+     * An upload is starting: PENDING or FAILED → SYNCING.
+     *
+     * Guarded with `syncState <> 'SYNCED'` so a stray call can never move a
+     * confirmed night back into an in-flight state. [SleepSession.lastSyncError]
+     * is left in place on purpose — while a retry runs, the most useful thing to
+     * show is still why the previous attempt failed.
+     */
+    @Query("""
+        UPDATE sleep_sessions
+        SET syncState = 'SYNCING', lastSyncAttemptAt = :now
+        WHERE id = :id AND syncState <> 'SYNCED'
+    """)
+    suspend fun markSessionSyncing(id: Long, now: Long)
+
+    /**
      * Records that the backend has accepted this night, so it is not re-sent.
      *
      * Written only after a POST that actually returned success — a transport
      * failure must leave [SleepSession.syncedAt] at 0, because the point of the
      * column is to remember what did NOT get through.
+     *
+     * The only statement that sets SYNCED, the only one that sets `syncedAt`,
+     * and the only one that clears `lastSyncError`. Success is the sole way out
+     * of the retry set.
      */
-    @Query("UPDATE sleep_sessions SET syncedAt = :syncedAt WHERE id = :id")
+    @Query("""
+        UPDATE sleep_sessions
+        SET syncedAt = :syncedAt, syncState = 'SYNCED', lastSyncError = NULL
+        WHERE id = :id
+    """)
     suspend fun markSessionSynced(id: Long, syncedAt: Long)
+
+    /**
+     * An attempt finished unsuccessfully: SYNCING → FAILED, with the reason kept.
+     *
+     * `syncedAt` is deliberately not in the SET list — a failure cannot invent a
+     * confirmation, and a record that was already SYNCED is excluded outright by
+     * the guard. The row's sleep values are never touched: this records a fact
+     * about the upload, not about the night, so a failed POST can never roll back
+     * local data.
+     */
+    @Query("""
+        UPDATE sleep_sessions
+        SET syncState = 'FAILED', lastSyncError = :error, lastSyncAttemptAt = :now
+        WHERE id = :id AND syncState <> 'SYNCED'
+    """)
+    suspend fun markSessionFailed(id: Long, error: String, now: Long)
+
+    /**
+     * Moves rows stranded in SYNCING back to a retryable, HONEST state.
+     *
+     * A row is left in SYNCING only when the process died between the request
+     * going out and its outcome being recorded. The retry query already picks
+     * such a row up — it selects on `<> SYNCED` — but the LABEL would stay
+     * SYNCING forever, so anyone reading the row (or a future conflict report)
+     * would be told an upload is in flight that no longer exists. That is
+     * exactly the kind of untraceable state this phase is meant to eliminate.
+     *
+     * FAILED with an explicit reason is the truthful description: an attempt was
+     * made and never completed. Nothing is re-sent by this statement and no
+     * record is created — it only relabels, so a stranded row becomes both
+     * retryable and diagnosable.
+     *
+     * Called at session start, before any sync is in flight, so it cannot
+     * mislabel a genuinely running upload. Even if it raced one, the outcome
+     * would still win: markSessionSynced has no state guard and always lands.
+     *
+     * Scoped to [ownerUid] like everything else here.
+     */
+    @Query("""
+        UPDATE sleep_sessions
+        SET syncState = 'FAILED', lastSyncError = :reason
+        WHERE ownerUid = :ownerUid AND syncState = 'SYNCING'
+    """)
+    suspend fun reclaimStrandedSyncing(ownerUid: String, reason: String): Int
 
     /**
      * Nights this account holds locally that the backend has never confirmed,
      * limited to those on or after [sinceDate] (a `yyyy-MM-dd` label).
+     *
+     * Mirrors `SyncStateMachine.isRetryable`, which is the specification for this
+     * query and is unit-tested; the two are stated together so the isolation rule
+     * cannot drift silently between SQL and Kotlin.
+     *
+     * `syncState <> 'SYNCED'` rather than the old `syncedAt = 0`. After the v3→v4
+     * migration those select exactly the same rows, so retry behaviour is
+     * unchanged — but this form also picks up a row left in SYNCING by a process
+     * killed mid-upload, which the timestamp form would have stranded forever.
+     * Re-sending such a row is safe: automatic writes merge onto a deterministic
+     * server-side document id.
      *
      * Bounded on purpose. Every unsynced night in history would otherwise be
      * re-sent on the first refresh after upgrading, which for a long-installed
@@ -161,11 +268,15 @@ interface SleepDao {
      * matches the one refreshSleepData() already re-scans, so retries stay
      * proportional to the work that pass was already doing.
      *
+     * Scoped to [ownerUid]: this is the account-isolation guarantee for sync.
+     * Without it a retry pass would re-POST another account's nights under the
+     * signed-in account's token.
+     *
      * Oldest first, so a partial success still advances chronologically.
      */
     @Query("""
         SELECT * FROM sleep_sessions
-        WHERE ownerUid = :ownerUid AND syncedAt = 0 AND date >= :sinceDate
+        WHERE ownerUid = :ownerUid AND syncState <> 'SYNCED' AND date >= :sinceDate
         ORDER BY date ASC
     """)
     suspend fun getUnsyncedSessions(ownerUid: String, sinceDate: String): List<SleepSession>

@@ -7,6 +7,16 @@ import StopIcon from '@mui/icons-material/Stop';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import api from '../services/api';
 import BottomNavigation from '../components/BottomNavigation';
+import { auth } from '../firebase';
+import {
+  readActiveSession,
+  writeActiveSession,
+  handOffStop,
+  removeStop,
+  markStopFailed,
+  flushPendingStops,
+  mayStop,
+} from '../utils/studySession';
 
 export default function StudyTracking() {
   const navigate = useNavigate();
@@ -48,9 +58,31 @@ export default function StudyTracking() {
     return () => clearInterval(interval);
   }, [webIsActive]);
 
-  // --- Fetch study stats on mount ---
+  // --- Recover, flush, then fetch, in that order ---
+  //
+  // Order matters for the same reason it does on Android: a stop that never
+  // landed leaves its Firestore document isActive, and every total below
+  // excludes it until the retry succeeds. Fetching first would render a figure
+  // we are about to invalidate.
   useEffect(() => {
-    fetchStats();
+    (async () => {
+      const uid = auth.currentUser?.uid || '';
+      if (uid) {
+        // Retry anything promised but unconfirmed — a closed tab, a refresh
+        // mid-stop, or a dropped connection on a previous visit.
+        await flushPendingStops(api, uid);
+
+        // Adopt a session this account left running. Without this the id was
+        // lost on refresh and the session could never be closed from the web.
+        const saved = readActiveSession(uid);
+        if (saved) {
+          setSession({ id: saved.sessionId, startTime: saved.startedAt, subject: saved.subject });
+          setWebIsActive(true);
+          setElapsed(Math.max(0, Math.floor((Date.now() - saved.startedAt) / 1000)));
+        }
+      }
+      await fetchStats();
+    })();
   }, []);
 
   const fetchStats = async () => {
@@ -101,10 +133,26 @@ export default function StudyTracking() {
 
   const handleStart = async () => {
     try {
+      const uid = auth.currentUser?.uid || '';
+      if (!uid) return;
+
+      // Refuse to open a second concurrent session. Previously the button read
+      // "Start Session" whenever the web itself had not started one — including
+      // while Android had a session running — so pressing it created a second
+      // active document and both were counted.
+      if (stats.activeSession || readActiveSession(uid)) {
+        alert('A study session is already running on this account. Stop it before starting another.');
+        return;
+      }
+
       const subject = prompt('What are you working on?', 'e.g. Mathematics, Project Research');
       if (!subject) return;
       const res = await api.post('/api/study/start', { subject, notes: '' });
-      if (res.data.success) {
+      if (res.data.success && res.data.session?.id) {
+        const startedAt = Date.now();
+        // Durable and owner-stamped at the one moment ownership is unambiguous,
+        // so a refresh can recover it and a later stop can verify it.
+        writeActiveSession(uid, { sessionId: res.data.session.id, subject, startedAt });
         setSession(res.data.session);
         setWebIsActive(true);
         setElapsed(0);
@@ -126,16 +174,51 @@ export default function StudyTracking() {
 
   const handleStop = async () => {
     if (!session) return;
+    const uid = auth.currentUser?.uid || '';
+    const saved = readActiveSession(uid);
+    const ownerUid = saved?.ownerUid || uid;
+
+    // The account that started this session must be the one signed in now.
+    // In a SPA, signing out and back in as someone else never reloads the page,
+    // so stale component state can otherwise outlive the account that created it.
+    if (!mayStop(ownerUid, uid)) {
+      console.warn(`[STUDY] stop refused: owner=${ownerUid} authenticated=${uid}`);
+      return;
+    }
+
+    // Durable custody BEFORE the UI releases anything, so a failed or
+    // interrupted request is retried on the next visit instead of stranding the
+    // Firestore document as isActive forever.
+    handOffStop(uid, {
+      sessionId: session.id,
+      subject: saved?.subject || session.subject,
+      startedAt: saved?.startedAt || Date.now(),
+    });
+    setWebIsActive(false);
+    setSession(null);
+    setElapsed(0);
+
     try {
-      await api.patch(`/api/study/stop/${session.id}`);
-      setWebIsActive(false);
-      setSession(null);
-      setElapsed(0);
-      // Refresh stats after stopping
-      await fetchStats();
+      const res = await api.patch(`/api/study/stop/${session.id}`);
+      // Only a confirmed response clears the record. `success` is checked
+      // explicitly rather than inferred from "did not throw".
+      if (res.data && res.data.success) {
+        removeStop(uid, session.id);
+      } else {
+        markStopFailed(uid, session.id, (res.data && res.data.message) || 'stop rejected by server');
+      }
     } catch (err) {
       console.error(err);
+      const status = err?.response?.status;
+      if (status === 404 || status === 403) {
+        // Terminal: unknown session, or not ours. Not retryable, and no
+        // duration is invented to stand in for it.
+        removeStop(uid, session.id);
+      } else {
+        markStopFailed(uid, session.id, err?.message || 'network error');
+      }
     }
+    await fetchStats();
   };
 
   // Format HH:MM:SS for the live timer display

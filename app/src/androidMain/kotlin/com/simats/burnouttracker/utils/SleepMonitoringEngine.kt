@@ -4,6 +4,7 @@ import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import com.simats.burnouttracker.data.database.*
+import com.simats.burnouttracker.data.models.SyncStateMachine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
@@ -32,8 +33,15 @@ class SleepMonitoringEngine(private val context: Context) {
          *
          * It guards only ordering. It does not read, alter, or reinterpret any
          * detection input or scoring output.
+         *
+         * Shared with [SleepHistoryRestore]: detection and cloud restore both
+         * check "does this account already hold this date?" and then insert, and
+         * that check-then-act is only safe if the two cannot interleave. Restore
+         * runs from SessionManager.begin while screens are already firing
+         * refreshSleepData(), so they genuinely do overlap in practice. A lock
+         * private to detection would have left exactly that pair unserialized.
          */
-        private val analysisMutex = Mutex()
+        internal val sleepWriteMutex = Mutex()
 
         // Night window: 21:00 the previous evening → 09:00 on the morning of the sleep date.
         private const val NIGHT_START_HOUR = 21
@@ -139,7 +147,7 @@ class SleepMonitoringEngine(private val context: Context) {
      * guard inside is actually effective under concurrent callers. The analysis
      * itself is unchanged and lives in analyzeNightLocked().
      */
-    suspend fun analyzeNight(date: Date) = analysisMutex.withLock {
+    suspend fun analyzeNight(date: Date) = sleepWriteMutex.withLock {
         analyzeNightLocked(date)
     }
 
@@ -425,15 +433,26 @@ class SleepMonitoringEngine(private val context: Context) {
      * returns success=false, so the real failure signal is the RETURN VALUE. The
      * outer try/catch is kept only for anything the client itself might rethrow.
      *
+     * STATE TRANSITIONS. The row is moved to SYNCING before the request goes
+     * out, then to SYNCED or FAILED by the outcome — so a night is observably
+     * in-flight rather than appearing to sit untouched, and a failure leaves a
+     * persisted reason instead of a log line that dies with the process.
+     *
      * On success the row's [SleepSession.syncedAt] is stamped, which is what
-     * takes it out of the retry set. On failure the row is left at 0 and
-     * retained — local data is never rolled back because a network call failed,
-     * and no placeholder record is created. [retryUnsyncedSessions] picks it up
-     * on a later refresh.
+     * takes it out of the retry set. On failure the row is left at 0, marked
+     * FAILED and retained — local data is never rolled back because a network
+     * call failed, and no placeholder record is created. [retryUnsyncedSessions]
+     * picks it up on a later refresh.
      *
      * @return true when the backend accepted the night.
      */
     suspend fun syncSession(session: SleepSession): Boolean {
+        // Before the request, not after: a row that is merely PENDING and one
+        // whose upload is actually in flight have to be distinguishable, and if
+        // the process dies here the row stays retryable (getUnsyncedSessions
+        // selects on `<> SYNCED`, so SYNCING is picked up again).
+        sleepDao.markSessionSyncing(session.id, System.currentTimeMillis())
+
         val response = try {
             com.simats.burnouttracker.data.api.ApiClient.saveSleepMoodLog(
                 com.simats.burnouttracker.data.models.SleepMoodLogRequest(
@@ -459,11 +478,17 @@ class SleepMonitoringEngine(private val context: Context) {
 
         if (response.success) {
             sleepDao.markSessionSynced(session.id, System.currentTimeMillis())
-            println("[SLEEP SYNC] ${session.date} synced to backend (source=automatic).")
+            println("[SLEEP SYNC] ${session.date} SYNCING -> SYNCED (source=automatic).")
         } else {
+            // The persisted reason, not just a printed one. A dead network and a
+            // DTO that no longer matches the backend are both success=false here,
+            // but only one of them is fixable by waiting — so the kind is recorded
+            // on the row rather than inferred later from a log nobody kept.
+            val error = SyncStateMachine.describeFailure(response.message)
+            sleepDao.markSessionFailed(session.id, error, System.currentTimeMillis())
             println(
-                "[SLEEP SYNC] FAILED for ${session.date}: ${response.message ?: "no message"}. " +
-                "Room session retained, left unsynced; it will be retried on a later refresh."
+                "[SLEEP SYNC] ${session.date} SYNCING -> FAILED: $error. " +
+                "Room session retained; it will be retried on a later refresh."
             )
         }
         return response.success
@@ -486,6 +511,26 @@ class SleepMonitoringEngine(private val context: Context) {
      *
      * @return how many nights were accepted by the backend on this pass.
      */
+    /**
+     * Recovers rows stranded in SYNCING by a process death, for [uid].
+     *
+     * Run once per session start, before anything can be in flight. See
+     * [SleepDao.reclaimStrandedSyncing] for why relabelling — rather than
+     * re-sending or leaving them alone — is the correct recovery.
+     *
+     * @return how many rows were reclaimed.
+     */
+    suspend fun reclaimStrandedSyncs(uid: String): Int {
+        val reclaimed = sleepDao.reclaimStrandedSyncing(
+            uid,
+            "INTERRUPTED: upload did not complete (process ended mid-sync); retryable"
+        )
+        if (reclaimed > 0) {
+            println("[SLEEP SYNC] Reclaimed $reclaimed night(s) stranded in SYNCING -> FAILED (retryable).")
+        }
+        return reclaimed
+    }
+
     suspend fun retryUnsyncedSessions(sinceDate: String): Int {
         val ownerUid = AccountScope.activeUid(context)
         val pending = sleepDao.getUnsyncedSessions(ownerUid, sinceDate)

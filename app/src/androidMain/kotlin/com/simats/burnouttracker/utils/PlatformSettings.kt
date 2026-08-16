@@ -48,7 +48,6 @@ internal object PrefStores {
         DEFAULT,
         "study_tracker",
         "burnout_history",
-        "app_monitoring",
         "action_plan"
     )
 

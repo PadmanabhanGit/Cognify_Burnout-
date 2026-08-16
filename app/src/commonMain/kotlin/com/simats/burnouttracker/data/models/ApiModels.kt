@@ -1,6 +1,5 @@
 package com.simats.burnouttracker.data.models
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
@@ -68,15 +67,29 @@ data class OfflineSessionRequest(
     val notes: String? = null
 )
 
+/**
+ * A `studySessions` document as the backend returns it.
+ *
+ * Same defect, same fix as [RemoteSleepLog]: this declared
+ * `@SerialName("_id")` while `server/routes/study.js` responds with
+ * `{ session: { id: doc.id, ...doc.data() } }`.
+ *
+ * This one broke more than sync bookkeeping. `startStudySession` could never
+ * parse its response, so it returned `success = false` even though the session
+ * document had been created; `AppData.activeSessionId` was therefore never set,
+ * `stopStudySession` was never called with an id, and every session was routed
+ * to the offline queue while the server kept an `isActive: true` row open
+ * indefinitely.
+ */
 @Serializable
 data class StudySession(
-    @SerialName("_id") val id: String,
-    val userId: String,
-    val subject: String,
-    val duration: Int,          // minutes
-    val startTime: String,
+    val id: String? = null,
+    val userId: String? = null,
+    val subject: String? = null,
+    val duration: Int? = null,          // minutes
+    val startTime: String? = null,
     val endTime: String? = null,
-    val isActive: Boolean,
+    val isActive: Boolean? = null,
     val notes: String? = null
 )
 
@@ -140,21 +153,41 @@ data class SleepMoodLogRequest(
     val source: String? = null
 )
 
+/**
+ * One persisted `sleepMoodLogs` document, as the backend actually returns it.
+ *
+ * Replaces a previous `SleepMoodLog` model that declared `@SerialName("_id")`
+ * with non-null `sleepDuration`/`sleepQuality`/`mood`/`moodScore`. Neither
+ * assumption held: routes return `{ id: doc.id, ...doc.data() }` — `id`, never
+ * `_id` — and POST /log persists `sleepDuration ?? null`, `sleepQuality ?? null`
+ * and so on, so a mood-only entry legitimately stores nulls.
+ *
+ * The consequence was not a visible crash but a silent one. Deserializing the
+ * POST *response* threw, ApiClient caught it and returned `success = false`, and
+ * the caller concluded the write had failed — while the server had in fact
+ * already committed the document. For sleep that meant `syncedAt` was never
+ * stamped and every night was re-POSTed on every refresh, forever.
+ *
+ * Every field is therefore nullable with a null default: the backend stores only
+ * what was sent, so an unsent field is ABSENT, not zero. Treating any of them as
+ * required would reintroduce exactly this failure. Same reasoning, and the same
+ * shape, as [ProductivityLog].
+ */
 @Serializable
-data class SleepMoodLog(
-    @SerialName("_id") val id: String,
-    val userId: String,
-    val date: String,
-    val sleepDuration: Double,
-    val sleepQuality: Int,
-    val mood: String,
-    val moodScore: Int,
+data class RemoteSleepLog(
+    val id: String? = null,
+    val userId: String? = null,
+    val date: String? = null,
+    val sleepDuration: Double? = null,   // hours, as written by the phone: totalSleepMinutes / 60.0
+    val sleepQuality: Int? = null,
+    val mood: String? = null,
+    val moodScore: Int? = null,
     val notes: String? = null,
     val sleepStart: Long? = null,
     val sleepEnd: Long? = null,
     val awakeningCount: Int? = null,
     val disturbanceScore: Int? = null,
-    // Additive: absent on records written before this change.
+    // Additive: absent on records written before this field existed.
     val source: String? = null
 )
 
@@ -162,13 +195,13 @@ data class SleepMoodLog(
 data class SleepMoodLogResponse(
     val success: Boolean,
     val message: String? = null,
-    val log: SleepMoodLog? = null
+    val log: RemoteSleepLog? = null
 )
 
 @Serializable
 data class SleepMoodLogsResponse(
     val success: Boolean,
-    val logs: List<SleepMoodLog>
+    val logs: List<RemoteSleepLog> = emptyList()
 )
 
 @Serializable
@@ -323,17 +356,25 @@ data class BurnoutWellbeing(
     val study: Int
 )
 
+/**
+ * A `burnoutAssessments` document as the backend returns it.
+ *
+ * Third instance of the `_id` defect described on [RemoteSleepLog]. The nested
+ * lists and object are nullable for the same reason as the scalars: the backend
+ * stores only what was sent, so an assessment saved without warnings or
+ * recommendations omits those keys entirely rather than storing empty arrays.
+ */
 @Serializable
 data class BurnoutAssessment(
-    @SerialName("_id") val id: String,
-    val userId: String,
-    val date: String,
-    val riskScore: Int,
-    val riskLevel: String,
-    val factors: List<BurnoutFactor>,
-    val wellbeingDimensions: WellbeingDimensions,
-    val warnings: List<String>,
-    val recommendations: List<String>
+    val id: String? = null,
+    val userId: String? = null,
+    val date: String? = null,
+    val riskScore: Int? = null,
+    val riskLevel: String? = null,
+    val factors: List<BurnoutFactor>? = null,
+    val wellbeingDimensions: WellbeingDimensions? = null,
+    val warnings: List<String>? = null,
+    val recommendations: List<String>? = null
 )
 
 @Serializable

@@ -114,7 +114,9 @@ class AndroidSleepRepository(private val context: Context) : SleepRepository {
     }
 
     private fun SleepSession.toData() = SleepSessionData(
-        id, date, sleepStart, sleepEnd, totalSleepMinutes, awakeningCount, sleepQuality, disturbanceScore
+        id, date, sleepStart, sleepEnd, totalSleepMinutes, awakeningCount, sleepQuality, disturbanceScore,
+        syncState = SyncState.fromStored(syncState),
+        lastSyncError = lastSyncError
     )
 
     private fun WakeEvent.toData() = WakeEventData(

@@ -23,3 +23,5 @@ New Server updated parallely for web app(with tested code)/
 !app/src/androidMain/assets/**/*.tflite
 generate_burnout_dataset.py
 train_burnout_model.py
+
+.claude/

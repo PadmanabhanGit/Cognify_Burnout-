@@ -158,7 +158,27 @@ actual fun GoogleSignInButton(
     }
 
     OutlinedButton(
-        onClick = { launcher.launch(googleSignInClient.signInIntent) },
+        // signOut() FIRST, then launch. Without it GoogleSignInClient silently
+        // reuses the last account that signed in on this device and returns its
+        // token without ever showing the account chooser — so on a device where
+        // someone is already signed in, "Sign in with Google" cannot switch
+        // accounts at all. The user taps it intending to pick account B, gets
+        // account A's token back, and the app signs them into A.
+        //
+        // That failure is invisible: AccountScope.syncActiveAccount() sees the
+        // same uid it already had and correctly returns early, so nothing
+        // changes and the previous account's data legitimately remains on
+        // screen. It reads exactly like an isolation bug while isolation is in
+        // fact working.
+        //
+        // This clears only the LOCAL cached Google account; it does not revoke
+        // access or touch the Firebase session. LinkedAccountsScreen already
+        // does the same thing for the same reason.
+        onClick = {
+            googleSignInClient.signOut().addOnCompleteListener {
+                launcher.launch(googleSignInClient.signInIntent)
+            }
+        },
         modifier = Modifier.fillMaxWidth().height(56.dp),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
