@@ -176,6 +176,27 @@ export default function Dashboard() {
   const sleepAvailable = !error && Number.isFinite(sleepHoursRaw);
   const sleepDurationMinutes = sleepAvailable ? Math.round(sleepHoursRaw * 60) : null;
   const sleepDisplay = sleepAvailable ? formatDuration(sleepDurationMinutes * 60) : '--';
+
+  // WHICH NIGHT the figure above belongs to. The canonical record is the most
+  // recent DETECTED night, which is not necessarily last night — a phone that
+  // detected nothing overnight leaves the previous night canonical. Without a
+  // date the card silently presents a two-day-old figure as current.
+  //
+  // Parsed from parts, never `new Date(iso)`: that treats a bare "2026-08-15" as
+  // UTC midnight and renders the previous day for anyone east of UTC, which for
+  // an IST user would label the Aug 15 night as Aug 14. Same approach as
+  // SleepMoodDashboard.sessionDateLabel.
+  const nightLabel = (isoDate) => {
+    const parts = String(isoDate || '').split('-');
+    if (parts.length !== 3) return null;
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mi = Number(parts[1]) - 1;
+    if (!(mi >= 0 && mi < 12)) return null;
+    const day = Number(parts[2]);
+    if (!Number.isFinite(day)) return null;
+    return `Night of ${months[mi]} ${day}`;
+  };
+  const sleepNightLabel = sleepAvailable ? nightLabel(quickStats.lastSleepDate) : null;
   const moodScore = Number(dashboardData?.quickStats?.lastMoodScore ?? 0);
   const sleepQuality = Number(quickStats.lastSleepQuality);
   const sleepProgress = Number.isFinite(sleepQuality)
@@ -184,7 +205,33 @@ export default function Dashboard() {
   const sleepStatus = sleepQuality >= 8 || moodScore >= 8 ? 'Excellent'
     : sleepQuality >= 6 || moodScore >= 6 ? 'Good'
     : quickStats.lastMood ? 'Needs care' : 'Log Today';
-  const productivityScore = quickStats.lastProductivityScore;
+  // Validate the RAW value, not a coerced copy. The previous guard was
+  // `Number.isFinite(Number(productivityScore))`, and `Number(null)` is 0 — a
+  // finite number — so a null score passed the check and was then interpolated
+  // raw, rendering the literal string "null%". `undefined` and "" have the same
+  // shape of bug (`Number(undefined)` is NaN, but `Number('')` is 0).
+  //
+  // Deliberately not defaulted to 0: no productivity record and a genuine score
+  // of zero are different facts, and showing "0%" for "not logged yet" is the
+  // same class of error as the fabricated sleep values this codebase already
+  // removed elsewhere.
+  // Reject the empty values EXPLICITLY first, then coerce. Testing only
+  // `typeof === 'number'` would be safe against null but would also hide a real
+  // score arriving as a numeric string — silently showing "View" when a value
+  // exists is a worse failure than the one being fixed.
+  // Type-directed rather than a list of rejected values: only a number, or a
+  // non-empty string that parses as one, is a score. Everything else is null.
+  // Blanket `Number(x)` coercion is what makes this class of bug — Number(null),
+  // Number(''), Number([]) are all 0, and Number(true) is 1, so each would have
+  // rendered a confident percentage for a value that does not exist.
+  const rawProductivityScore = quickStats.lastProductivityScore;
+  const parsedProductivity =
+    typeof rawProductivityScore === 'number'
+      ? rawProductivityScore
+      : (typeof rawProductivityScore === 'string' && rawProductivityScore.trim() !== ''
+          ? Number(rawProductivityScore)
+          : NaN);
+  const productivityScore = Number.isFinite(parsedProductivity) ? parsedProductivity : null;
   const moodEmoji = error ? '--' : (moodScore >= 7 ? '😊' : moodScore >= 4 ? '😐' : (moodScore > 0 ? '😔' : '--'));
 
   // Real study hours per day for the current Mon–Sun week, straight from
@@ -225,7 +272,9 @@ export default function Dashboard() {
             <div style={{ flex: 1, height: '110px', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
               <BedtimeIcon style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }} />
               <div style={{ color: 'white', fontSize: '20px', fontWeight: 700 }}>{sleepDisplay}</div>
-              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>Sleep</div>
+              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>
+                {sleepNightLabel || 'Sleep'}
+              </div>
             </div>
             <div style={{ flex: 1, height: '110px', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '20px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
               <SentimentSatisfiedAltIcon style={{ color: 'white', fontSize: '20px', marginBottom: '8px' }} />
@@ -299,7 +348,7 @@ export default function Dashboard() {
           />
           <FeatureCard 
             icon={TrendingUpIcon} title="Productivity" subtitle="Weekly trends" 
-            trailing={Number.isFinite(Number(productivityScore)) ? `${productivityScore}%` : 'View'} color="#DCFCE7" iconColor="#10B981" onClick={() => navigate('/productivity')}
+            trailing={productivityScore !== null ? `${productivityScore}%` : 'View'} color="#DCFCE7" iconColor="#10B981" onClick={() => navigate('/productivity')}
           />
           <FeatureCard 
             icon={DescriptionIcon} title="Weekly Report" subtitle="Download PDF" 

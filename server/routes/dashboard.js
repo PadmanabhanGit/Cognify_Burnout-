@@ -143,6 +143,16 @@ router.get('/', auth, async (req, res) => {
           lastSleepHours: canonicalSleep?.sleepDuration ?? null,
           lastSleepQuality: canonicalSleep?.sleepQuality ?? null,
           sleepAvailable: canonicalSleep !== null,
+          // WHICH NIGHT the value above describes. Additive: no existing field
+          // changed, and selection is untouched — this only reports the date of
+          // the record selectCanonicalSleepLog already chose.
+          //
+          // Needed because the card showed a duration with no date, so a night
+          // from two days ago read as "last night". Taken from the record itself
+          // rather than derived in the browser: the browser's clock is not the
+          // authority on which night this is, and deriving it there would drift
+          // from the record whenever the two disagree.
+          lastSleepDate: canonicalSleep?.date ?? null,
           lastMood: lastSleep?.mood ?? null,
           lastMoodScore: lastSleep?.moodScore ?? null,
           lastProductivityScore: lastProd?.productivityScore ?? null,

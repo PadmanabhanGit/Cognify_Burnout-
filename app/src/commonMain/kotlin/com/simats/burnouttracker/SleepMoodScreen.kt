@@ -87,6 +87,42 @@ fun SleepMoodScreen(navController: NavController) {
     var manualHours by remember { mutableFloatStateOf(7.5f) }
     var isSavingManualSleep by remember { mutableStateOf(false) }
 
+    /**
+     * Today's MANUAL entry for this account, read back from the backend.
+     *
+     * Manual sleep was write-only. It POSTs to /api/sleep-mood/log and reaches
+     * Firestore, but nothing ever read it back: Room holds detected sessions only
+     * (SleepRestorePlanner rejects `source != "automatic"`), and AppData is
+     * in-memory and cleared on every account change. So the value vanished the
+     * moment the app restarted or the account switched, and the screen asked for
+     * it again as though it had never been entered.
+     *
+     * Fetched per account by the server's own uid filter — there is no uid
+     * parameter here to get wrong.
+     */
+    var savedManualSleepHours by remember { mutableStateOf<Float?>(null) }
+    var manualSleepLoaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val response = ApiClient.getSleepMoodLogs(60)
+            if (response.success) {
+                val todayManual = response.logs.firstOrNull {
+                    it.date == today && it.source == "manual" && (it.sleepDuration ?: 0.0) > 0.0
+                }
+                todayManual?.sleepDuration?.let { hours ->
+                    savedManualSleepHours = hours.toFloat()
+                    manualHours = hours.toFloat()
+                    com.simats.burnouttracker.utils.AppData.lastSleepLogged = hours.toFloat()
+                }
+            }
+        } catch (e: Exception) {
+            // Non-fatal: the screen still works, it just cannot pre-fill.
+            println("[SLEEP MANUAL] could not load today's manual entry: ${e::class.simpleName}")
+        }
+        manualSleepLoaded = true
+    }
+
     val saveMood: () -> Unit = {
         val moodIndex = selectedMood
         if (moodIndex != null) {
@@ -117,6 +153,9 @@ fun SleepMoodScreen(navController: NavController) {
             isSavingManualSleep = true
             val quality1to10 = ((manualHours / 8f) * 10).toInt().coerceIn(1, 10)
             com.simats.burnouttracker.utils.AppData.lastSleepLogged = manualHours
+            // Reflect it immediately AND keep it after the screen is rebuilt: the
+            // LaunchedEffect above re-reads this from the backend on next open.
+            savedManualSleepHours = manualHours
             com.simats.burnouttracker.utils.AppData.sleepLogs.add(
                 0,
                 SleepLog(
@@ -262,8 +301,24 @@ fun SleepMoodScreen(navController: NavController) {
                                     body = "We couldn't find a clear enough inactivity-then-activity pattern last night to confidently detect sleep. This can happen on nights with unusual phone usage."
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
+
+                                // Show what was already logged rather than asking
+                                // again. Previously this always read "Log it
+                                // manually", because the entered value was never
+                                // read back — so a user who had already logged
+                                // their night was invited to log it a second time.
+                                val alreadyLogged = savedManualSleepHours
+                                if (alreadyLogged != null) {
+                                    Text(
+                                        text = "You logged ${((alreadyLogged * 10).toInt() / 10f)}h manually for today.",
+                                        color = Color(0xFF059669),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
                                 Text(
-                                    text = "Didn't detect your sleep? Log it manually.",
+                                    text = if (alreadyLogged != null) "Update it" else "Didn't detect your sleep? Log it manually.",
                                     color = Color(0xFF6366F1),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,

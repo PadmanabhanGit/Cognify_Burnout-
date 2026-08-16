@@ -16,6 +16,7 @@ export default function SleepMoodDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [logs, setLogs] = useState([]);
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -26,6 +27,12 @@ export default function SleepMoodDashboard() {
           // sleepStart/sleepEnd. It is null when no detected session has synced —
           // in that case every value below stays null and the page says so.
           setCanonical(res.data.canonical ?? null);
+          // `logs` was previously fetched and discarded, so a manually entered
+          // night reached Firestore and came back in this very response but was
+          // never rendered anywhere — it looked like the sync had failed when it
+          // had not. Kept so manual entries are visible as the user's own
+          // records, clearly distinguished from detected ones.
+          setLogs(Array.isArray(res.data.logs) ? res.data.logs : []);
           setLastSyncedAt(Date.now());
           setError(false);
         } else {
@@ -100,6 +107,20 @@ export default function SleepMoodDashboard() {
     if (!(mi >= 0 && mi < 12)) return isoDate;
     return `${months[mi]} ${Number(parts[2]) || parts[2]}, ${parts[0]}`;
   };
+
+  // Records that describe a NIGHT, in the order the API returned them (newest
+  // first). Mood-only logs are excluded: they carry no sleepDuration, so listing
+  // them under sleep would show "--" rows that mean "this is not a sleep record"
+  // rather than "this value is missing".
+  //
+  // `isManual` mirrors the server's own rule in sleepSelection.isAutomaticSource:
+  // an explicit `source: "manual"` is manual; anything else — including legacy
+  // records written before the field existed — is treated as detected. Computed
+  // here rather than assumed from the absence of sleepStart, so the label always
+  // agrees with what the backend used for canonical selection.
+  const sleepEntries = (Array.isArray(logs) ? logs : [])
+    .filter(l => l && toNumber(l.sleepDuration) !== null)
+    .map(l => ({ ...l, isManual: l.source === 'manual' }));
 
   const formatMinutes = (mins) => {
     if (mins === null) return '--';
@@ -231,6 +252,59 @@ export default function SleepMoodDashboard() {
             </div>
           )}
         </div>
+
+        {/* ── Recent sleep entries — detected AND manual ──────────────────────
+            Everything above describes the CANONICAL record, which by design is
+            the most recent automatically DETECTED night: selectCanonicalSleepLog
+            excludes `source: "manual"` so a hand-entered figure can never be
+            presented as something the phone measured.
+
+            That rule is correct and is left untouched — but it meant a manual
+            entry was invisible on the web entirely, which read as a broken sync.
+            Manual records are the user's own data and belong in their history;
+            they are listed here, labelled, so the distinction stays explicit
+            rather than being enforced by hiding them. */}
+        {sleepEntries.length > 0 && (
+          <>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Recent Entries</div>
+            <div className="white-card" style={{ padding: '6px 0' }}>
+              {sleepEntries.map((entry, i) => (
+                <div
+                  key={entry.id || i}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px 18px',
+                    borderBottom: i === sleepEntries.length - 1 ? 'none' : '1px solid #F3F4F6'
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
+                      {sessionDateLabel(entry.date)}
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#6B7280' }}>
+                      {entry.mood ? `Mood: ${entry.mood}` : 'No mood recorded'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#1F2937' }}>
+                      {formatDurationHours(toNumber(entry.sleepDuration))}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '10px', fontWeight: 800, letterSpacing: '0.4px',
+                        padding: '3px 8px', borderRadius: '10px',
+                        backgroundColor: entry.isManual ? '#FEF3C7' : '#DBEAFE',
+                        color: entry.isManual ? '#B45309' : '#1D4ED8'
+                      }}
+                    >
+                      {entry.isManual ? 'MANUAL' : 'DETECTED'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Timeline Section */}
         <div style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginTop: '8px' }}>Sleep Timeline</div>
