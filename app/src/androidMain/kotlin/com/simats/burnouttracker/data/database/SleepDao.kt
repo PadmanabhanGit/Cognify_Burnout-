@@ -55,11 +55,28 @@ interface SleepDao {
     @Query("SELECT * FROM sleep_sessions WHERE ownerUid = :ownerUid AND date IN (:dates)")
     suspend fun getSessionsForDates(ownerUid: String, dates: List<String>): List<SleepSession>
 
-    @Query("SELECT * FROM wake_events WHERE sessionId = :sessionId")
-    suspend fun getWakeEventsForSession(sessionId: Long): List<WakeEvent>
+    /**
+     * Scoped through the parent session's ownerUid, even though [sessionId] is
+     * currently only ever sourced from the active account's own already-filtered
+     * session list (see AndroidSleepRepository/SleepViewModel.selectSession) —
+     * so this join is not closing a reachable leak today. It exists so that
+     * stays true structurally rather than by convention: every other query in
+     * this DAO enforces ownerUid itself rather than trusting the caller to have
+     * sourced the id correctly, and this pair was the one exception.
+     */
+    @Query("""
+        SELECT wake_events.* FROM wake_events
+        INNER JOIN sleep_sessions ON sleep_sessions.id = wake_events.sessionId
+        WHERE wake_events.sessionId = :sessionId AND sleep_sessions.ownerUid = :ownerUid
+    """)
+    suspend fun getWakeEventsForSession(sessionId: Long, ownerUid: String): List<WakeEvent>
 
-    @Query("SELECT * FROM app_usage_logs WHERE sessionId = :sessionId")
-    suspend fun getUsageLogsForSession(sessionId: Long): List<AppUsageLog>
+    @Query("""
+        SELECT app_usage_logs.* FROM app_usage_logs
+        INNER JOIN sleep_sessions ON sleep_sessions.id = app_usage_logs.sessionId
+        WHERE app_usage_logs.sessionId = :sessionId AND sleep_sessions.ownerUid = :ownerUid
+    """)
+    suspend fun getUsageLogsForSession(sessionId: Long, ownerUid: String): List<AppUsageLog>
 
     /**
      * Rows belonging to the 7 most recent distinct sleep DATES.

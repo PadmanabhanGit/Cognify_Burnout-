@@ -36,11 +36,11 @@ class AndroidSleepRepository(private val context: Context) : SleepRepository {
     }
 
     override suspend fun getWakeEvents(sessionId: Long): List<WakeEventData> {
-        return dao.getWakeEventsForSession(sessionId).map { it.toData() }
+        return dao.getWakeEventsForSession(sessionId, AccountScope.activeUid(context)).map { it.toData() }
     }
 
     override suspend fun getUsageLogs(sessionId: Long): List<AppUsageLogData> {
-        return dao.getUsageLogsForSession(sessionId).map { it.toData() }
+        return dao.getUsageLogsForSession(sessionId, AccountScope.activeUid(context)).map { it.toData() }
     }
 
     /**
