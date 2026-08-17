@@ -66,6 +66,13 @@ export default function SleepMoodDashboard() {
   const available = latestSession !== null;
 
   const toNumber = (v) => {
+    // Number(null) is 0, not NaN — the exact case this function exists to
+    // catch, silently defeated by JS's own coercion rules. Without this
+    // check, a manual mood-only log (sleepDuration: null) passed the
+    // sleepEntries filter below meant to exclude it, and every quality/
+    // disturbance/duration field elsewhere on this page rendered a real
+    // record's missing value as a measured "0" instead of "--".
+    if (v === null || v === undefined) return null;
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   };

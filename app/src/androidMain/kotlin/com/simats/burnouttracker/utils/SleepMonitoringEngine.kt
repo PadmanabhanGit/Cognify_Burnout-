@@ -357,14 +357,28 @@ class SleepMonitoringEngine(private val context: Context) {
         // 3. Scoring
         var penalty = 0
         var socialMins = 0L
-        
+
+        // A touch shorter than this is noise — an accidental screen wake, a
+        // notification auto-dismissed without being read — not a real return
+        // to the phone. Without this floor, every one of these still drew the
+        // full continuous-usage AND time-of-night penalty (up to 50 points
+        // each), so a handful of sub-minute touches concentrated in the
+        // highest-penalty hours (2-6am) could push the total into the
+        // hundreds despite none of them being long enough to register as an
+        // awakening (> 3 min, checked separately below). That mismatch — zero
+        // awakenings, "Very Poor" quality — is exactly what this guards
+        // against; the awakening threshold itself is untouched.
+        val MEANINGFUL_USAGE_MS = 60 * 1000L
+
         usageLogs.forEach { log ->
             if (log.category == "SOCIAL") socialMins += (log.duration / 60000)
-            
+
+            if (log.duration < MEANINGFUL_USAGE_MS) return@forEach
+
             // Continuous usage
             if (log.duration > 60 * 60000) penalty += 20
             else if (log.duration > 30 * 60000) penalty += 10
-            
+
             // Time of usage penalty
             val cal = Calendar.getInstance()
             cal.timeInMillis = log.startTime
@@ -395,6 +409,16 @@ class SleepMonitoringEngine(private val context: Context) {
             unlockCount > 0 -> 5
             else -> 0
         }
+
+        // The sources above have no natural upper bound and can all stack in
+        // the same night (long sessions, heavy social time, several
+        // awakenings, high unlock count). Capping here is what keeps `quality`
+        // a genuine 0-100 reading rather than however negative the uncapped
+        // total happened to go, and keeps `disturbanceScore` — stored and
+        // displayed as this SAME penalty value, uncapped, on both Android and
+        // the web — a number on a fixed 0-100 scale instead of an unbounded
+        // one with nothing to read it against.
+        penalty = penalty.coerceIn(0, 100)
 
         val quality = (100 - penalty).coerceIn(0, 100)
         val df = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
