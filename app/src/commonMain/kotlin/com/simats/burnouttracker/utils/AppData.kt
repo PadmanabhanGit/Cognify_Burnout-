@@ -17,6 +17,8 @@ object AppData {
     )
 
     var predictedScore by mutableStateOf(0f)
+    /** Whether last night's window is in scope for the active account yet. See [UsageStatsHelper.hasNightWindowData]. */
+    var nightDataAvailable by mutableStateOf(false)
     var lastSleepLogged by mutableStateOf(0f)
     var lastMoodLogged by mutableStateOf("Neutral")
     
@@ -76,6 +78,7 @@ object AppData {
     fun reset() {
         currentFeatures = BurnoutFeatures(0f, 0f, 0f, 0f, 0f, 0f, 0, 0f)
         predictedScore = 0f
+        nightDataAvailable = false
         lastSleepLogged = 0f
         lastMoodLogged = "Neutral"
         userFullName = null
@@ -112,4 +115,6 @@ expect class UsageStatsHelper {
     fun openUsageStatsSettings()
     fun fetchDailyUsage(): BurnoutFeatures
     fun calculateSleepDuration(): Float
+    /** See the actual implementation's doc comment: distinguishes "no night observed yet" from a measured zero. */
+    fun hasNightWindowData(): Boolean
 }

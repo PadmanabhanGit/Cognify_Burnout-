@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "966389564228-fcmobkruk16u9lmuj84o242qc19h3has.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.simats.burnouttracker",
+            "certificate_hash": "27975204587041dbb9a13d92a36ea9d4374f1449"
+          }
+        },
+        {
           "client_id": "966389564228-vq6558vla737es6aqu6l61bqqjg2u1ar.apps.googleusercontent.com",
           "client_type": 3
         }

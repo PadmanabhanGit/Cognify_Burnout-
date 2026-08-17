@@ -41,6 +41,7 @@ import androidx.navigation.compose.rememberNavController
 import com.simats.burnouttracker.utils.rememberAuthService
 import com.simats.burnouttracker.utils.AppData
 import com.simats.burnouttracker.utils.NotificationHelper
+import com.simats.burnouttracker.utils.UserProfile
 import com.simats.burnouttracker.utils.endUserSession
 
 @Composable
@@ -51,24 +52,13 @@ fun SettingsScreen(navController: NavController) {
 
     // Initialize AppData from prefs if not already loaded (simple one-time sync)
     LaunchedEffect(Unit) {
-        if (!prefs.contains("syncHealth")) {
-            // First time or just a simple way to bind them initially
-        } else {
-            AppData.isDarkMode = prefs.getBoolean("isDarkMode", false)
-            AppData.allowAllNotif = prefs.getBoolean("allowAllNotif", true)
-            AppData.burnoutAlerts = prefs.getBoolean("burnoutAlerts", true)
-            AppData.dailyReminders = prefs.getBoolean("dailyReminders", true)
-            AppData.weeklyReports = prefs.getBoolean("weeklyReports", false)
-            AppData.studyPrompts = prefs.getBoolean("studyPrompts", true)
-            AppData.syncHealth = prefs.getBoolean("syncHealth", false)
-        }
-        
-        // Sync full name with Firebase Auth natively
-        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
-        val user = auth.currentUser
-        if (AppData.userFullName.isNullOrEmpty() && user?.displayName != null) {
-            AppData.userFullName = user.displayName
-        }
+        AppData.isDarkMode = prefs.getBoolean("isDarkMode", false)
+        AppData.allowAllNotif = prefs.getBoolean("allowAllNotif", true)
+        AppData.burnoutAlerts = prefs.getBoolean("burnoutAlerts", true)
+        AppData.dailyReminders = prefs.getBoolean("dailyReminders", true)
+        AppData.weeklyReports = prefs.getBoolean("weeklyReports", false)
+        AppData.studyPrompts = prefs.getBoolean("studyPrompts", true)
+        AppData.syncHealth = prefs.getBoolean("syncHealth", false)
     }
     
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -191,13 +181,13 @@ fun SettingsScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Text(
-                            text = AppData.userFullName ?: (userEmail?.split("@")?.firstOrNull()?.replaceFirstChar { it.uppercase() } ?: "User"),
+                            text = UserProfile.fullName ?: (userEmail?.split("@")?.firstOrNull()?.replaceFirstChar { it.uppercase() } ?: "User"),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor
                         )
                         Text(
-                            text = "Computer Science Junior",
+                            text = userEmail ?: "",
                             fontSize = 14.sp,
                             color = secondaryTextColor
                         )

@@ -77,6 +77,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                 val realFeatures = usageHelper.fetchDailyUsage()
 
                 AppData.currentFeatures = realFeatures
+                AppData.nightDataAvailable = usageHelper.hasNightWindowData()
                 AppData.predictedScore = predictor.predict(realFeatures)
             }
             delay(5000) // Update UI locally more frequently since it's cheap
@@ -430,7 +431,7 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                     colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    val wellbeing = WellbeingGenerator.generate(riskScore, InsightGenerator.generate(features, riskScore))
+                    val wellbeing = WellbeingGenerator.generate(riskScore, InsightGenerator.generate(features, riskScore, AppData.nightDataAvailable))
                     Column(
                         modifier = Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally

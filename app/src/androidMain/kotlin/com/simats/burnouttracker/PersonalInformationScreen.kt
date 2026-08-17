@@ -28,14 +28,13 @@ import com.simats.burnouttracker.data.api.RetrofitClient
 import com.simats.burnouttracker.data.models.ProfileData
 import kotlinx.coroutines.launch
 import com.simats.burnouttracker.utils.rememberAuthService
-import com.simats.burnouttracker.utils.AppData
+import com.simats.burnouttracker.utils.UserProfile
 
 @Composable
 fun PersonalInformationScreen(navController: NavController) {
     val authService = rememberAuthService()
     val coroutineScope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
-    
+
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var fullName by remember { mutableStateOf("") }
@@ -46,6 +45,7 @@ fun PersonalInformationScreen(navController: NavController) {
     var isSaving by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        val expectedRevision = UserProfile.revision
         try {
             val response = RetrofitClient.getApiService().getProfileInfo()
             if (response.isSuccessful) {
@@ -53,7 +53,7 @@ fun PersonalInformationScreen(navController: NavController) {
                     firstName = data.firstName ?: ""
                     lastName = data.lastName ?: ""
                     fullName = "${firstName} ${lastName}".trim()
-                    AppData.userFullName = fullName
+                    UserProfile.applyFromServer(data.firstName, data.lastName, expectedRevision)
                     age = data.age ?: ""
                     location = data.location ?: ""
                 }
@@ -226,34 +226,18 @@ fun PersonalInformationScreen(navController: NavController) {
                                     location = location
                                 )
                                 RetrofitClient.getApiService().updateProfileInfo(req)
-                                
-                                val fullNameStr = "$firstName $lastName".trim()
-                                AppData.userFullName = fullNameStr
-                                
+
+                                UserProfile.applyLocalEdit(firstName, lastName)
+
                                 // Sync with Firebase Auth Profile natively
                                 val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
                                 auth.currentUser?.let { user ->
                                     val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
-                                        .setDisplayName(fullNameStr)
+                                        .setDisplayName("$firstName $lastName".trim())
                                         .build()
                                     user.updateProfile(profileUpdates)
                                 }
-                                
-                                // Sync locally for immediate Dashboard update.
-                                //
-                                // Resolved through PrefStores rather than opened
-                                // by raw name: `burnout_tracker_prefs` is the
-                                // user-scoped DEFAULT store, so the raw handle
-                                // wrote into the unscoped legacy file. That file
-                                // is shared by every account on the device, which
-                                // made this save leak one person's name to the
-                                // next account — and it was not the file the
-                                // scoped readers consult, so the Dashboard it
-                                // meant to update never saw the new value either.
-                                val prefs = com.simats.burnouttracker.utils.PrefStores
-                                    .open(context, com.simats.burnouttracker.utils.PrefStores.DEFAULT)
-                                prefs.edit().putString("firstName", firstName).apply()
-                                
+
                                 navController.popBackStack()
                             } catch (e: Exception) {
                                 e.printStackTrace()

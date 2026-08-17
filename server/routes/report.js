@@ -21,8 +21,16 @@ router.get('/weekly', auth, async (req, res) => {
         const value = normalizeDateValue(item.date);
         return value >= weekAgo.toISOString().slice(0, 10) && value <= now.toISOString().slice(0, 10);
       });
-    const avgSleep = sleepLogs.length ? sleepLogs.reduce((s, l) => s + (l.sleepDuration || 0), 0) / sleepLogs.length : 0;
-    const avgMood = sleepLogs.length ? sleepLogs.reduce((s, l) => s + (l.moodScore || 0), 0) / sleepLogs.length : 0;
+    // A mood-only manual entry (no detected sleep) or a night the phone never
+    // synced has sleepDuration/moodScore absent, not zero. Averaging with
+    // `|| 0` over the whole window silently reported "no data" as "measured
+    // zero" and dragged both averages down. Each average now excludes only
+    // the records missing that specific field, instead of excluding nothing
+    // and corrupting the number.
+    const withSleep = sleepLogs.filter(l => Number.isFinite(l.sleepDuration));
+    const withMood = sleepLogs.filter(l => Number.isFinite(l.moodScore));
+    const avgSleep = withSleep.length ? withSleep.reduce((s, l) => s + l.sleepDuration, 0) / withSleep.length : 0;
+    const avgMood = withMood.length ? withMood.reduce((s, l) => s + l.moodScore, 0) / withMood.length : 0;
 
     const studySnap = await db.collection('studySessions')
       .where('userId', '==', userId)

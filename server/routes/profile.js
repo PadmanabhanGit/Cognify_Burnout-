@@ -31,26 +31,29 @@ router.get('/', authMiddleware, async (req, res) => {
 // Update User Profile
 router.post('/', authMiddleware, async (req, res) => {
   const userId = req.user.uid;
-  
+
   // Extract all fields that could be in ProfileData
-  const { 
-    firstName, lastName, age, location, 
-    linkedAccounts, syncHealth, 
-    anonymousAnalytics, personalizedInsights 
+  const {
+    firstName, lastName, age, location,
+    linkedAccounts, syncHealth,
+    anonymousAnalytics, personalizedInsights
   } = req.body;
 
+  // Only write fields the caller actually sent. Each screen (Personal Info,
+  // Privacy & Data, ...) only sends the subset it edits; defaulting the rest
+  // to '' / [] / false here would blank out every field the request omitted.
+  const updates = { updatedAt: new Date().toISOString() };
+  if (firstName !== undefined) updates.firstName = firstName;
+  if (lastName !== undefined) updates.lastName = lastName;
+  if (age !== undefined) updates.age = age;
+  if (location !== undefined) updates.location = location;
+  if (linkedAccounts !== undefined) updates.linkedAccounts = linkedAccounts;
+  if (syncHealth !== undefined) updates.syncHealth = syncHealth;
+  if (anonymousAnalytics !== undefined) updates.anonymousAnalytics = anonymousAnalytics;
+  if (personalizedInsights !== undefined) updates.personalizedInsights = personalizedInsights;
+
   try {
-    await db.collection('users').doc(userId).set({
-      firstName: firstName || '',
-      lastName: lastName || '',
-      age: age || '',
-      location: location || '',
-      linkedAccounts: linkedAccounts || [],
-      syncHealth: syncHealth ?? false,
-      anonymousAnalytics: anonymousAnalytics ?? false,
-      personalizedInsights: personalizedInsights ?? true,
-      updatedAt: new Date().toISOString()
-    }, { merge: true }); // Use merge: true to avoid overwriting email/fullName from auth/register
+    await db.collection('users').doc(userId).set(updates, { merge: true });
 
     res.json({ success: true, message: 'Profile updated successfully in Firestore' });
   } catch (err) {

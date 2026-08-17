@@ -55,7 +55,7 @@ fun BurnoutRiskScreen(navController: NavController) {
         }
     }
 
-    val insights = InsightGenerator.generate(features, riskScore)
+    val insights = InsightGenerator.generate(features, riskScore, AppData.nightDataAvailable)
     val wellbeing = WellbeingGenerator.generate(riskScore, insights)
     val recommendations = RecommendationEngine.generate(riskScore)
 
@@ -253,10 +253,15 @@ fun ContributingFactorsCard(factors: List<FactorItem>) {
                     Column(modifier = Modifier.weight(1f)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(text = factor.name, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = ThemeColors.textSecondary)
-                            Text(text = "${factor.value}%", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = factor.color)
+                            Text(
+                                text = factor.value?.let { "$it%" } ?: "No data yet",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (factor.value != null) factor.color else ThemeColors.textTertiary
+                            )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(progress = { factor.value / 100f }, modifier = Modifier.fillMaxWidth().height(6.dp), color = factor.color, trackColor = ThemeColors.background, strokeCap = StrokeCap.Round)
+                        LinearProgressIndicator(progress = { (factor.value ?: 0) / 100f }, modifier = Modifier.fillMaxWidth().height(6.dp), color = if (factor.value != null) factor.color else ThemeColors.textTertiary.copy(alpha = 0.3f), trackColor = ThemeColors.background, strokeCap = StrokeCap.Round)
                     }
                 }
             }
@@ -348,4 +353,4 @@ internal fun burnoutWarningIndicators(score: Float): List<String> {
     return indicators
 }
 
-data class FactorItem(val name: String, val value: Int, val color: Color, val icon: ImageVector)
+data class FactorItem(val name: String, val value: Int?, val color: Color, val icon: ImageVector)

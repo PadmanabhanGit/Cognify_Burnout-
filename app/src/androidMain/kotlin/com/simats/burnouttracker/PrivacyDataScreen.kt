@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.simats.burnouttracker.utils.AppData
+import com.simats.burnouttracker.utils.UserProfile
 import kotlinx.coroutines.launch
 import com.simats.burnouttracker.data.api.RetrofitClient
 import com.simats.burnouttracker.data.models.ProfileData
@@ -41,12 +42,10 @@ fun PrivacyDataScreen(navController: NavController) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
     
-    // Initialize global privacy settings from prefs if they haven't been bound yet
+    // Initialize global privacy settings from prefs
     LaunchedEffect(Unit) {
-        if (prefs.contains("anonymousAnalytics")) {
-            AppData.anonymousAnalytics = prefs.getBoolean("anonymousAnalytics", false)
-            AppData.personalizedInsights = prefs.getBoolean("personalizedInsights", true)
-        }
+        AppData.anonymousAnalytics = prefs.getBoolean("anonymousAnalytics", false)
+        AppData.personalizedInsights = prefs.getBoolean("personalizedInsights", true)
     }
 
     val scope = rememberCoroutineScope()
@@ -85,7 +84,7 @@ fun PrivacyDataScreen(navController: NavController) {
                 context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                     val data = """
                         {
-                            "user": "${AppData.userFullName ?: "Anonymous"}",
+                            "user": "${UserProfile.fullName ?: "Anonymous"}",
                             "preferences": {
                                 "syncHealth": ${AppData.syncHealth},
                                 "anonymousAnalytics": ${AppData.anonymousAnalytics},

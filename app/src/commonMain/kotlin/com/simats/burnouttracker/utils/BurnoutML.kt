@@ -26,7 +26,8 @@ data class DetailedAppUsage(
 
 data class BurnoutInsights(
     val studyLoad: Int,
-    val sleepQuality: Int,
+    /** Null when no night window is in scope for this account yet (see [UsageStatsHelper.hasNightWindowData]) — not a measured zero. */
+    val sleepQuality: Int?,
     val stressLevel: Int,
     val recoveryTime: Int
 )
@@ -43,10 +44,13 @@ data class WellbeingMetrics(
 object InsightGenerator {
     fun generate(
         features: BurnoutFeatures,
-        burnoutScore: Float
+        burnoutScore: Float,
+        nightDataAvailable: Boolean = true
     ): BurnoutInsights {
         val studyLoad = (features.productivityHours * 15).toInt().coerceIn(0, 100)
-        val sleepQuality = (100 - features.nightUsageHours * 15).toInt().coerceIn(0, 100)
+        val sleepQuality = if (nightDataAvailable)
+            (100 - features.nightUsageHours * 15).toInt().coerceIn(0, 100)
+        else null
         val stressLevel = burnoutScore.toInt().coerceIn(0, 100)
         val recoveryTime = (100 - burnoutScore).toInt().coerceIn(0, 100)
 
@@ -68,7 +72,10 @@ object WellbeingGenerator {
         val focus = (100 - burnoutScore).toInt()
         val mood = (100 - burnoutScore * 0.8f).toInt()
         val energy = (100 - burnoutScore * 0.7f).toInt()
-        val sleep = insights.sleepQuality
+        // No radar-chart convention exists for "unknown axis" — fall back to 0
+        // rather than repeat the same "no data reads as a real value" mistake
+        // this table exists to avoid in the Contributing Factors bar.
+        val sleep = insights.sleepQuality ?: 0
         val study = insights.studyLoad
 
         return WellbeingMetrics(

@@ -139,6 +139,7 @@ fun DashboardScreen(navController: NavController) {
             if (usageHelper.hasUsageStatsPermission()) {
                 val realFeatures = usageHelper.fetchDailyUsage()
                 AppData.currentFeatures = realFeatures
+                AppData.nightDataAvailable = usageHelper.hasNightWindowData()
                 val prediction = predictor.predict(realFeatures)
                 AppData.predictedScore = prediction
                 riskScore = prediction
@@ -167,7 +168,7 @@ fun DashboardScreen(navController: NavController) {
                 // Android calculation (TFLite prediction → InsightGenerator →
                 // WellbeingGenerator) — nothing is recalculated here, and nothing is
                 // recalculated on the backend or on the Web.
-                val insights = InsightGenerator.generate(realFeatures, prediction)
+                val insights = InsightGenerator.generate(realFeatures, prediction, AppData.nightDataAvailable)
                 val wellbeing = WellbeingGenerator.generate(prediction, insights)
 
                 try {
@@ -179,7 +180,9 @@ fun DashboardScreen(navController: NavController) {
                             warnings = burnoutWarningIndicators(prediction),
                             factors = listOf(
                                 com.simats.burnouttracker.data.models.BurnoutFactor("Study Hours", insights.studyLoad),
-                                com.simats.burnouttracker.data.models.BurnoutFactor("Sleep Quality", insights.sleepQuality),
+                                // BurnoutFactor.score has no "unavailable" representation; same
+                                // conservative fallback as WellbeingGenerator's radar sleep axis.
+                                com.simats.burnouttracker.data.models.BurnoutFactor("Sleep Quality", insights.sleepQuality ?: 0),
                                 com.simats.burnouttracker.data.models.BurnoutFactor("Stress Level", insights.stressLevel),
                                 com.simats.burnouttracker.data.models.BurnoutFactor("Recovery Time", insights.recoveryTime)
                             ),

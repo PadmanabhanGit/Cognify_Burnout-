@@ -31,40 +31,21 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
-import android.content.Intent
-import android.net.Uri
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import com.simats.burnouttracker.utils.rememberAuthService
-import com.simats.burnouttracker.data.api.RetrofitClient
 
 @Composable
 fun LinkedAccountsScreen(navController: NavController) {
     val context = LocalContext.current
     val authService = rememberAuthService()
     val coroutineScope = rememberCoroutineScope()
-    
-    var linkedAccounts by remember { mutableStateOf<List<String>>(emptyList()) }
-    
-    LaunchedEffect(Unit) {
-        try {
-            val response = RetrofitClient.getApiService().getProfileInfo()
-            if (response.isSuccessful) {
-                linkedAccounts = response.body()?.linkedAccounts ?: emptyList()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 
     val currentUserEmail = authService.getCurrentUserEmail()
     val isGoogleLinked = currentUserEmail?.endsWith("@gmail.com") == true
-    val isFacebookLinked = linkedAccounts.contains("facebook")
-    val isLinkedInLinked = linkedAccounts.contains("linkedin")
-    
+
     val webClientId = "966389564228-vq6558vla737es6aqu6l61bqqjg2u1ar.apps.googleusercontent.com"
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -193,64 +174,6 @@ fun LinkedAccountsScreen(navController: NavController) {
                                 }
                             }
                         )
-                        
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = ThemeColors.background)
-                        
-                        AccountLinkItem(
-                            icon = R.drawable.ic_facebook,
-                            name = "Facebook",
-                            status = if (isFacebookLinked) "Linked" else "Not Linked",
-                            statusColor = if (isFacebookLinked) Color(0xFF16A34A) else ThemeColors.textTertiary,
-                            onClick = { 
-                                coroutineScope.launch {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.facebook.com/v12.0/dialog/oauth"))
-                                    context.startActivity(intent)
-                                    // Mocking the backend sync on return
-                                    delay(2000)
-                                    try {
-                                        val currentProfileResponse = RetrofitClient.getApiService().getProfileInfo()
-                                        val profileData = currentProfileResponse.body()
-                                        if (profileData != null && !profileData.linkedAccounts.orEmpty().contains("facebook")) {
-                                            val updatedAccounts = profileData.linkedAccounts.orEmpty() + "facebook"
-                                            RetrofitClient.getApiService().updateProfileInfo(profileData.copy(linkedAccounts = updatedAccounts))
-                                            linkedAccounts = updatedAccounts
-                                            Toast.makeText(context, "Facebook Linked and Synced!", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                }
-                            }
-                        )
-
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 8.dp), color = ThemeColors.background)
-
-                        AccountLinkItem(
-                            icon = null, // Placeholder for LinkedIn since drawable is missing
-                            name = "LinkedIn",
-                            status = if (isLinkedInLinked) "Linked" else "Not Linked",
-                            statusColor = if (isLinkedInLinked) Color(0xFF16A34A) else ThemeColors.textTertiary,
-                            onClick = { 
-                                coroutineScope.launch {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.linkedin.com/oauth/v2/authorization"))
-                                    context.startActivity(intent)
-                                    // Mocking the backend sync on return
-                                    delay(2000)
-                                    try {
-                                        val currentProfileResponse = RetrofitClient.getApiService().getProfileInfo()
-                                        val profileData = currentProfileResponse.body()
-                                        if (profileData != null && !profileData.linkedAccounts.orEmpty().contains("linkedin")) {
-                                            val updatedAccounts = profileData.linkedAccounts.orEmpty() + "linkedin"
-                                            RetrofitClient.getApiService().updateProfileInfo(profileData.copy(linkedAccounts = updatedAccounts))
-                                            linkedAccounts = updatedAccounts
-                                            Toast.makeText(context, "LinkedIn Linked and Synced!", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                }
-                            }
-                        )
                     }
                 }
                 
@@ -316,7 +239,7 @@ fun AccountLinkItem(
                         modifier = Modifier.size(24.dp)
                     )
                 } else {
-                    // Fallback icon for LinkedIn or missing assets
+                    // Fallback icon for missing assets
                     Icon(
                         Icons.Default.Link,
                         contentDescription = null,

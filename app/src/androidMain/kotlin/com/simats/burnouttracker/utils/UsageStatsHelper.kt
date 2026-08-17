@@ -228,9 +228,36 @@ actual class UsageStatsHelper(private val context: Context) {
         }
     }
 
+    /**
+     * Whether last night's 10 PM-6 AM window is actually queryable for the
+     * active account, i.e. [calculateNightUsage]'s clamp did not swallow the
+     * whole window.
+     *
+     * For an account whose data_start falls after 6 AM today (freshly signed
+     * in / adopted today), the clamp pushes the window's start past its end,
+     * so [calculateNightUsage] always returns 0f — not because no phone use
+     * happened overnight, but because there is no night in scope for this
+     * account yet. Without this distinction that 0f reads as "measured, zero
+     * night usage" and [InsightGenerator] turns it into a maxed-out 100%
+     * Sleep Quality bar on day one, which is backwards: it is showing maximum
+     * confidence for the case with the least data.
+     */
+    actual fun hasNightWindowData(): Boolean {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 22)
+        calendar.add(Calendar.DAY_OF_YEAR, -1)
+        val startTime = AccountScope.clampWindowStart(context, calendar.timeInMillis)
+
+        calendar.add(Calendar.DAY_OF_YEAR, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 6)
+        val endTime = calendar.timeInMillis
+
+        return startTime <= endTime
+    }
+
     private fun calculateNightUsage(usageStatsManager: UsageStatsManager): Float {
         val calendar = Calendar.getInstance()
-        
+
         // Window: 10 PM Yesterday to 6 AM Today
         calendar.set(Calendar.HOUR_OF_DAY, 22)
         calendar.add(Calendar.DAY_OF_YEAR, -1)
@@ -241,7 +268,7 @@ actual class UsageStatsHelper(private val context: Context) {
         calendar.add(Calendar.DAY_OF_YEAR, 1)
         calendar.set(Calendar.HOUR_OF_DAY, 6)
         val endTime = calendar.timeInMillis
-        
+
         // Use events for precise window calculation to avoid overcounting day buckets
         val events = usageStatsManager.queryEvents(startTime, endTime)
         val event = android.app.usage.UsageEvents.Event()
