@@ -32,6 +32,7 @@ import androidx.navigation.NavController
 import com.simats.burnouttracker.data.api.ApiClient
 import com.simats.burnouttracker.data.models.ProductivityLog
 import com.simats.burnouttracker.data.models.ProductivityLogRequest
+import com.simats.burnouttracker.data.models.ProductivityMonthToDate
 import com.simats.burnouttracker.data.models.ProductivityWeeklyDay
 import com.simats.burnouttracker.utils.AppData
 
@@ -52,6 +53,7 @@ fun ProductivityScreen(navController: NavController) {
     var todayLog by remember { mutableStateOf<ProductivityLog?>(null) }
     var weeklyDays by remember { mutableStateOf<List<ProductivityWeeklyDay>>(emptyList()) }
     var weeklyLoaded by remember { mutableStateOf(false) }
+    var monthToDate by remember { mutableStateOf<ProductivityMonthToDate?>(null) }
 
     // Single fetch on mount — no polling.
     //
@@ -106,6 +108,7 @@ fun ProductivityScreen(navController: NavController) {
         val weeklyResponse = ApiClient.getProductivityWeekly()
         if (weeklyResponse.success) {
             weeklyDays = weeklyResponse.days
+            monthToDate = weeklyResponse.monthToDate
         }
         weeklyLoaded = true
     }
@@ -216,7 +219,12 @@ fun ProductivityScreen(navController: NavController) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             val changeText = dayOverDayChange?.let { d -> if (d >= 0) "+$d" else "$d" } ?: "Insufficient data"
                             ChangeBox(label = "vs Yesterday", value = changeText, color = Color(0xFFDCFCE7), textColor = Color(0xFF16A34A), modifier = Modifier.weight(1f))
-                            ChangeBox(label = "This Month", value = "Insufficient data", color = Color(0xFFEFF6FF), textColor = Color(0xFF2563EB), modifier = Modifier.weight(1f))
+                            // A genuine month-to-date average over however many days
+                            // this month actually have a record — not gated on having
+                            // a full 30 days. Honest about the sample size via the
+                            // card's own subtitle, not by hiding the number.
+                            val monthText = monthToDate?.average?.let { "$it%" } ?: "Insufficient data"
+                            ChangeBox(label = "This Month", value = monthText, color = Color(0xFFEFF6FF), textColor = Color(0xFF2563EB), modifier = Modifier.weight(1f))
                         }
                     }
                 }

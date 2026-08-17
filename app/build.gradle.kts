@@ -57,6 +57,9 @@ kotlin {
                 implementation("com.google.firebase:firebase-auth-ktx:23.1.0")
                 implementation("com.google.firebase:firebase-common-ktx:21.0.0")
                 implementation(libs.play.services.auth)
+
+                // Async image loading (profile photo, sourced from the Google account)
+                implementation("io.coil-kt:coil-compose:2.6.0")
                 
                 // TensorFlow Lite (Android specific)
                 implementation("org.tensorflow:tensorflow-lite:2.14.0")

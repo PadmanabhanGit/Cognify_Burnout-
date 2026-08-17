@@ -309,9 +309,18 @@ data class ProductivityWeeklyDay(
 )
 
 @Serializable
+data class ProductivityMonthToDate(
+    /** Null when no day this month has a record yet — never a fabricated 0. */
+    val average: Int? = null,
+    val availableDays: Int = 0,
+    val totalDays: Int = 0
+)
+
+@Serializable
 data class ProductivityWeeklyResponse(
     val success: Boolean,
-    val days: List<ProductivityWeeklyDay> = emptyList()
+    val days: List<ProductivityWeeklyDay> = emptyList(),
+    val monthToDate: ProductivityMonthToDate? = null
 )
 
 // ─── Burnout ───────────────────────────────────────────────────────────────────

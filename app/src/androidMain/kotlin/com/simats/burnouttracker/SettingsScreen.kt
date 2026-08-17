@@ -43,6 +43,8 @@ import com.simats.burnouttracker.utils.AppData
 import com.simats.burnouttracker.utils.NotificationHelper
 import com.simats.burnouttracker.utils.UserProfile
 import com.simats.burnouttracker.utils.endUserSession
+import coil.compose.AsyncImage
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun SettingsScreen(navController: NavController) {
@@ -60,10 +62,10 @@ fun SettingsScreen(navController: NavController) {
         AppData.studyPrompts = prefs.getBoolean("studyPrompts", true)
         AppData.syncHealth = prefs.getBoolean("syncHealth", false)
     }
-    
+
     var showLanguageDialog by remember { mutableStateOf(false) }
     var currentLanguage by remember { mutableStateOf(prefs.getString("language", "English (US)") ?: "English (US)") }
-    
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -154,32 +156,41 @@ fun SettingsScreen(navController: NavController) {
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Box(contentAlignment = Alignment.BottomEnd) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_launcher_background), 
+                        // The Google account's photo IS the profile picture — no
+                        // upload, no editing, nothing cached or persisted
+                        // separately. An account without one (no Google photo,
+                        // or not signed in via Google) shows an initial instead.
+                        val photoUrl = FirebaseAuth.getInstance().currentUser?.photoUrl?.toString()
+                        if (photoUrl != null) {
+                            AsyncImage(
+                                model = photoUrl,
                                 contentDescription = "Profile Picture",
                                 modifier = Modifier
                                     .size(100.dp)
                                     .clip(CircleShape),
                                 contentScale = ContentScale.Crop
                             )
-                            Surface(
-                                modifier = Modifier.size(28.dp),
-                                shape = CircleShape,
-                                color = primaryPurple,
-                                border = androidx.compose.foundation.BorderStroke(2.dp, cardColor)
+                        } else {
+                            val initial = (UserProfile.fullName ?: userEmail)
+                                ?.trim()?.firstOrNull()?.uppercaseChar() ?: '?'
+                            Box(
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape)
+                                    .background(primaryPurple.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    Icons.Default.Edit,
-                                    contentDescription = "Edit Profile",
-                                    tint = Color.White,
-                                    modifier = Modifier.padding(6.dp)
+                                Text(
+                                    text = initial.toString(),
+                                    fontSize = 36.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = primaryPurple
                                 )
                             }
                         }
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         Text(
                             text = UserProfile.fullName ?: (userEmail?.split("@")?.firstOrNull()?.replaceFirstChar { it.uppercase() } ?: "User"),
                             fontSize = 22.sp,
@@ -191,7 +202,6 @@ fun SettingsScreen(navController: NavController) {
                             fontSize = 14.sp,
                             color = secondaryTextColor
                         )
-                        
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Surface(

@@ -21,23 +21,37 @@ function getISTDateString(dateOrString = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-/** Monday..Sunday IST calendar-date strings for the CURRENT week. */
-function getISTWeekDates() {
+/**
+ * The last `n` IST calendar-date strings ending today (inclusive), oldest
+ * first. Replaces a Monday-anchored "current week" window: that window
+ * excludes yesterday entirely on any Monday (yesterday is always in the
+ * PREVIOUS calendar week), which permanently broke the "vs Yesterday"
+ * comparison and the 7-Day Trend chart once a week, for every account, not
+ * just for freshly-seeded test data. A trailing window has no such gap.
+ */
+function getTrailingISTDates(n) {
   const nowIST = toIST(new Date());
-  const dayOfWeek = nowIST.getUTCDay(); // 0=Sun,1=Mon…6=Sat
-  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const mondayIST = new Date(nowIST);
-  mondayIST.setUTCDate(nowIST.getUTCDate() - daysFromMonday);
-  mondayIST.setUTCHours(0, 0, 0, 0);
-
   const dates = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(mondayIST);
-    d.setUTCDate(mondayIST.getUTCDate() + i);
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(nowIST);
+    d.setUTCDate(nowIST.getUTCDate() - i);
     const y = d.getUTCFullYear();
     const m = String(d.getUTCMonth() + 1).padStart(2, '0');
     const day = String(d.getUTCDate()).padStart(2, '0');
     dates.push(`${y}-${m}-${day}`);
+  }
+  return dates;
+}
+
+/** Every IST calendar-date string from the 1st of the current month through today. */
+function getISTMonthToDateDates() {
+  const nowIST = toIST(new Date());
+  const y = nowIST.getUTCFullYear();
+  const m = nowIST.getUTCMonth();
+  const today = nowIST.getUTCDate();
+  const dates = [];
+  for (let d = 1; d <= today; d++) {
+    dates.push(`${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
   }
   return dates;
 }
@@ -119,33 +133,55 @@ router.get('/today', auth, async (req, res) => {
 });
 
 // @route   GET api/productivity/weekly
-// @desc    Real productivity records for the CURRENT IST calendar week
-//          (Monday-Sunday, matching study.js). Exactly 7 deterministic document
-//          reads via getAll() — no collection query, no composite index, no
-//          rolling window. Days with no canonical record are reported as
-//          unavailable, never fabricated.
+// @desc    Real productivity records for the trailing 7 IST calendar days
+//          ending today, plus a month-to-date average. Deterministic document
+//          reads via getAll() only — no collection query, no composite index.
+//          Days/dates with no canonical record are reported as unavailable
+//          and excluded from the average, never fabricated as zero.
 router.get('/weekly', auth, async (req, res) => {
   const userId = req.user.uid;
-  const weekDates = getISTWeekDates();
+  const trailingDates = getTrailingISTDates(7);
+  const monthDates = getISTMonthToDateDates();
 
   try {
-    const refs = weekDates.map(date => db.collection('productivityLogs').doc(productivityDocId(userId, date)));
+    const refs = trailingDates.map(date => db.collection('productivityLogs').doc(productivityDocId(userId, date)));
     const snapshots = await db.getAll(...refs);
 
     const days = snapshots.map((snap, i) => {
       if (!snap.exists) {
-        return { date: weekDates[i], available: false, productivityScore: null, focusHours: null };
+        return { date: trailingDates[i], available: false, productivityScore: null, focusHours: null };
       }
       const data = snap.data();
       return {
-        date: weekDates[i],
+        date: trailingDates[i],
         available: true,
         productivityScore: data.productivityScore ?? null,
         focusHours: data.focusHours ?? null,
       };
     });
 
-    res.json({ success: true, days });
+    // Month-to-date average. The trailing 7 days above already cover the
+    // tail of the month, so only the earlier-in-month dates need fetching
+    // when the month is more than a week old.
+    const alreadyFetched = new Map(trailingDates.map((d, i) => [d, days[i]]));
+    const extraDates = monthDates.filter(d => !alreadyFetched.has(d));
+    const extraRefs = extraDates.map(date => db.collection('productivityLogs').doc(productivityDocId(userId, date)));
+    const extraSnapshots = extraRefs.length ? await db.getAll(...extraRefs) : [];
+    const extraScores = extraSnapshots
+      .map(snap => (snap.exists ? snap.data().productivityScore : null))
+      .filter(score => typeof score === 'number');
+
+    const monthScores = [
+      ...days.filter(d => typeof d.productivityScore === 'number').map(d => d.productivityScore),
+      ...extraScores,
+    ];
+    const monthToDate = {
+      average: monthScores.length ? Math.round(monthScores.reduce((a, b) => a + b, 0) / monthScores.length) : null,
+      availableDays: monthScores.length,
+      totalDays: monthDates.length,
+    };
+
+    res.json({ success: true, days, monthToDate });
   } catch (err) {
     console.error('Error fetching weekly productivity:', err.message);
     res.status(500).json({ success: false });
