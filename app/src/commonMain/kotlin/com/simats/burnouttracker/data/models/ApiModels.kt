@@ -503,10 +503,19 @@ data class WellnessRadar(
     val balance: Int
 )
 
+/** One trailing-window day's study/sleep totals. Either field is null when
+ *  no record exists for that date — never a fabricated zero. */
+@Serializable
+data class DailyActivityPoint(
+    val date: String,
+    val studyMinutes: Int? = null,
+    val sleepHours: Double? = null
+)
+
 @Serializable
 data class MoodVsProductivityPoint(
     val date: String,
-    val productivityScore: Int,
+    val productivityScore: Int? = null,
     val moodScore: Int? = null
 )
 
@@ -520,13 +529,15 @@ data class NextWeekGoal(
 data class WeeklyReportData(
     val period: ReportPeriod,
     val summary: ReportSummary,
-    val dailyActivity: Map<String, Map<String, String>>, // Ktor JSON doesn't like Map<String, Any> easily without more config
-    val moodVsProductivity: List<MoodVsProductivityPoint>,
+    val dailyActivity: List<DailyActivityPoint> = emptyList(),
+    val moodVsProductivity: List<MoodVsProductivityPoint> = emptyList(),
     val wellnessRadar: WellnessRadar,
     val achievements: List<String>,
     val concerns: List<String>,
     val recommendations: List<String>,
-    val nextWeekGoals: List<NextWeekGoal>
+    // Not computed by the backend — no UI currently renders this. Defaulted
+    // rather than removed so the type is ready when that feature is built.
+    val nextWeekGoals: List<NextWeekGoal> = emptyList()
 )
 
 @Serializable

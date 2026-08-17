@@ -20,9 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -31,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.simats.burnouttracker.data.api.ApiClient
+import com.simats.burnouttracker.data.models.DailyActivityPoint
+import com.simats.burnouttracker.data.models.MoodVsProductivityPoint
 import com.simats.burnouttracker.data.models.WeeklyReportData
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.*
@@ -124,19 +124,23 @@ fun WeeklyReportScreen(navController: NavController) {
                         Text(text = "Executive Summary", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(20.dp))
+                    // Real trailing-7-day figures from GET /api/report/weekly — not
+                    // today's live AppData snapshot relabeled as a weekly figure.
+                    // "--" while the fetch is in flight or failed; never a stale
+                    // live value pretending to be the week's number.
+                    val summary = reportData?.summary
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        val studyH = formatDisplayTime((AppData.studyTodayHours * 3600).toLong())
+                        val studyH = summary?.totalStudyHours?.let { formatDisplayTime((it * 3600).toLong()) } ?: "--"
                         SummaryItem(label = "TOTAL STUDY TIME", value = studyH, trend = "", trendColor = Color(0xFF10B981), modifier = Modifier.weight(1f))
-                        val sleepH = formatDisplayTime((AppData.lastSleepLogged * 3600).toLong())
+                        val sleepH = summary?.avgSleep?.let { formatDisplayTime((it * 3600).toLong()) } ?: "--"
                         SummaryItem(label = "AVG SLEEP", value = sleepH, trend = "", trendColor = Color(0xFFEF4444), modifier = Modifier.weight(1f))
                     }
                     Spacer(modifier = Modifier.height(20.dp))
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        // Using a mocked mood score derived from burnout for now, or just default 7.5
-                        val moodScore = ((100f - AppData.predictedScore) / 10f).coerceIn(1f, 10f)
-                        val formattedMood = (moodScore * 10).toInt() / 10f
-                        SummaryItem(label = "AVG MOOD", value = "$formattedMood/10", modifier = Modifier.weight(1f))
-                        SummaryItem(label = "PRODUCTIVITY", value = "${AppData.productivityScore}%", modifier = Modifier.weight(1f))
+                        val formattedMood = summary?.avgMood?.let { (it * 10).toInt() / 10.0 }
+                        SummaryItem(label = "AVG MOOD", value = formattedMood?.let { "$it/10" } ?: "--", modifier = Modifier.weight(1f))
+                        val formattedProductivity = summary?.avgProductivity?.toInt()
+                        SummaryItem(label = "PRODUCTIVITY", value = formattedProductivity?.let { "$it%" } ?: "--", modifier = Modifier.weight(1f))
                     }
                     Spacer(modifier = Modifier.height(20.dp))
                     val riskLevel = when {
@@ -182,7 +186,19 @@ fun WeeklyReportScreen(navController: NavController) {
                         Icon(Icons.Default.BarChart, contentDescription = null, tint = ThemeColors.textTertiary, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.height(20.dp))
-                    ActivityChart(modifier = Modifier.fillMaxWidth().height(150.dp))
+                    if (reportData == null && !isLoading) {
+                        Text(
+                            text = "Couldn't load this week's activity.",
+                            fontSize = 12.sp,
+                            color = ThemeColors.textTertiary,
+                            modifier = Modifier.fillMaxWidth().height(150.dp)
+                        )
+                    } else {
+                        ActivityChart(
+                            modifier = Modifier.fillMaxWidth().height(150.dp),
+                            days = reportData?.dailyActivity ?: emptyList()
+                        )
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -206,12 +222,19 @@ fun WeeklyReportScreen(navController: NavController) {
                         Icon(Icons.Default.Timeline, contentDescription = null, tint = ThemeColors.textTertiary, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.height(20.dp))
-                    val moodScore = ((100f - AppData.predictedScore) / 10f).coerceIn(1f, 10f)
-                    LineChart(
-                        modifier = Modifier.fillMaxWidth().height(150.dp),
-                        moodData = listOf(0.6f, 0.4f, 0.5f, 0.7f, 0.4f, 0.8f, moodScore/10f),
-                        prodData = listOf(0.5f, 0.3f, 0.7f, 0.5f, 0.6f, 0.4f, AppData.productivityScore/100f)
-                    )
+                    if (reportData == null && !isLoading) {
+                        Text(
+                            text = "Couldn't load this week's mood/productivity data.",
+                            fontSize = 12.sp,
+                            color = ThemeColors.textTertiary,
+                            modifier = Modifier.fillMaxWidth().height(150.dp)
+                        )
+                    } else {
+                        MoodProductivityChart(
+                            modifier = Modifier.fillMaxWidth().height(150.dp),
+                            days = reportData?.moodVsProductivity ?: emptyList()
+                        )
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -420,63 +443,85 @@ private fun formatDisplayTime(seconds: Long): String {
     return "${formatted}H"
 }
 
+/** Draws real per-day study/sleep bars from the backend's trailing-7-day
+ *  breakdown. A day with no record for that series draws no bar for it —
+ *  never a fabricated height. Bar heights are relative to a fixed reference
+ *  (4h study, 10h sleep = full height), not the data's own max, so a single
+ *  heavy day cannot visually flatten the rest of the week. */
 @Composable
-fun ActivityChart(modifier: Modifier = Modifier) {
+fun ActivityChart(modifier: Modifier = Modifier, days: List<DailyActivityPoint>) {
     Canvas(modifier = modifier) {
-        val days = 7
-        val spacing = size.width / (days + 1)
+        if (days.isEmpty()) return@Canvas
+        val spacing = size.width / (days.size + 1)
         val barWidth = 12.dp.toPx()
-        
-        for (i in 0 until days) {
+        val maxStudyMinutes = 240f
+        val maxSleepHours = 10f
+
+        days.forEachIndexed { i, day ->
             val x = spacing * (i + 1)
-            // Study Bar
-            val studyHeight = size.height * (0.4f + (i % 3) * 0.2f)
-            drawRect(
-                color = Color(0xFF3B82F6),
-                topLeft = Offset(x - barWidth, size.height - studyHeight),
-                size = androidx.compose.ui.geometry.Size(barWidth, studyHeight)
-            )
-            // Sleep Bar
-            val sleepHeight = size.height * (0.3f + (i % 2) * 0.3f)
-            drawRect(
-                color = Color(0xFFA855F7),
-                topLeft = Offset(x, size.height - sleepHeight),
-                size = androidx.compose.ui.geometry.Size(barWidth, sleepHeight)
-            )
+            day.studyMinutes?.let { minutes ->
+                val h = size.height * (minutes / maxStudyMinutes).coerceIn(0f, 1f)
+                drawRect(
+                    color = Color(0xFF3B82F6),
+                    topLeft = Offset(x - barWidth, size.height - h),
+                    size = androidx.compose.ui.geometry.Size(barWidth, h)
+                )
+            }
+            day.sleepHours?.let { hours ->
+                val h = size.height * (hours.toFloat() / maxSleepHours).coerceIn(0f, 1f)
+                drawRect(
+                    color = Color(0xFFA855F7),
+                    topLeft = Offset(x, size.height - h),
+                    size = androidx.compose.ui.geometry.Size(barWidth, h)
+                )
+            }
         }
     }
 }
 
+/** Draws real per-day mood/productivity points from the backend's trailing-
+ *  7-day breakdown. A line segment is only drawn between two CONSECUTIVE
+ *  days that both have a value for that series — a day with no record is a
+ *  gap, never interpolated or treated as zero. */
 @Composable
-fun LineChart(modifier: Modifier = Modifier, moodData: List<Float> = emptyList(), prodData: List<Float> = emptyList()) {
+fun MoodProductivityChart(modifier: Modifier = Modifier, days: List<MoodVsProductivityPoint>) {
     Canvas(modifier = modifier) {
-        val points = if (moodData.isNotEmpty()) moodData.size else 7
-        val spacing = size.width / (points - 1)
-        
-        val moodPath = Path()
-        val prodPath = Path()
-        
-        val actualMoodData = if (moodData.isNotEmpty()) moodData else listOf(0.6f, 0.4f, 0.5f, 0.7f, 0.4f, 0.8f, 0.6f)
-        val actualProdData = if (prodData.isNotEmpty()) prodData else listOf(0.5f, 0.3f, 0.7f, 0.5f, 0.6f, 0.4f, 0.7f)
+        val n = days.size
+        if (n < 2) return@Canvas
+        val spacing = size.width / (n - 1)
 
-        for (i in 0 until points) {
+        fun moodY(score: Int) = size.height - ((score / 10f) * size.height)
+        fun prodY(score: Int) = size.height - ((score / 100f) * size.height)
+
+        var prevMoodIndex: Int? = null
+        var prevProdIndex: Int? = null
+        days.forEachIndexed { i, day ->
             val x = i * spacing
-            val moodY = size.height - (actualMoodData[i] * size.height)
-            val prodY = size.height - (actualProdData[i] * size.height)
-            
-            if (i == 0) {
-                moodPath.moveTo(x, moodY)
-                prodPath.moveTo(x, prodY)
-            } else {
-                moodPath.lineTo(x, moodY)
-                prodPath.lineTo(x, prodY)
+            day.moodScore?.let { mood ->
+                val y = moodY(mood)
+                val prevIndex = prevMoodIndex
+                if (prevIndex == i - 1) {
+                    val prevScore = days[prevIndex].moodScore
+                    if (prevScore != null) {
+                        drawLine(Color(0xFFEC4899), Offset(prevIndex * spacing, moodY(prevScore)), Offset(x, y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+                    }
+                }
+                drawCircle(Color(0xFFEC4899), 4.dp.toPx(), Offset(x, y))
+                prevMoodIndex = i
             }
-            drawCircle(Color(0xFFEC4899), 4.dp.toPx(), Offset(x, moodY))
-            drawCircle(Color(0xFF10B981), 4.dp.toPx(), Offset(x, prodY))
+            day.productivityScore?.let { prod ->
+                val y = prodY(prod)
+                val prevIndex = prevProdIndex
+                if (prevIndex == i - 1) {
+                    val prevScore = days[prevIndex].productivityScore
+                    if (prevScore != null) {
+                        drawLine(Color(0xFF10B981), Offset(prevIndex * spacing, prodY(prevScore)), Offset(x, y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+                    }
+                }
+                drawCircle(Color(0xFF10B981), 4.dp.toPx(), Offset(x, y))
+                prevProdIndex = i
+            }
         }
-        
-        drawPath(moodPath, Color(0xFFEC4899), style = Stroke(width = 2.dp.toPx()))
-        drawPath(prodPath, Color(0xFF10B981), style = Stroke(width = 2.dp.toPx()))
     }
 }
 

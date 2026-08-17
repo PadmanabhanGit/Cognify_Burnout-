@@ -11,6 +11,19 @@ router.get('/weekly', auth, async (req, res) => {
     const now = new Date();
     const weekAgo = new Date();
     weekAgo.setDate(now.getDate() - 7);
+    const fromStr = weekAgo.toISOString().slice(0, 10);
+    const toStr = now.toISOString().slice(0, 10);
+
+    // Same 7 dates the summary averages are already computed over — used to
+    // group the same records into a real per-day breakdown for the charts,
+    // instead of Android/Web drawing a fabricated pattern because this
+    // endpoint never gave them anything to plot.
+    const trailingDates = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      trailingDates.push(d.toISOString().slice(0, 10));
+    }
 
     const sleepSnap = await db.collection('sleepMoodLogs')
       .where('userId', '==', userId)
@@ -19,7 +32,7 @@ router.get('/weekly', auth, async (req, res) => {
       .map(d => d.data())
       .filter(item => {
         const value = normalizeDateValue(item.date);
-        return value >= weekAgo.toISOString().slice(0, 10) && value <= now.toISOString().slice(0, 10);
+        return value >= fromStr && value <= toStr;
       });
     // A mood-only manual entry (no detected sleep) or a night the phone never
     // synced has sleepDuration/moodScore absent, not zero. Averaging with
@@ -35,12 +48,13 @@ router.get('/weekly', auth, async (req, res) => {
     const studySnap = await db.collection('studySessions')
       .where('userId', '==', userId)
       .get();
-    const totalStudyHours = Math.round((studySnap.docs
+    const studySessions = studySnap.docs
       .map(d => d.data())
       .filter(item => {
         const value = normalizeDateValue(item.startTime);
-        return value >= weekAgo.toISOString().slice(0, 10) && value <= now.toISOString().slice(0, 10);
-      })
+        return value >= fromStr && value <= toStr;
+      });
+    const totalStudyHours = Math.round((studySessions
       .reduce((s, d) => s + (d.duration || 0), 0) / 60) * 10) / 10;
 
     const prodSnap = await db.collection('productivityLogs')
@@ -50,9 +64,42 @@ router.get('/weekly', auth, async (req, res) => {
       .map(d => d.data())
       .filter(item => {
         const value = normalizeDateValue(item.date);
-        return value >= weekAgo.toISOString().slice(0, 10) && value <= now.toISOString().slice(0, 10);
+        return value >= fromStr && value <= toStr;
       });
     const avgProductivity = prodLogs.length ? prodLogs.reduce((s, l) => s + (l.productivityScore || 0), 0) / prodLogs.length : 0;
+
+    // ── Per-day breakdown for the Daily Activity and Mood vs Productivity
+    // charts — grouped from the exact same records the summary averages
+    // above were computed from. No new Firestore reads. A date with no
+    // matching record stays null (a gap the chart skips), never a
+    // fabricated zero.
+    const dailyActivity = trailingDates.map(date => {
+      const dayStudy = studySessions.filter(s => normalizeDateValue(s.startTime) === date);
+      const studyMinutes = dayStudy.length
+        ? dayStudy.reduce((sum, s) => sum + (s.duration || 0), 0)
+        : null;
+
+      const daySleep = withSleep.filter(l => normalizeDateValue(l.date) === date);
+      const sleepHours = daySleep.length
+        ? Math.round((daySleep.reduce((sum, l) => sum + l.sleepDuration, 0) / daySleep.length) * 10) / 10
+        : null;
+
+      return { date, studyMinutes, sleepHours };
+    });
+
+    const moodVsProductivity = trailingDates.map(date => {
+      const prodForDay = prodLogs.find(p => normalizeDateValue(p.date) === date);
+      const dayMood = withMood.filter(l => normalizeDateValue(l.date) === date);
+      const moodScore = dayMood.length
+        ? Math.round(dayMood.reduce((sum, l) => sum + l.moodScore, 0) / dayMood.length)
+        : null;
+
+      return {
+        date,
+        productivityScore: prodForDay ? (prodForDay.productivityScore ?? null) : null,
+        moodScore,
+      };
+    });
 
     const wellnessRadar = {
       sleep: Math.round(Math.min((avgSleep / 8) * 100, 100)),
@@ -87,6 +134,8 @@ router.get('/weekly', auth, async (req, res) => {
           totalStudyHours,
           avgProductivity: Math.round(avgProductivity)
         },
+        dailyActivity,
+        moodVsProductivity,
         wellnessRadar,
         achievements: achievements.length ? achievements : ["No standout achievements logged this week yet."],
         concerns: concerns.length ? concerns : ["No major concerns detected this week."],
