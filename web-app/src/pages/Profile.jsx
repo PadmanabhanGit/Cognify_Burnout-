@@ -68,8 +68,16 @@ export default function Profile() {
     <div style={{ paddingBottom: '90px', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       <div style={{ background: 'linear-gradient(to right, #6366f1, #3b82f6)', borderBottomLeftRadius: '32px', borderBottomRightRadius: '32px', padding: '60px 24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: '80px', height: '80px', borderRadius: '40px', backgroundColor: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '16px' }}>
-            <PersonIcon style={{ fontSize: '48px', color: '#6366f1' }} />
+          <div style={{ width: '80px', height: '80px', borderRadius: '40px', backgroundColor: 'white', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '16px', overflow: 'hidden' }}>
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt="Profile"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <PersonIcon style={{ fontSize: '48px', color: '#6366f1' }} />
+            )}
           </div>
           <div style={{ color: 'white', fontSize: '24px', fontWeight: 700 }}>
             {profile.firstName || profile.lastName ? `${profile.firstName} ${profile.lastName}` : (user?.email?.split('@')[0] || "User")}
