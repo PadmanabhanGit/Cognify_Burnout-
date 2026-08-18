@@ -313,43 +313,58 @@ class SleepMonitoringEngine(private val context: Context) {
         // 2. Identify Awakenings
         val awakenings = mutableListOf<WakeEvent>()
         val usageLogs = mutableListOf<AppUsageLog>()
-        
-        var currentSessionStart = -1L
-        var currentPackage = ""
-        
-        for (event in eventList) {
+
+        // Per-package open sessions, not a single current-session variable.
+        // The previous single-variable version discarded a session outright
+        // whenever a DIFFERENT package's FOREGROUND event arrived before the
+        // first package's own close: `currentSessionStart`/`currentPackage`
+        // were overwritten, so that package's start time was gone by the time
+        // its real BACKGROUND event showed up (packageName no longer matched,
+        // so the event was silently ignored). That stretch of real overnight
+        // usage — and any awakening inside it — never made it into usageLogs
+        // or awakenings. Each package now tracks its own open session
+        // independently, the same structure already used in
+        // UsageEventAccounting for the daytime usage totals. "Keep the
+        // earliest open" on a repeated FOREGROUND matches that same file, so
+        // a duplicate resume (e.g. multiple Activity instances of one
+        // package) cannot restart the clock and shorten the session either.
+        val openSessions = mutableMapOf<String, Long>()
+
+        for (event in eventList.sortedBy { it.timeStamp }) {
             if (event.timeStamp < sleepStart) continue
-            
+
             if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                currentSessionStart = event.timeStamp
-                currentPackage = event.packageName
+                if (!openSessions.containsKey(event.packageName)) {
+                    openSessions[event.packageName] = event.timeStamp
+                }
             } else if (event.eventType == UsageEvents.Event.MOVE_TO_BACKGROUND || event.eventType == UsageEvents.Event.USER_INTERACTION) {
-                if (currentSessionStart != -1L && event.packageName == currentPackage) {
-                    val duration = event.timeStamp - currentSessionStart
-                    if (duration > 0) {
-                        usageLogs.add(AppUsageLog(
+                // No open session for this package (never opened, or already
+                // closed by an earlier event) — nothing to pair with, and
+                // nothing is fabricated for it, same as before.
+                val sessionStart = openSessions.remove(event.packageName) ?: continue
+                val duration = event.timeStamp - sessionStart
+                if (duration > 0) {
+                    usageLogs.add(AppUsageLog(
+                        sessionId = 0,
+                        startTime = sessionStart,
+                        endTime = event.timeStamp,
+                        duration = duration,
+                        appName = getAppName(event.packageName),
+                        packageName = event.packageName,
+                        category = getCategory(event.packageName)
+                    ))
+
+                    // It's an awakening if it happened during sleep and lasted > 3 minutes
+                    if (sessionStart >= sleepStart && event.timeStamp <= sleepEnd && duration > 3 * 60 * 1000) {
+                        awakenings.add(WakeEvent(
                             sessionId = 0,
-                            startTime = currentSessionStart,
-                            endTime = event.timeStamp,
+                            timestamp = sessionStart,
                             duration = duration,
-                            appName = getAppName(currentPackage),
-                            packageName = currentPackage,
-                            category = getCategory(currentPackage)
+                            appName = getAppName(event.packageName),
+                            packageName = event.packageName,
+                            category = getCategory(event.packageName)
                         ))
-                        
-                        // It's an awakening if it happened during sleep and lasted > 3 minutes
-                        if (currentSessionStart >= sleepStart && event.timeStamp <= sleepEnd && duration > 3 * 60 * 1000) {
-                            awakenings.add(WakeEvent(
-                                sessionId = 0,
-                                timestamp = currentSessionStart,
-                                duration = duration,
-                                appName = getAppName(currentPackage),
-                                packageName = currentPackage,
-                                category = getCategory(currentPackage)
-                            ))
-                        }
                     }
-                    currentSessionStart = -1L
                 }
             }
         }

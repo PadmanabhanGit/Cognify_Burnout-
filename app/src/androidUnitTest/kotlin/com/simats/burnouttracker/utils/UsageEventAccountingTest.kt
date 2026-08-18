@@ -3,6 +3,7 @@ package com.simats.burnouttracker.utils
 import com.simats.burnouttracker.utils.UsageEventAccounting.ForegroundEvent
 import com.simats.burnouttracker.utils.UsageEventAccounting.TYPE_BACKGROUND
 import com.simats.burnouttracker.utils.UsageEventAccounting.TYPE_FOREGROUND
+import com.simats.burnouttracker.utils.UsageEventAccounting.TYPE_SCREEN_OFF
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,6 +25,7 @@ class UsageEventAccountingTest {
 
     private fun fg(pkg: String, at: Long) = ForegroundEvent(pkg, TYPE_FOREGROUND, at)
     private fun bg(pkg: String, at: Long) = ForegroundEvent(pkg, TYPE_BACKGROUND, at)
+    private fun screenOff(at: Long) = ForegroundEvent("android", TYPE_SCREEN_OFF, at)
 
     private val minute = 60_000L
     private val hour = 60 * minute
@@ -140,6 +142,77 @@ class UsageEventAccountingTest {
 
         val totals = UsageEventAccounting.foregroundMillisByPackage(events, 0L, 2 * hour)
 
+        assertEquals(1 * hour, totals[app])
+    }
+
+    /**
+     * THE regression test for the ~4x overcount bug: a FOREGROUND event whose
+     * matching BACKGROUND never arrives (a real OS gap, e.g. locking the phone)
+     * must stop accruing time at the screen-off event, not run all the way to
+     * windowEnd — otherwise an app opened once in the morning reports being
+     * "in use" through an entire screen-off afternoon.
+     */
+    @Test
+    fun `a dangling session is closed at screen-off, not window end`() {
+        val events = listOf(fg(app, 0L), screenOff(30 * minute))
+
+        val totals = UsageEventAccounting.foregroundMillisByPackage(events, 0L, 8 * hour)
+
+        assertEquals(30 * minute, totals[app])
+    }
+
+    /** A fresh foreground after screen-on starts its own interval, unaffected by the earlier screen-off. */
+    @Test
+    fun `usage resumes normally after a screen-off closes the previous session`() {
+        val events = listOf(
+            fg(app, 0L), screenOff(30 * minute),
+            fg(app, 2 * hour), bg(app, 2 * hour + 15 * minute)
+        )
+
+        val totals = UsageEventAccounting.foregroundMillisByPackage(events, 0L, 8 * hour)
+
+        assertEquals(45 * minute, totals[app])
+    }
+
+    /**
+     * THE regression test for the 15-30x overcount measured on-device: a
+     * package with multiple Activity instances (Chrome's Custom Tabs, tabs,
+     * multi-window) pauses more than once while only ONE thing was ever
+     * tracked as open. Each extra unmatched BACKGROUND must not independently
+     * "discover" the package open since windowStart — that fallback is for
+     * the app being open when the window began, and applies at most once.
+     */
+    @Test
+    fun `a second unmatched background event for the same package is not counted`() {
+        // Resume/pause of one activity instance, immediately followed by
+        // resume/pause of a second instance of the SAME package, mirroring
+        // com.android.chrome's real event log (ChromeLauncherActivity then
+        // CustomTabActivity, both under com.android.chrome).
+        val events = listOf(
+            fg(app, 10 * minute), bg(app, 10 * minute + 5_000),
+            fg(app, 10 * minute + 5_000), bg(app, 10 * minute + 8_000)
+        )
+
+        val totals = UsageEventAccounting.foregroundMillisByPackage(events, 0L, 8 * hour)
+
+        // ~8 real seconds of usage, not ~10 minutes-plus fabricated from windowStart.
+        assertEquals(8_000L, totals[app])
+    }
+
+    /**
+     * Three or more orphaned closes in a row (observed on-device across many
+     * Custom Tab opens in one session) must not each add their own
+     * windowStart-anchored chunk.
+     */
+    @Test
+    fun `many unmatched background events in a row only count the first`() {
+        val events = listOf(
+            bg(app, 1 * hour), bg(app, 2 * hour), bg(app, 3 * hour), bg(app, 4 * hour)
+        )
+
+        val totals = UsageEventAccounting.foregroundMillisByPackage(events, 0L, 8 * hour)
+
+        // Only the first is credited (window start -> its timestamp).
         assertEquals(1 * hour, totals[app])
     }
 

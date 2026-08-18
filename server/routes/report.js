@@ -4,6 +4,29 @@ const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { normalizeDateValue } = require('../utils/dateUtils');
 
+// ─── IST helpers (must match dashboard.js / study.js / burnout.js / usage.js
+// exactly) ───────────────────────────────────────────────────────────────────
+// Every record this endpoint reads (sleepMoodLogs, studySessions,
+// productivityLogs) is stamped with an IST calendar date by the Android
+// client. This endpoint was computing its own 7-day window and per-day
+// buckets with `.toISOString()`, which is always UTC — the server has no TZ
+// override. For the first ~5.5 hours of every IST day the window boundary
+// and every trailing-date bucket landed one day early relative to how the
+// records were actually stored, so a day's data could silently bucket under
+// the wrong day of the week, or the whole week's `from`/`to` could be off by
+// one. Weekly Report is exactly the feature where that kind of boundary
+// mismatch is most visible, so this must agree with the same IST date every
+// other module already uses.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+function getISTDateString(dateOrString = new Date()) {
+  const ist = new Date(new Date(dateOrString).getTime() + IST_OFFSET_MS);
+  const y = ist.getUTCFullYear();
+  const m = String(ist.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(ist.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 router.get('/weekly', auth, async (req, res) => {
   const userId = req.user.uid;
 
@@ -11,8 +34,8 @@ router.get('/weekly', auth, async (req, res) => {
     const now = new Date();
     const weekAgo = new Date();
     weekAgo.setDate(now.getDate() - 7);
-    const fromStr = weekAgo.toISOString().slice(0, 10);
-    const toStr = now.toISOString().slice(0, 10);
+    const fromStr = getISTDateString(weekAgo);
+    const toStr = getISTDateString(now);
 
     // Same 7 dates the summary averages are already computed over — used to
     // group the same records into a real per-day breakdown for the charts,
@@ -22,7 +45,7 @@ router.get('/weekly', auth, async (req, res) => {
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(now.getDate() - i);
-      trailingDates.push(d.toISOString().slice(0, 10));
+      trailingDates.push(getISTDateString(d));
     }
 
     const sleepSnap = await db.collection('sleepMoodLogs')
@@ -127,7 +150,7 @@ router.get('/weekly', auth, async (req, res) => {
     res.json({
       success: true,
       report: {
-        period: { from: weekAgo.toISOString().split('T')[0], to: now.toISOString().split('T')[0] },
+        period: { from: fromStr, to: toStr },
         summary: {
           avgSleep: Math.round(avgSleep * 10) / 10,
           avgMood: Math.round(avgMood * 10) / 10,

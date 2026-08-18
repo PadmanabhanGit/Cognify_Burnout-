@@ -93,15 +93,23 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                 AppData.isSyncing = true
                 val realFeatures = AppData.currentFeatures
                 if (realFeatures.topApps.isEmpty()) return@launch
-                
-                val usageItems = realFeatures.topApps.map { appUsage: DetailedAppUsage ->
-                    UsageItemRequest(
-                        packageName = appUsage.packageName,
-                        category = appUsage.category,
-                        duration = (appUsage.hours * 60).toLong(),
-                        durationSeconds = (appUsage.hours * 60 * 60).toLong()
-                    )
-                }
+
+                // Union with recentApps (deduped by package) so an app that's
+                // recently opened but not yet a top-time app still carries its
+                // lastUsedAt to the backend for the web dashboard's Recently
+                // Opened list.
+                val usageItems = (realFeatures.topApps + realFeatures.recentApps)
+                    .distinctBy { it.packageName }
+                    .map { appUsage: DetailedAppUsage ->
+                        UsageItemRequest(
+                            packageName = appUsage.packageName,
+                            category = appUsage.category,
+                            duration = (appUsage.hours * 60).toLong(),
+                            durationSeconds = (appUsage.hours * 60 * 60).toLong(),
+                            lastUsedAt = appUsage.lastUsedAt.takeIf { it > 0L },
+                            name = appUsage.name
+                        )
+                    }
                 val response = ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems, date = getLocalDateString()))
                 AppData.lastSyncFailed = !response.success
                 AppData.lastSyncError = if (response.success) "" else "Unable to reach your secure data service. Sign in again and retry."
@@ -122,14 +130,17 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                     AppData.isSyncing = true
                     val realFeatures = AppData.currentFeatures
                     if (realFeatures.topApps.isEmpty()) return@launch
-                    val usageItems = realFeatures.topApps.map { appUsage: DetailedAppUsage ->
-                        UsageItemRequest(
-                            packageName = appUsage.packageName,
-                            category = appUsage.category,
-                            duration = (appUsage.hours * 60).toLong(),
-                            durationSeconds = (appUsage.hours * 60 * 60).toLong()
-                        )
-                    }
+                    val usageItems = (realFeatures.topApps + realFeatures.recentApps)
+                        .distinctBy { it.packageName }
+                        .map { appUsage: DetailedAppUsage ->
+                            UsageItemRequest(
+                                packageName = appUsage.packageName,
+                                category = appUsage.category,
+                                duration = (appUsage.hours * 60).toLong(),
+                                durationSeconds = (appUsage.hours * 60 * 60).toLong(),
+                                lastUsedAt = appUsage.lastUsedAt.takeIf { it > 0L }
+                            )
+                        }
                     ApiClient.syncUsageData(UsageSyncRequest(usageData = usageItems, date = getLocalDateString()))
                 } catch (e: Exception) {
                     // Ignore errors on dispose
@@ -337,6 +348,43 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                                         Text(text = app.category, fontSize = 11.sp, color = Color.Gray)
                                     }
                                     Text(text = formatHours(app.hours), fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF111827))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 1.6 Recently Opened — most recent foreground opens today,
+                // independent of accumulated time, so a just-opened app with
+                // little usage still shows up here even if it's nowhere near
+                // the Top Used Apps list above.
+                if (features.recentApps.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColors.card),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(text = "Recently Opened", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ThemeColors.textPrimary)
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            features.recentApps.forEach { app ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        modifier = Modifier.size(10.dp),
+                                        shape = CircleShape,
+                                        color = app.color
+                                    ) {}
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = app.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
+                                        Text(text = app.category, fontSize = 11.sp, color = Color.Gray)
+                                    }
+                                    Text(text = formatRelativeTime(app.lastUsedAt), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6B7280))
                                 }
                             }
                         }

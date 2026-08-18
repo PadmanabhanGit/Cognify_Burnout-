@@ -17,6 +17,7 @@ export default function AppUsage() {
   const navigate = useNavigate();
   const [usage, setUsage] = useState([]);
   const [topApps, setTopApps] = useState([]);
+  const [recentApps, setRecentApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
@@ -28,6 +29,7 @@ export default function AppUsage() {
         if (res.data.success) {
           setUsage(res.data.usage || []);
           setTopApps(res.data.topApps || []);
+          setRecentApps(res.data.recentApps || []);
           setLastSyncedAt(Date.now());
           setError(false);
         } else {
@@ -76,6 +78,15 @@ export default function AppUsage() {
   };
 
   const totalHoursStr = formatDuration(totalSeconds);
+
+  const formatRelativeTime = (timestampMs) => {
+    if (!timestampMs) return '--';
+    const diffMinutes = Math.max(0, Math.floor((Date.now() - timestampMs) / 60000));
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffMinutes < 24 * 60) return `${Math.floor(diffMinutes / 60)}h ago`;
+    return `${Math.floor(diffMinutes / (24 * 60))}d ago`;
+  };
 
 
   return (
@@ -155,6 +166,27 @@ export default function AppUsage() {
             })
           )}
         </div>
+
+        {/* Recently Opened — most recent foreground opens today, independent
+            of accumulated time, so a just-opened app shows up here even if
+            it's nowhere near the Top Used Apps list above. */}
+        {recentApps.length > 0 && (
+          <div className="white-card" style={{ padding: '24px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '16px' }}>Recently Opened</div>
+            {recentApps.map((item, index) => (
+              <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ width: '100%', maxWidth: '300px', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '5px', backgroundColor: item.color || '#6B7280', marginRight: '12px' }}></div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'capitalize' }}>{item.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{item.category}</div>
+                  </div>
+                </div>
+                <div style={{ flex: 1, textAlign: 'right', fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>{formatRelativeTime(item.lastUsedAt)}</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Burnout Risk Visualization Insight */}
         <div className="white-card" style={{ padding: '24px' }}>

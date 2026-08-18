@@ -39,6 +39,22 @@ class AppUsageClassifier(
 
     /**
      * MAIN CLASSIFICATION FUNCTION
+     *
+     * Layered so a single unreliable model isn't the only signal: a curated
+     * package-name override catches apps the model is known to get wrong
+     * (see [AppCategoryOverrides]), the OS's own declared app category
+     * ([android.content.pm.ApplicationInfo.category], set by most Play Store
+     * apps) generalizes to newly installed apps without any hardcoded list,
+     * and the ML model is the last-resort fallback for whatever's left.
+     */
+    fun classify(packageName: String, appName: String): String {
+        AppCategoryOverrides.match(packageName)?.let { return it }
+        osDeclaredCategory(packageName)?.let { return it }
+        return classify(appName)
+    }
+
+    /**
+     * MAIN CLASSIFICATION FUNCTION (ML only, by display name)
      */
     fun classify(appName: String): String {
         return try {
@@ -49,6 +65,30 @@ class AppUsageClassifier(
         } catch (e: Exception) {
             e.printStackTrace()
             "Others"
+        }
+    }
+
+    /**
+     * Maps Android's own app-category metadata (declared by the app in its
+     * manifest, e.g. android:appCategory="game") onto this app's four
+     * buckets. Returns null for CATEGORY_UNDEFINED or any category with no
+     * sensible bucket (news, maps, image, ...), so those fall through to the
+     * ML model instead of being force-fit into the wrong label.
+     */
+    private fun osDeclaredCategory(packageName: String): String? {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O) return null
+        return try {
+            val ai = context.packageManager.getApplicationInfo(packageName, 0)
+            when (ai.category) {
+                android.content.pm.ApplicationInfo.CATEGORY_GAME -> "Gaming"
+                android.content.pm.ApplicationInfo.CATEGORY_SOCIAL -> "Social Media"
+                android.content.pm.ApplicationInfo.CATEGORY_AUDIO,
+                android.content.pm.ApplicationInfo.CATEGORY_VIDEO -> "Streaming"
+                android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 

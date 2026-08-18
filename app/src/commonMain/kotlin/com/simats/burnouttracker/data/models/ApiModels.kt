@@ -557,7 +557,9 @@ data class UsageItemRequest(
     val packageName: String,
     val category: String,
     val duration: Long, // legacy whole minutes
-    val durationSeconds: Long? = null
+    val durationSeconds: Long? = null,
+    val lastUsedAt: Long? = null, // epoch millis of most recent foreground open today
+    val name: String? = null // resolved app label, e.g. "Instagram" (falls back to packageName server-side)
 )
 
 @Serializable

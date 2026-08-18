@@ -3,7 +3,26 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { db } = require('../firebase');
 const { resolveCategory } = require('../services/appDiscoveryService');
-const { getLocalDateString, normalizeDateValue } = require('../utils/dateUtils');
+const { normalizeDateValue } = require('../utils/dateUtils');
+
+// ─── IST helpers (must match dashboard.js / study.js exactly) ─────────────────
+// Android device timezone = IST (UTC+05:30). The server has no TZ override and
+// defaults to UTC, so getLocalDateString() (server clock) disagreed with the
+// device's own IST-based date for the first ~5.5 hours of every IST day
+// (00:00-05:30 IST is still 18:30-24:00 UTC the previous day) — GET /today
+// looked for yesterday's date while the device had already synced under
+// today's, returning stale/empty data at that boundary every day. Every other
+// date-boundary-sensitive route already carries this fix; this file was the
+// one still using the server-local date for "today".
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+function getISTDateString(dateOrString) {
+  const ist = new Date(new Date(dateOrString).getTime() + IST_OFFSET_MS);
+  const y = ist.getUTCFullYear();
+  const m = String(ist.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(ist.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 // @route   POST api/usage/sync
 router.post('/sync', auth, async (req, res) => {
@@ -23,7 +42,9 @@ router.post('/sync', auth, async (req, res) => {
       const durationSeconds = Math.max(0, Math.round(Number(item.durationSeconds ?? (Number(item.duration || 0) * 60))));
       const duration = Math.floor(durationSeconds / 60);
       const category = String(item.category || await resolveCategory(packageName) || 'Others').trim();
-      itemsByPackage.set(packageName, { packageName, category, duration, durationSeconds });
+      const lastUsedAt = Number(item.lastUsedAt) > 0 ? Number(item.lastUsedAt) : null;
+      const name = String(item.name || packageName).trim();
+      itemsByPackage.set(packageName, { packageName, name, category, duration, durationSeconds, lastUsedAt });
     }
 
     const [existingDetailsSnap, existingCategoriesSnap] = await Promise.all([
@@ -50,10 +71,12 @@ router.post('/sync', auth, async (req, res) => {
       batch.set(appRef, {
         userId,
         date: syncDate,
-        appName: item.packageName || 'Unknown',
+        appName: item.name || item.packageName || 'Unknown',
+        packageName: item.packageName,
         category: item.category,
         duration: item.duration,
         durationSeconds: item.durationSeconds,
+        lastUsedAt: item.lastUsedAt,
         updatedAt: timestamp,
       });
 
@@ -87,10 +110,18 @@ router.post('/sync', auth, async (req, res) => {
 // @route   GET api/usage/today
 router.get('/today', auth, async (req, res) => {
   const userId = req.user.uid;
-  const today = getLocalDateString();
+  const today = getISTDateString(new Date());
 
   try {
-    const snapshot = await db.collection('appUsage').get();
+    // Filtered server-side rather than fetching the whole collection and
+    // filtering in JS: the previous version read every appUsage/appUsageDetails
+    // document ever written, for every user, on every page load — every other
+    // route in this file (and every other route file) scopes its query with
+    // .where('userId', ...); this was the one place that didn't.
+    const snapshot = await db.collection('appUsage')
+      .where('userId', '==', userId)
+      .where('date', '==', today)
+      .get();
 
     const formattedUsage = snapshot.docs
       .map(doc => doc.data())
@@ -107,11 +138,17 @@ router.get('/today', auth, async (req, res) => {
         };
       });
 
-    const detailsSnapshot = await db.collection('appUsageDetails').get();
+    const detailsSnapshot = await db.collection('appUsageDetails')
+      .where('userId', '==', userId)
+      .where('date', '==', today)
+      .get();
 
-    const topApps = detailsSnapshot.docs
+    const todaysDetails = detailsSnapshot.docs
       .map(doc => doc.data())
-      .filter(data => data && data.userId === userId && normalizeDateValue(data.date) === today)
+      .filter(data => data && data.userId === userId && normalizeDateValue(data.date) === today);
+
+    const topApps = todaysDetails
+      .slice()
       .sort((a, b) => (b.duration || 0) - (a.duration || 0))
       .slice(0, 10)
       .map(data => {
@@ -127,7 +164,23 @@ router.get('/today', auth, async (req, res) => {
         };
       });
 
-    res.json({ success: true, usage: formattedUsage, topApps });
+    // Ordered by most recent foreground open, not accumulated time, so a
+    // just-opened app with little usage today still shows up. Apps synced
+    // before lastUsedAt existed (or without a fresh-enough client) have no
+    // timestamp and are excluded rather than sorted arbitrarily.
+    const recentApps = todaysDetails
+      .filter(data => Number(data.lastUsedAt) > 0)
+      .slice()
+      .sort((a, b) => Number(b.lastUsedAt) - Number(a.lastUsedAt))
+      .slice(0, 8)
+      .map(data => ({
+        name: data.appName || data.packageName || 'Unknown',
+        category: data.category,
+        lastUsedAt: Number(data.lastUsedAt),
+        color: getColorForCategory(data.category)
+      }));
+
+    res.json({ success: true, usage: formattedUsage, topApps, recentApps });
   } catch (err) {
     console.error('Fetch failed:', err.message);
     res.status(500).json({ success: false });

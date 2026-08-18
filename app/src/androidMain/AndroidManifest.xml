@@ -11,6 +11,24 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <!--
+      Without this, PackageManager#getApplicationInfo/getApplicationLabel
+      throws NameNotFoundException for most third-party packages on API 30+
+      (package visibility filtering), which UsageStatsHelper's label lookup
+      was silently swallowing and falling back to the last dot-segment of the
+      package name — e.g. com.instagram.android and com.twitter.android both
+      display as "android". Declaring visibility into every launchable app
+      (not QUERY_ALL_PACKAGES, which Play policy restricts to a short list of
+      use cases this app doesn't qualify for) is what UsageStats needs: every
+      app it ever records foreground time for got there by being launched.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:extractNativeLibs="true"
         android:usesCleartextTraffic="true"

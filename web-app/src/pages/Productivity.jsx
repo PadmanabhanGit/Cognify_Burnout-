@@ -14,6 +14,7 @@ export default function Productivity() {
   const [loadState, setLoadState] = useState('loading');
   const [todayLog, setTodayLog] = useState(null);
   const [weeklyDays, setWeeklyDays] = useState([]);
+  const [monthToDate, setMonthToDate] = useState(null);
   const [weeklyLoaded, setWeeklyLoaded] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
@@ -40,6 +41,7 @@ export default function Productivity() {
         const res = await api.get('/api/productivity/weekly');
         if (res.data.success) {
           setWeeklyDays(res.data.days ?? []);
+          setMonthToDate(res.data.monthToDate ?? null);
         }
       } catch (err) {
         console.error('Failed to load weekly productivity data', err);
@@ -67,6 +69,9 @@ export default function Productivity() {
     : 'Insufficient data';
 
   const availableDays = weeklyDays.filter(d => d.available && d.productivityScore != null);
+  // Genuine month-to-date average over however many days this month actually
+  // have a record — not gated on having a full 30 days, matching Android.
+  const monthText = monthToDate?.average != null ? `${monthToDate.average}%` : 'Insufficient data';
 
   const gaugeCenterText = () => {
     if (loadState === 'loading') return { big: '…', small: 'LOADING' };
@@ -121,7 +126,7 @@ export default function Productivity() {
 
           <div style={{ display: 'flex', gap: '12px', width: '100%', marginTop: '30px' }}>
             <ChangeBox label="vs Yesterday" value={changeText} color="#DCFCE7" textColor="#16A34A" />
-            <ChangeBox label="This Month" value="Insufficient data" color="#EFF6FF" textColor="#2563EB" />
+            <ChangeBox label="This Month" value={monthText} color="#EFF6FF" textColor="#2563EB" />
           </div>
         </div>
 

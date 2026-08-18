@@ -33,7 +33,7 @@ class AppBlockerService : AccessibilityService() {
             }
 
             val classifier = AppUsageClassifier(this)
-            val category = classifier.classify(appName)
+            val category = classifier.classify(packageName, appName)
 
             var isBlocked = false
 

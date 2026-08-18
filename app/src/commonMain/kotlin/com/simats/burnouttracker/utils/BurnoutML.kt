@@ -13,7 +13,10 @@ data class BurnoutFeatures(
     val nightUsageHours: Float,
     val appSwitchCount: Int,
     val averageSessionMinutes: Float,
-    val topApps: List<DetailedAppUsage> = emptyList()
+    val topApps: List<DetailedAppUsage> = emptyList(),
+    /** Apps ordered by most recent foreground open today, not by total time — so a
+     *  just-opened app with little accumulated usage still shows up. */
+    val recentApps: List<DetailedAppUsage> = emptyList()
 )
 
 data class DetailedAppUsage(
@@ -21,7 +24,9 @@ data class DetailedAppUsage(
     val packageName: String,
     val category: String,
     val hours: Float,
-    val color: androidx.compose.ui.graphics.Color
+    val color: androidx.compose.ui.graphics.Color,
+    /** Epoch millis of this app's most recent foreground open today, 0 if unknown. */
+    val lastUsedAt: Long = 0L
 )
 
 data class BurnoutInsights(

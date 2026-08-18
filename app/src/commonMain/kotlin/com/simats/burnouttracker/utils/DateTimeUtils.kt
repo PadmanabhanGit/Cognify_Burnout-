@@ -15,3 +15,15 @@ expect fun getLocalDateString(): String
  * sleep value itself.
  */
 expect fun getCurrentHourMinute(): Pair<Int, Int>
+
+/** "2m ago" / "3h ago" style label for a [DetailedAppUsage.lastUsedAt] timestamp. */
+fun formatRelativeTime(timestampMillis: Long): String {
+    if (timestampMillis <= 0L) return "--"
+    val diffMinutes = ((getCurrentTimeMillis() - timestampMillis) / 60000L).coerceAtLeast(0L)
+    return when {
+        diffMinutes < 1 -> "Just now"
+        diffMinutes < 60 -> "${diffMinutes}m ago"
+        diffMinutes < 24 * 60 -> "${diffMinutes / 60}h ago"
+        else -> "${diffMinutes / (24 * 60)}d ago"
+    }
+}

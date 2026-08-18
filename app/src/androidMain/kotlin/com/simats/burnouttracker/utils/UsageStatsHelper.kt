@@ -92,6 +92,21 @@ actual class UsageStatsHelper(private val context: Context) {
                 }
         }
 
+        // Most recent foreground open per package, for the "Recently Opened"
+        // list — independent of accumulated time, and restricted to the owned
+        // spans for the same account-isolation reason as everything else here.
+        val lastOpenedAt = mutableMapOf<String, Long>()
+        rawEvents.forEach { event ->
+            if (event.type == UsageEventAccounting.TYPE_FOREGROUND &&
+                ownedSpans.any { event.timestamp >= it.start && event.timestamp < it.end }
+            ) {
+                val current = lastOpenedAt[event.packageName]
+                if (current == null || event.timestamp > current) {
+                    lastOpenedAt[event.packageName] = event.timestamp
+                }
+            }
+        }
+
         var social = 0f
         var gaming = 0f
         var streaming = 0f
@@ -117,7 +132,7 @@ actual class UsageStatsHelper(private val context: Context) {
                     packageName.split(".").last()
                 }
 
-                val category = classifier.classify(appName)
+                val category = classifier.classify(packageName, appName)
                 val color = when(category) {
                     "Social Media" -> { social += time; Color(0xFFF43F5E) }
                     "Gaming" -> { gaming += time; Color(0xFFF59E0B) }
@@ -127,7 +142,7 @@ actual class UsageStatsHelper(private val context: Context) {
                 }
                 total += time
 
-                appList.add(DetailedAppUsage(appName, packageName, category, time, color))
+                appList.add(DetailedAppUsage(appName, packageName, category, time, color, lastOpenedAt[packageName] ?: 0L))
             }
         }
 
@@ -135,10 +150,26 @@ actual class UsageStatsHelper(private val context: Context) {
         // two can no longer disagree about what fell inside the window — and are
         // restricted to the owned spans for the same reason the totals are, or
         // this account would be credited with another account's app switches.
-        val switches = rawEvents.count { event ->
-            event.type == UsageEventAccounting.TYPE_FOREGROUND &&
-                ownedSpans.any { event.timestamp >= it.start && event.timestamp < it.end }
-        }
+        //
+        // Counts PACKAGE transitions, not raw FOREGROUND events. A single real
+        // visit can emit several FOREGROUND events for the same package — proven
+        // on-device with Chrome, which fires one per Activity instance (a
+        // Custom Tab launch is RESUMED-PAUSED-RESUMED, two FOREGROUND events for
+        // one visit). Counting those raw would inflate appSwitchCount and, since
+        // averageSessionMinutes divides total time by it, silently understate
+        // session length too — both are direct BurnoutPredictor inputs.
+        var lastForegroundPackage: String? = null
+        val switches = rawEvents
+            .filter { event ->
+                event.type == UsageEventAccounting.TYPE_FOREGROUND &&
+                    ownedSpans.any { event.timestamp >= it.start && event.timestamp < it.end }
+            }
+            .sortedBy { it.timestamp }
+            .count { event ->
+                val isSwitch = event.packageName != lastForegroundPackage
+                lastForegroundPackage = event.packageName
+                isSwitch
+            }
 
         val avgSession = if (switches > 0) (total * 60f) / switches else 0f
 
@@ -151,7 +182,10 @@ actual class UsageStatsHelper(private val context: Context) {
             nightUsageHours = calculateNightUsage(usageStatsManager),
             appSwitchCount = switches,
             averageSessionMinutes = avgSession,
-            topApps = appList.sortedByDescending { it.hours }.take(10)
+            topApps = appList.sortedByDescending { it.hours }.take(10),
+            recentApps = appList.filter { it.lastUsedAt > 0L }
+                .sortedByDescending { it.lastUsedAt }
+                .take(8)
         )
     }
 
@@ -159,9 +193,13 @@ actual class UsageStatsHelper(private val context: Context) {
      * Drains [UsageStatsManager.queryEvents] into the plain, Android-free shape
      * [UsageEventAccounting] works on.
      *
-     * Only foreground/background transitions are kept — every other event type
-     * (screen on/off, configuration changes, standby buckets) carries no
-     * foreground duration and would only add noise to the pairing.
+     * Foreground/background transitions and screen-off are kept; every other
+     * event type (configuration changes, standby buckets, ...) carries no
+     * foreground duration and would only add noise to the pairing. Screen-off
+     * is not itself a duration, but [UsageEventAccounting] uses it to close any
+     * session left dangling by a BACKGROUND event the OS failed to emit — see
+     * its doc comment. Omitting it was letting one missed pairing accrue
+     * foreground time for whatever app was open all the way to "now".
      */
     private fun readForegroundEvents(
         usageStatsManager: UsageStatsManager,
@@ -176,7 +214,8 @@ actual class UsageStatsHelper(private val context: Context) {
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             if (event.eventType == UsageEventAccounting.TYPE_FOREGROUND ||
-                event.eventType == UsageEventAccounting.TYPE_BACKGROUND
+                event.eventType == UsageEventAccounting.TYPE_BACKGROUND ||
+                event.eventType == UsageEventAccounting.TYPE_SCREEN_OFF
             ) {
                 collected.add(
                     UsageEventAccounting.ForegroundEvent(
@@ -191,38 +230,53 @@ actual class UsageStatsHelper(private val context: Context) {
     }
 
     private fun isSystemPackage(packageName: String): Boolean {
-        // 1. Precise exclusions for common "false positive" screen time apps
-        val low = packageName.lowercase()
-        val ignoreList = listOf(
+        // 1. Exact exclusions for background/shell components and the couple of
+        // apps that register foreground time without a deliberate open (e.g.
+        // Play Store install-progress screens). Kept as exact matches, not
+        // substring, so this can't catch an unrelated app that merely
+        // contains one of these names.
+        val exactIgnore = setOf(
+            "android",
             "com.android.systemui",
             "com.android.settings",
             "com.android.keyguard",
-            "com.android.launcher",
-            "com.android.launcher3",
-            "com.google.android.apps.nexuslauncher",
+            "com.android.vending",
             "com.google.android.gms",
-            "com.google.android.googlequicksearchbox",
-            "com.android.providers.telephony",
-            "com.android.phone",
-            "com.android.vending", // Play Store usually doesn't count as "Burnout" screen time
-            "android"
+            "com.google.android.gsf",
+            "com.google.android.packageinstaller",
+            "com.android.packageinstaller"
         )
-        
-        if (ignoreList.any { low.contains(it) }) return true
+        if (packageName in exactIgnore) return true
 
-        // 2. Pattern based exclusions
-        if (low.startsWith("com.android.") || 
-            low.startsWith("android.") || 
-            low.contains("systemui") ||
-            low.contains("overlay") ||
+        // 2. Narrow pattern exclusions for shell/launcher/input components.
+        // These are deliberately specific (dotted segments, prefixes) so they
+        // don't accidentally swallow real apps the way a bare "android" or
+        // "com.android." substring/prefix check previously did — that older
+        // check was filtering out most of com.google.android.* (YouTube,
+        // Maps, Gmail, Photos, Chrome, ...), which is why usage looked sparse.
+        val low = packageName.lowercase()
+        if (low.contains("systemui") ||
+            low.contains("launcher") ||
+            low.contains(".inputmethod") ||
             low.contains("wallpaper") ||
-            low.contains("inputmethod")) return true
+            low.startsWith("com.android.providers.") ||
+            low.startsWith("com.android.server.")
+        ) return true
 
-        // 3. Flag-based check for core system apps
+        // 3. Everything else: only treat as "system" if it's both
+        // FLAG_SYSTEM-flagged AND has no launcher entry. A preinstalled app
+        // the user can actually open from the launcher (Chrome, Camera,
+        // Gallery, Phone, File Manager, Calculator, an OEM-bundled
+        // Facebook, ...) is real usage even though it ships as a system app;
+        // a flagged package with no launcher icon (telephony framework,
+        // GMS-adjacent services) is not. This generalizes across OEMs without
+        // needing a hardcoded per-app allowlist.
         return try {
             val pm = context.packageManager
             val ai = pm.getApplicationInfo(packageName, 0)
-            (ai.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+            val isSystemFlagged = (ai.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+            val hasLauncherEntry = pm.getLaunchIntentForPackage(packageName) != null
+            isSystemFlagged && !hasLauncherEntry
         } catch (e: Exception) {
             false
         }
@@ -269,28 +323,16 @@ actual class UsageStatsHelper(private val context: Context) {
         calendar.set(Calendar.HOUR_OF_DAY, 6)
         val endTime = calendar.timeInMillis
 
-        // Use events for precise window calculation to avoid overcounting day buckets
-        val events = usageStatsManager.queryEvents(startTime, endTime)
-        val event = android.app.usage.UsageEvents.Event()
-        
-        var nightTimeMillis = 0L
-        var lastForegroundEvent = -1L
-        
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            if (event.eventType == 1) { // MOVE_TO_FOREGROUND
-                lastForegroundEvent = event.timeStamp
-            } else if (event.eventType == 2 && lastForegroundEvent != -1L) { // MOVE_TO_BACKGROUND
-                nightTimeMillis += (event.timeStamp - lastForegroundEvent)
-                lastForegroundEvent = -1L
-            }
-        }
-        
-        // If still in foreground at 6 AM
-        if (lastForegroundEvent != -1L) {
-            nightTimeMillis += (endTime - lastForegroundEvent)
-        }
-        
+        // Shares UsageEventAccounting's pairing with fetchDailyUsage instead of
+        // hand-rolling it again here. This used to have its own copy of the
+        // pairing loop with no screen-off handling, so a session left dangling
+        // by a missed BACKGROUND event ran all the way to 6 AM regardless of
+        // how much of the night the screen was actually off — the same
+        // over-counting bug fetchDailyUsage had, independently duplicated.
+        val events = readForegroundEvents(usageStatsManager, startTime, endTime)
+        val nightTimeMillis = UsageEventAccounting.foregroundMillisByPackage(events, startTime, endTime)
+            .values.sum()
+
         return nightTimeMillis / (1000f * 60f * 60f)
     }
 
