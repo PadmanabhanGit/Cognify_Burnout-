@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scoped to exactly what ReportExporter writes: a generated PDF under
+     cacheDir/reports, shared via FileProvider rather than a raw file:// Uri
+     (blocked by FileUriExposedException on API 24+ targeting this app's
+     targetSdk). No broader path is exposed. -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="weekly_reports" path="reports/" />
+</paths>

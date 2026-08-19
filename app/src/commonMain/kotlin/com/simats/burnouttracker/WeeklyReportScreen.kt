@@ -37,12 +37,15 @@ import androidx.compose.runtime.*
 import kotlin.math.cos
 import kotlin.math.sin
 import com.simats.burnouttracker.utils.AppData
+import com.simats.burnouttracker.utils.rememberReportExporter
 
 @Composable
 fun WeeklyReportScreen(navController: NavController) {
     var reportData by remember { mutableStateOf<WeeklyReportData?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    val exporter = rememberReportExporter()
+    var isExporting by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         try {
@@ -54,6 +57,23 @@ fun WeeklyReportScreen(navController: NavController) {
         } finally {
             isLoading = false
         }
+    }
+
+    // Hoisted above the header so the Download/Share buttons and the
+    // Executive Summary card use the exact same value — previously this was
+    // computed only inside the summary card, out of reach of the buttons.
+    val riskLevel = when {
+        AppData.predictedScore < 30f -> "Low"
+        AppData.predictedScore < 70f -> "Moderate"
+        else -> "High"
+    }
+
+    fun exportPdf(share: Boolean) {
+        val report = reportData ?: return
+        if (isExporting) return
+        isExporting = true
+        val onResult: (Result<Unit>) -> Unit = { isExporting = false }
+        if (share) exporter.shareReport(report, riskLevel, onResult) else exporter.downloadPdf(report, riskLevel, onResult)
     }
 
     val reportGradient = Brush.verticalGradient(
@@ -104,8 +124,18 @@ fun WeeklyReportScreen(navController: NavController) {
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ReportActionButton(icon = Icons.Default.Download, label = "Download PDF")
-                        ReportActionButton(icon = Icons.Default.Share, label = "Share Report")
+                        ReportActionButton(
+                            icon = Icons.Default.Download,
+                            label = if (isExporting) "Working…" else "Download PDF",
+                            enabled = reportData != null && !isExporting,
+                            onClick = { exportPdf(share = false) }
+                        )
+                        ReportActionButton(
+                            icon = Icons.Default.Share,
+                            label = if (isExporting) "Working…" else "Share Report",
+                            enabled = reportData != null && !isExporting,
+                            onClick = { exportPdf(share = true) }
+                        )
                     }
                 }
             }
@@ -143,11 +173,6 @@ fun WeeklyReportScreen(navController: NavController) {
                         SummaryItem(label = "PRODUCTIVITY", value = formattedProductivity?.let { "$it%" } ?: "--", modifier = Modifier.weight(1f))
                     }
                     Spacer(modifier = Modifier.height(20.dp))
-                    val riskLevel = when {
-                        AppData.predictedScore < 30f -> "Low"
-                        AppData.predictedScore < 70f -> "Moderate"
-                        else -> "High"
-                    }
                     val riskColor = when (riskLevel) {
                         "Low" -> Color(0xFF10B981)
                         "Moderate" -> Color(0xFFF97316)
@@ -331,18 +356,19 @@ fun ReportCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-fun ReportActionButton(icon: ImageVector, label: String) {
+fun ReportActionButton(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit = {}) {
     Surface(
-        color = Color.White.copy(alpha = 0.2f),
-        shape = RoundedCornerShape(12.dp)
+        color = Color.White.copy(alpha = if (enabled) 0.2f else 0.1f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = if (enabled) 1f else 0.5f), modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text(text = label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(text = label, color = Color.White.copy(alpha = if (enabled) 1f else 0.5f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
