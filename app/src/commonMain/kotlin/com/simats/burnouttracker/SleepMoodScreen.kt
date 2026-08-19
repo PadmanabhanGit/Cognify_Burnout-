@@ -154,7 +154,7 @@ fun SleepMoodScreen(navController: NavController) {
         val moodIndex = selectedMood ?: 2 // "Neutral" default — sleep can be logged without picking a mood first.
         scope.launch {
             isSavingManualSleep = true
-            val quality1to10 = ((manualHours / 8f) * 10).toInt().coerceIn(1, 10)
+            val quality1to10 = ((manualHours / 8f) * 10).toInt().coerceIn(1, 10) // Affects by using the Mood Emoji the User has filled
             com.simats.burnouttracker.utils.AppData.lastSleepLogged = manualHours
             // Reflect it immediately AND keep it after the screen is rebuilt: the
             // LaunchedEffect above re-reads this from the backend on next open.

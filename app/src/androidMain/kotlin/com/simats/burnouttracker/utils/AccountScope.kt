@@ -141,12 +141,49 @@ object AccountScope {
     private fun todayKey(): String =
         SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
+    /** Yesterday's local calendar day, same format as [todayKey]. */
+    private fun yesterdayKey(): String {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -1)
+        return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(cal.time)
+    }
+
+    /** Local midnight (00:00:00.000) of the current day. */
+    private fun startOfTodayMillis(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
     /**
      * [uid]'s session begins now: opens an ownership interval for today.
      *
      * Any interval left open by a previous session is closed first — a crash or
      * force-stop never produces a clean logout, and an interval left open would
      * otherwise keep accruing every later minute to that session forever.
+     *
+     * TODAY'S INTERVAL START — midnight, not "now", for a continuing account.
+     *
+     * Observed on-device: a user asleep by 1am reopened the app at 8:21am and
+     * saw zero usage everywhere, despite Digital Wellbeing showing real
+     * midnight-1am activity. Cause: yesterday's interval for this uid was left
+     * OPEN (no explicit sign-out — an app kill or the phone simply going idle
+     * overnight is not a logout), so [reconcileOpenIntervals] correctly closed
+     * it at 23:59:59 yesterday, but today's fresh interval then opened at
+     * 08:21 — whenever the process next happened to start — leaving
+     * midnight-08:21 owned by nobody. That is not what "account isolation" is
+     * for: this was still the same signed-in account the whole time, and
+     * Android killing the process overnight is not an account switch.
+     *
+     * So: if this uid's own record was still open at the end of yesterday,
+     * today starts at local midnight instead. A genuinely new or switched-in
+     * account has no such record (or a cleanly-closed one from an explicit
+     * sign-out), so it still starts at "now" exactly as before — this only
+     * changes behavior for the continuing-same-account case the isolation
+     * model was never trying to restrict in the first place.
      */
     fun openUsageInterval(context: Context, uid: String) {
         if (uid.isBlank()) return
@@ -166,13 +203,23 @@ object AccountScope {
         // this flag is null and the stale span is correctly capped.
         if (openedThisProcessFor == key) return
 
-        // Reconcile everything left open by anyone, before claiming time here.
-        reconcileOpenIntervals(prefs, exceptKey = key, now = System.currentTimeMillis())
+        // Read BEFORE reconcileOpenIntervals, which is what closes this same
+        // record if it's still open — the signal is whether that closure is
+        // about to happen, not whatever the record looks like afterward.
+        val continuingFromYesterday = UsageOwnership.parse(
+            prefs.getString(UsageOwnership.key(uid, yesterdayKey()), null)
+        ).any { it.end == UsageOwnership.OPEN }
 
-        val updated = UsageOwnership.openSession(
-            UsageOwnership.parse(prefs.getString(key, null)),
-            System.currentTimeMillis()
-        )
+        val now = System.currentTimeMillis()
+
+        // Reconcile everything left open by anyone, before claiming time here.
+        reconcileOpenIntervals(prefs, exceptKey = key, now = now)
+
+        val existing = UsageOwnership.parse(prefs.getString(key, null))
+        val startAt = if (existing.isEmpty() && continuingFromYesterday) startOfTodayMillis() else now
+
+        val updated = UsageOwnership.closeSession(existing, now) +
+            UsageOwnership.Interval(startAt, UsageOwnership.OPEN)
         prefs.edit().putString(key, UsageOwnership.encode(updated)).apply()
         openedThisProcessFor = key
         pruneOldDayWindows(prefs)
