@@ -2,7 +2,7 @@ services:
   - type: web
     name: cognify-backend
     env: node
-    rootDir: server
+    rootDir: WEB/Backend
     buildCommand: npm install
     startCommand: npm start
     envVars:

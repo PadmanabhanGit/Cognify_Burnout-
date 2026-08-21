@@ -33,7 +33,7 @@ jobs:
           node-version: 20
       - name: Install dependencies & Build
         run: |
-          cd web-app
+          cd WEB/Frontend
           npm install
           npm run build
       - name: Setup Pages
@@ -41,7 +41,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './web-app/dist'
+          path: './WEB/Frontend/dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
@@ -249,11 +249,8 @@ jobs:
           - **Backend Security CSV Report:** [Open Report](https://github.com/${{ github.repository }}/blob/gh-pages/test%20reports/test%23${{ github.run_number }}/Backend_Security_Test_Report.csv)
           - **API K6 Load CSV Report:** [Open Report](https://github.com/${{ github.repository }}/blob/gh-pages/test%20reports/test%23${{ github.run_number }}/API_K6_Load_Test_Report.csv)
           
-          ## ✅ Verification Notes
+         
           
-          - All four feature testing reports are published as CSV artifacts
-          - Each report lists its own test count separately
-          - No failing cases are reported in the consolidated summary
           MARKDOWN_EOF
 
       - name: Deploy Reports to GitHub Pages
