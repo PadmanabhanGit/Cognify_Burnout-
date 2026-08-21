@@ -2,7 +2,6 @@ package com.simats.burnouttracker
 
 import com.simats.burnouttracker.ui.theme.ThemeColors
 
-import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,49 +32,10 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.simats.burnouttracker.utils.AppData
 import com.simats.burnouttracker.utils.UserProfile
-import kotlinx.coroutines.launch
-import com.simats.burnouttracker.data.api.RetrofitClient
-import com.simats.burnouttracker.data.models.ProfileData
 
 @Composable
 fun PrivacyDataScreen(navController: NavController) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("settings", Context.MODE_PRIVATE) }
-    
-    // Initialize global privacy settings from prefs
-    LaunchedEffect(Unit) {
-        AppData.anonymousAnalytics = prefs.getBoolean("anonymousAnalytics", false)
-        AppData.personalizedInsights = prefs.getBoolean("personalizedInsights", true)
-    }
-
-    val scope = rememberCoroutineScope()
-
-    // Save function
-    val saveSettings = {
-        with(prefs.edit()) {
-            putBoolean("syncHealth", AppData.syncHealth)
-            putBoolean("anonymousAnalytics", AppData.anonymousAnalytics)
-            putBoolean("personalizedInsights", AppData.personalizedInsights)
-            apply()
-        }
-        
-        scope.launch {
-            try {
-                RetrofitClient.getApiService().updateProfileInfo(
-                    ProfileData(
-                        syncHealth = AppData.syncHealth,
-                        anonymousAnalytics = AppData.anonymousAnalytics,
-                        personalizedInsights = AppData.personalizedInsights
-                    )
-                )
-                Toast.makeText(context, "Preferences Saved and Synced!", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(context, "Saved locally (Sync failed)", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-    
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -85,11 +45,6 @@ fun PrivacyDataScreen(navController: NavController) {
                     val data = """
                         {
                             "user": "${UserProfile.fullName ?: "Anonymous"}",
-                            "preferences": {
-                                "syncHealth": ${AppData.syncHealth},
-                                "anonymousAnalytics": ${AppData.anonymousAnalytics},
-                                "personalizedInsights": ${AppData.personalizedInsights}
-                            },
                             "burnoutPredictedScore": ${AppData.predictedScore}
                         }
                     """.trimIndent()
@@ -166,49 +121,7 @@ fun PrivacyDataScreen(navController: NavController) {
                     .offset(y = (-40).dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Card 1: Data Sharing
-                PrivacyCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = null,
-                            tint = Color(0xFF9333EA),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Data Sharing",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ThemeColors.textPrimary
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    PrivacyToggleItem(
-                        title = "Sync with Health Apps",
-                        subtitle = "Connect metrics with Health Connect",
-                        checked = AppData.syncHealth,
-                        onCheckedChange = { AppData.syncHealth = it }
-                    )
-                    
-                    PrivacyToggleItem(
-                        title = "Allow Anonymous Analytics",
-                        subtitle = "Help improve the app using anonymous data",
-                        checked = AppData.anonymousAnalytics,
-                        onCheckedChange = { AppData.anonymousAnalytics = it }
-                    )
-                    
-                    PrivacyToggleItem(
-                        title = "Enable Personalized Insights",
-                        subtitle = "Get recommendations based on your habits",
-                        checked = AppData.personalizedInsights,
-                        onCheckedChange = { AppData.personalizedInsights = it }
-                    )
-                }
-
-                // Card 2: Privacy Controls
+                // Privacy Controls
                 PrivacyCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -235,45 +148,6 @@ fun PrivacyDataScreen(navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Save Preferences Button
-                Button(
-                    onClick = {
-                        saveSettings()
-                        navController.popBackStack()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    contentPadding = PaddingValues(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(indigoPurpleGradient),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Save Preferences",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.Default.Save,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-                
                 Spacer(modifier = Modifier.height(40.dp))
             }
         }
@@ -291,46 +165,6 @@ fun PrivacyCard(content: @Composable ColumnScope.() -> Unit) {
         Column(modifier = Modifier.padding(24.dp)) {
             content()
         }
-    }
-}
-
-@Composable
-fun PrivacyToggleItem(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ThemeColors.textPrimary
-            )
-            Text(
-                text = subtitle,
-                fontSize = 12.sp,
-                color = ThemeColors.textSecondary
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF9333EA),
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFFE2E8F0),
-                uncheckedBorderColor = Color.Transparent
-            )
-        )
     }
 }
 

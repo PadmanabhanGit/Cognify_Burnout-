@@ -15,10 +15,7 @@ router.get('/', authMiddleware, async (req, res) => {
         lastName: '',
         age: '',
         location: '',
-        linkedAccounts: [],
-        syncHealth: false,
-        anonymousAnalytics: false,
-        personalizedInsights: true
+        linkedAccounts: []
       });
     }
     res.json(doc.data());
@@ -33,11 +30,7 @@ router.post('/', authMiddleware, async (req, res) => {
   const userId = req.user.uid;
 
   // Extract all fields that could be in ProfileData
-  const {
-    firstName, lastName, age, location,
-    linkedAccounts, syncHealth,
-    anonymousAnalytics, personalizedInsights
-  } = req.body;
+  const { firstName, lastName, age, location, linkedAccounts } = req.body;
 
   // Only write fields the caller actually sent. Each screen (Personal Info,
   // Privacy & Data, ...) only sends the subset it edits; defaulting the rest
@@ -48,9 +41,6 @@ router.post('/', authMiddleware, async (req, res) => {
   if (age !== undefined) updates.age = age;
   if (location !== undefined) updates.location = location;
   if (linkedAccounts !== undefined) updates.linkedAccounts = linkedAccounts;
-  if (syncHealth !== undefined) updates.syncHealth = syncHealth;
-  if (anonymousAnalytics !== undefined) updates.anonymousAnalytics = anonymousAnalytics;
-  if (personalizedInsights !== undefined) updates.personalizedInsights = personalizedInsights;
 
   try {
     await db.collection('users').doc(userId).set(updates, { merge: true });

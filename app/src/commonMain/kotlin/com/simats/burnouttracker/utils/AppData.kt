@@ -32,10 +32,7 @@ object AppData {
     var dailyReminders by mutableStateOf(true)
     var weeklyReports by mutableStateOf(false)
     var studyPrompts by mutableStateOf(true)
-    var syncHealth by mutableStateOf(false)
-    var anonymousAnalytics by mutableStateOf(false)
-    var personalizedInsights by mutableStateOf(true)
-    
+
     // Productivity Data
     var productivityScore by mutableStateOf(0)
     var peakFocusHours by mutableStateOf(4.2f)

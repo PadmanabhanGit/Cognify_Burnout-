@@ -60,11 +60,7 @@ fun SettingsScreen(navController: NavController) {
         AppData.dailyReminders = prefs.getBoolean("dailyReminders", true)
         AppData.weeklyReports = prefs.getBoolean("weeklyReports", false)
         AppData.studyPrompts = prefs.getBoolean("studyPrompts", true)
-        AppData.syncHealth = prefs.getBoolean("syncHealth", false)
     }
-
-    var showLanguageDialog by remember { mutableStateOf(false) }
-    var currentLanguage by remember { mutableStateOf(prefs.getString("language", "English (US)") ?: "English (US)") }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -88,11 +84,15 @@ fun SettingsScreen(navController: NavController) {
         colors = listOf(Color(0xFF4F46E5), Color(0xFF9333EA))
     )
 
-    val backgroundColor = if (AppData.isDarkMode) Color(0xFF121212) else ThemeColors.background
-    val cardColor = if (AppData.isDarkMode) Color(0xFF1E1E1E) else Color.White
-    val textColor = if (AppData.isDarkMode) ThemeColors.border else ThemeColors.textPrimary
-    val secondaryTextColor = if (AppData.isDarkMode) ThemeColors.textTertiary else ThemeColors.textSecondary
-    val sectionTitleColor = if (AppData.isDarkMode) ThemeColors.textSecondary else ThemeColors.textTertiary
+    // ThemeColors already branches on AppData.isDarkMode internally — the
+    // duplicated branching here previously used ThemeColors.border (a subtle
+    // divider color meant for outlines, not body text) as dark-mode text
+    // color, which is why every label read as washed-out gray in dark mode.
+    val backgroundColor = ThemeColors.background
+    val cardColor = ThemeColors.card
+    val textColor = ThemeColors.textPrimary
+    val secondaryTextColor = ThemeColors.textSecondary
+    val sectionTitleColor = ThemeColors.textTertiary
 
     Scaffold(
         bottomBar = { AppBottomNavigation(navController, "settings") },
@@ -322,15 +322,6 @@ fun SettingsScreen(navController: NavController) {
                 
                 // WELLNESS
                 SettingsGroup(title = "WELLNESS", cardColor = cardColor, titleColor = sectionTitleColor) {
-                    SettingsToggleItem(
-                        icon = Icons.Outlined.HealthAndSafety,
-                        title = "Sync with Health Apps",
-                        checked = AppData.syncHealth,
-                        onCheckedChange = { AppData.syncHealth = it; prefs.edit().putBoolean("syncHealth", it).apply() },
-                        textColor = textColor,
-                        primaryColor = Color(0xFF22C55E)
-                    )
-                    
                     SettingsItem(
                         icon = Icons.Outlined.Shield,
                         title = "Privacy & Data",
@@ -351,14 +342,6 @@ fun SettingsScreen(navController: NavController) {
                         textColor = textColor,
                         primaryColor = ThemeColors.textPrimary
                     )
-                    
-                    SettingsItem(
-                        icon = Icons.Outlined.Public,
-                        title = "Language",
-                        trailingText = currentLanguage,
-                        textColor = textColor,
-                        iconColor = Color(0xFF64748B)
-                    ) { showLanguageDialog = true }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -442,45 +425,6 @@ fun SettingsScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
-        
-        if (showLanguageDialog) {
-            AlertDialog(
-                onDismissRequest = { showLanguageDialog = false },
-                title = { Text(text = "Select Language", fontWeight = FontWeight.Bold, color = textColor) },
-                containerColor = cardColor,
-                text = {
-                    Column {
-                        val languages = listOf("English (US)", "English (UK)", "Spanish", "French", "German", "Tamil")
-                        languages.forEach { lang ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        currentLanguage = lang
-                                        prefs.edit().putString("language", lang).apply()
-                                        showLanguageDialog = false
-                                    }
-                                    .padding(vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = (lang == currentLanguage),
-                                    onClick = null,
-                                    colors = RadioButtonDefaults.colors(selectedColor = primaryPurple)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(text = lang, color = textColor, fontSize = 16.sp)
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showLanguageDialog = false }) {
-                        Text("Close", color = primaryPurple)
-                    }
-                }
-            )
-        }
     }
 }
 
@@ -542,16 +486,16 @@ fun SettingsItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = textColor)
             if (subtitle != null) {
-                Text(text = subtitle, fontSize = 11.sp, color = Color.Gray)
+                Text(text = subtitle, fontSize = 11.sp, color = ThemeColors.textSecondary)
             }
         }
         if (trailingText != null) {
-            Text(text = trailingText, fontSize = 13.sp, color = Color.LightGray, modifier = Modifier.padding(end = 4.dp))
+            Text(text = trailingText, fontSize = 13.sp, color = ThemeColors.textTertiary, modifier = Modifier.padding(end = 4.dp))
         }
         Icon(
             imageVector = trailingIcon,
             contentDescription = null,
-            tint = Color(0xFFCBD5E1),
+            tint = ThemeColors.textTertiary,
             modifier = Modifier.size(16.dp)
         )
     }
@@ -585,7 +529,7 @@ fun SettingsToggleItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = textColor)
             if (subtitle != null) {
-                Text(text = subtitle, fontSize = 11.sp, color = Color.Gray)
+                Text(text = subtitle, fontSize = 11.sp, color = ThemeColors.textSecondary)
             }
         }
         Switch(
