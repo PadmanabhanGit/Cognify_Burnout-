@@ -25,9 +25,18 @@ export function normalizeCategory(cat) {
 /**
  * Per-category seconds. The current API preserves seconds; older records fall
  * back to stored whole minutes.
+ *
+ * 'Others' (Maps, Chrome, Calculator, ...) is a real bucket, not dropped:
+ * Android's own Total App Usage already includes it (every app counts toward
+ * the total regardless of category), so excluding it here made the web
+ * total look like a different, smaller number for the same day's usage —
+ * confirmed on-device: Android showed 5h10m, web showed 1h29m for the same
+ * account, same day, because this map previously had no 'Others' key at all
+ * and normalizeCategory's default fell through the `if (norm in buckets)`
+ * check silently.
  */
 export function bucketUsageSeconds(usage) {
-  const buckets = { 'Social Media': 0, 'Gaming': 0, 'Streaming': 0, 'Productivity': 0 };
+  const buckets = { 'Social Media': 0, 'Gaming': 0, 'Streaming': 0, 'Productivity': 0, 'Others': 0 };
   (usage || []).forEach((u) => {
     const norm = normalizeCategory(u.category);
     if (norm in buckets) {
@@ -38,11 +47,9 @@ export function bucketUsageSeconds(usage) {
 }
 
 /**
- * Total App Usage in seconds = Social Media + Gaming + Streaming + Productivity.
- *
- * This is the definition the /usage page already displayed under the heading
- * "Total App Usage", so the Dashboard now shows that same number rather than a
- * different subset of it.
+ * Total App Usage in seconds = Social Media + Gaming + Streaming +
+ * Productivity + Others — every category, matching what "Total App Usage"
+ * means on Android (every app counts, not just the four named ones).
  */
 export function sumUsageSeconds(usage) {
   return Object.values(bucketUsageSeconds(usage)).reduce((a, b) => a + b, 0);

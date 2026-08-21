@@ -111,6 +111,7 @@ actual class UsageStatsHelper(private val context: Context) {
         var gaming = 0f
         var streaming = 0f
         var productivity = 0f
+        var others = 0f
         var total = 0f
 
         val classifier = AppUsageClassifier(context)
@@ -138,7 +139,7 @@ actual class UsageStatsHelper(private val context: Context) {
                     "Gaming" -> { gaming += time; Color(0xFFF59E0B) }
                     "Streaming" -> { streaming += time; Color(0xFF3B82F6) }
                     "Productivity" -> { productivity += time; Color(0xFF10B981) }
-                    else -> ThemeColors.textTertiary
+                    else -> { others += time; ThemeColors.textTertiary }
                 }
                 total += time
 
@@ -185,7 +186,8 @@ actual class UsageStatsHelper(private val context: Context) {
             topApps = appList.sortedByDescending { it.hours }.take(10),
             recentApps = appList.filter { it.lastUsedAt > 0L }
                 .sortedByDescending { it.lastUsedAt }
-                .take(8)
+                .take(8),
+            othersHours = others
         )
     }
 

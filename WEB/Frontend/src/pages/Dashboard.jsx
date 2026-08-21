@@ -163,9 +163,10 @@ export default function Dashboard() {
 
 
 
-  // Total App Usage = Social Media + Gaming + Streaming + Productivity, computed
-  // by the shared helper from the same rows /usage renders. Replaces
-  // quickStats.todayAppUsageSeconds, which is a leisure-only subset.
+  // Total App Usage = every category (Social Media + Gaming + Streaming +
+  // Productivity + Others), computed by the shared helper from the same rows
+  // /usage renders. Replaces quickStats.todayAppUsageSeconds, which is a
+  // leisure-only subset.
   const appUsageSeconds = sumUsageSeconds(usageRows);
   const appUsageDisplay = error ? '--' : formatCompactUsage(appUsageSeconds);
   const appUsageProgress = error ? 0 : Math.min(appUsageSeconds / (10 * 60 * 60), 1);

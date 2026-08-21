@@ -8,6 +8,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook';
 import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AppsIcon from '@mui/icons-material/Apps';
 import api from '../services/api';
 import { bucketUsageSeconds } from '../utils/appUsage';
 
@@ -122,11 +123,16 @@ export default function AppUsage() {
             <div>Syncing with device...</div>
           ) : (
             <>
-              {['Social Media', 'Gaming', 'Streaming', 'Productivity'].map((cat, index) => {
+              {/* 'Others' (Maps, Chrome, Calculator, ...) is a real row, not
+                  folded silently into the total below — Android already
+                  counts it toward Total App Usage, so leaving it out here
+                  made the same day's usage look like a different, smaller
+                  number on web. */}
+              {['Social Media', 'Gaming', 'Streaming', 'Productivity', 'Others'].map((cat, index) => {
                 const secs = buckets[cat] || 0;
                 const durationStr = formatDuration(secs);
                 const progress = Math.min(secs / (8 * 60 * 60), 1.0);
-                const colors = { 'Social Media': '#F43F5E', 'Gaming': '#F59E0B', 'Streaming': '#3B82F6', 'Productivity': '#10B981' };
+                const colors = { 'Social Media': '#F43F5E', 'Gaming': '#F59E0B', 'Streaming': '#3B82F6', 'Productivity': '#10B981', 'Others': '#6B7280' };
                 return (
                   <UsageItem key={index} label={cat} duration={durationStr} progress={progress}
                     color={colors[cat] || '#6B7280'} icon={getIconForCategory(cat)} />
@@ -252,5 +258,5 @@ function getIconForCategory(cat) {
   if (cat === 'Gaming') return <SportsEsportsIcon />;
   if (cat === 'Streaming' || cat === 'Entertainment') return <TvIcon />;
   if (cat === 'Productivity') return <MenuBookIcon />;
-  return <TvIcon />;
+  return <AppsIcon />;
 }

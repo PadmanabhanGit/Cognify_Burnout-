@@ -304,6 +304,18 @@ fun EntertainmentAppUsageScreen(navController: NavController) {
                             color = Color(0xFF10B981),
                             icon = Icons.Default.MenuBook
                         )
+                        // Everything that doesn't fit the four buckets above (Maps,
+                        // Chrome, Calculator, ...) — previously folded silently into
+                        // Total App Usage below with no row of its own, so the total
+                        // looked unexplained next to the four category rows.
+                        Spacer(modifier = Modifier.height(16.dp))
+                        UsageItem(
+                            label = "Others",
+                            duration = formatHours(features.othersHours),
+                            progress = features.othersHours / 12f,
+                            color = ThemeColors.textTertiary,
+                            icon = Icons.Default.Apps
+                        )
 
                         Spacer(modifier = Modifier.height(20.dp))
                         HorizontalDivider(color = ThemeColors.background)

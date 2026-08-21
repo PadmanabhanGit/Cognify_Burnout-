@@ -16,7 +16,11 @@ data class BurnoutFeatures(
     val topApps: List<DetailedAppUsage> = emptyList(),
     /** Apps ordered by most recent foreground open today, not by total time — so a
      *  just-opened app with little accumulated usage still shows up. */
-    val recentApps: List<DetailedAppUsage> = emptyList()
+    val recentApps: List<DetailedAppUsage> = emptyList(),
+    /** Apps that don't fit any of the four buckets above (Maps, Chrome, Calculator,
+     *  ...) — previously folded into totalScreenTime with no visible row of their
+     *  own, so the total looked unexplained next to the four category rows. */
+    val othersHours: Float = 0f
 )
 
 data class DetailedAppUsage(
